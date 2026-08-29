@@ -47,6 +47,9 @@ export const LandingPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState('up');
+  const [activeSection, setActiveSection] = useState('home');
 
   // Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -57,27 +60,66 @@ export const LandingPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Scroll listener for sticky header & back-to-top
+  // Scroll listener for sticky header, scroll direction, progress bar & scrollspy
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+
     const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setIsScrolled(true);
+      const currentScrollY = window.scrollY;
+
+      // 1. Is Scrolled (>20px)
+      setIsScrolled(currentScrollY > 20);
+
+      // 2. Show Back to Top (>350px)
+      setShowBackToTop(currentScrollY > 350);
+
+      // 3. Scroll Direction tracking for auto-hide/reveal header layout
+      if (currentScrollY > lastScrollY && currentScrollY > 120) {
+        setScrollDirection('down');
       } else {
-        setIsScrolled(false);
+        setScrollDirection('up');
+      }
+      lastScrollY = currentScrollY;
+
+      // 4. Scroll Progress Percentage calculation
+      const totalScrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalScrollHeight > 0) {
+        const progress = (currentScrollY / totalScrollHeight) * 100;
+        setScrollProgress(progress);
       }
 
-      if (window.scrollY > 400) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
+      // 5. Active Section Detection (ScrollSpy)
+      const sections = ['home', 'about', 'how-it-works', 'features', 'contact'];
+      for (const sectionId of sections) {
+        const elem = document.getElementById(sectionId);
+        if (elem) {
+          const rect = elem.getBoundingClientRect();
+          if (rect.top <= 160 && rect.bottom >= 160) {
+            setActiveSection(sectionId);
+            break;
+          }
+        }
       }
     };
-    window.addEventListener('scroll', handleScroll);
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavClick = (e, href) => {
+    e.preventDefault();
+    setIsMobileMenuOpen(false);
+    const targetId = href.replace('#', '');
+    const elem = document.getElementById(targetId);
+    if (elem) {
+      const yOffset = -75;
+      const y = elem.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
 
   const handleContactSubmit = (e) => {
@@ -270,12 +312,24 @@ export const LandingPage = () => {
   return (
     <div id="home" className="min-h-screen bg-slate-50/50 text-slate-900 font-sans antialiased overflow-x-hidden selection:bg-blue-600 selection:text-white">
       {/* ========================================================================= */}
+      {/* 0. TOP SCROLL PROGRESS INDICATOR BAR */}
+      {/* ========================================================================= */}
+      <div
+        className="fixed top-0 left-0 right-0 z-[60] h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 transition-all duration-75 shadow-sm"
+        style={{ width: `${scrollProgress}%` }}
+      />
+
+      {/* ========================================================================= */}
       {/* 1. NAVBAR */}
       {/* ========================================================================= */}
       <header
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        className={`fixed top-0 z-50 w-full transition-all duration-300 transform ${
+          scrollDirection === 'down' && isScrolled
+            ? '-translate-y-full shadow-none'
+            : 'translate-y-0'
+        } ${
           isScrolled
-            ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs py-3.5'
+            ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm py-3'
             : 'bg-transparent py-5'
         }`}
       >
@@ -295,17 +349,30 @@ export const LandingPage = () => {
             </div>
           </Link>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation Links with ScrollSpy indicator */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="hover:text-blue-600 transition-colors"
-              >
-                {link.name}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = activeSection === link.href.replace('#', '');
+              return (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className={`relative py-1 transition-colors ${
+                    isActive ? 'text-blue-600 font-bold' : 'hover:text-blue-600 text-slate-600'
+                  }`}
+                >
+                  {link.name}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNavIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </a>
+              );
+            })}
           </nav>
 
           {/* Right Action Buttons */}
@@ -354,7 +421,7 @@ export const LandingPage = () => {
                   <a
                     key={link.name}
                     href={link.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    onClick={(e) => handleNavClick(e, link.href)}
                     className="py-1.5 hover:text-blue-600"
                   >
                     {link.name}
@@ -385,8 +452,8 @@ export const LandingPage = () => {
       {/* ========================================================================= */}
       {/* 2. HERO SECTION */}
       {/* ========================================================================= */}
-      <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-indigo-50/20 to-slate-50/50">
-        {/* Soft Background Geometry */}
+      <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-indigo-50/20 to-slate-50/50">
+        {/* Soft Background Geometry with subtle scroll motion */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute top-10 right-10 w-[500px] h-[500px] bg-gradient-to-br from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl" />
           <div className="absolute top-40 left-10 w-[450px] h-[450px] bg-gradient-to-tr from-purple-400/10 to-blue-400/10 rounded-full blur-3xl" />
@@ -429,6 +496,7 @@ export const LandingPage = () => {
               </Link>
               <a
                 href="#how-it-works"
+                onClick={(e) => handleNavClick(e, '#how-it-works')}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-xs transition-all"
               >
                 <span>Explore How It Works</span>
@@ -449,6 +517,25 @@ export const LandingPage = () => {
                 <CheckCircle2 size={16} className="text-purple-600" />
                 <span>Efficient Project Coordination</span>
               </div>
+            </div>
+
+            {/* Interactive Scroll Down Indicator */}
+            <div className="pt-8 flex justify-center">
+              <a
+                href="#about"
+                onClick={(e) => handleNavClick(e, '#about')}
+                className="flex flex-col items-center gap-2 text-slate-400 hover:text-blue-600 transition-colors group cursor-pointer"
+                aria-label="Scroll down to About section"
+              >
+                <span className="text-[11px] font-bold tracking-wider uppercase">Scroll to explore</span>
+                <motion.div
+                  animate={{ y: [0, 6, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-slate-200 shadow-xs group-hover:border-blue-300 group-hover:bg-blue-50/50"
+                >
+                  <ArrowRight className="rotate-90 text-blue-600" size={16} />
+                </motion.div>
+              </a>
             </div>
           </motion.div>
         </div>
@@ -1003,22 +1090,22 @@ export const LandingPage = () => {
 
             {/* Links */}
             <div className="flex flex-wrap items-center justify-center gap-6 font-semibold text-slate-600">
-              <a href="#home" className="hover:text-blue-600 transition-colors">Home</a>
-              <a href="#about" className="hover:text-blue-600 transition-colors">About</a>
-              <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How It Works</a>
-              <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
-              <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
+              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="hover:text-blue-600 transition-colors">Home</a>
+              <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-blue-600 transition-colors">About</a>
+              <a href="#how-it-works" onClick={(e) => handleNavClick(e, '#how-it-works')} className="hover:text-blue-600 transition-colors">How It Works</a>
+              <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-blue-600 transition-colors">Features</a>
+              <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="hover:text-blue-600 transition-colors">Contact</a>
             </div>
 
             {/* Social Media */}
             <div className="flex items-center gap-3 text-slate-400">
-              <a href="#home" className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-600 transition-colors" aria-label="LinkedIn">
+              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-600 transition-colors" aria-label="LinkedIn">
                 <FaLinkedin size={16} />
               </a>
-              <a href="#home" className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-slate-800 transition-colors" aria-label="GitHub">
+              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-slate-800 transition-colors" aria-label="GitHub">
                 <FaGithub size={16} />
               </a>
-              <a href="#home" className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-400 transition-colors" aria-label="Twitter">
+              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-400 transition-colors" aria-label="Twitter">
                 <FaTwitter size={16} />
               </a>
             </div>
@@ -1036,16 +1123,22 @@ export const LandingPage = () => {
       </footer>
 
       {/* Floating Back to Top Button */}
-      {showBackToTop && (
-        <button
-          type="button"
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-all hover:scale-110 active:scale-95"
-          aria-label="Back to Top"
-        >
-          <ArrowUp size={18} />
-        </button>
-      )}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            transition={{ duration: 0.2 }}
+            type="button"
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-all hover:scale-110 active:scale-95 group cursor-pointer"
+            aria-label="Back to Top"
+          >
+            <ArrowUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 import {
   initialCompanyProfile,
   initialClients,
@@ -36,6 +37,21 @@ export const DataProvider = ({ children }) => {
   const [projects, setProjects] = useState(initialProjects);
   const [activities, setActivities] = useState(initialActivities);
   const [notifications, setNotifications] = useState(initialNotifications);
+
+  // Sync projects and data with Spring Boot backend when available
+  useEffect(() => {
+    async function syncBackendData() {
+      try {
+        const projRes = await api.projects.getAll();
+        if (projRes && projRes.success && Array.isArray(projRes.data) && projRes.data.length > 0) {
+          setProjects(projRes.data);
+        }
+      } catch (err) {
+        // Keep initial prototype dataset if backend is loading or unavailable
+      }
+    }
+    syncBackendData();
+  }, []);
 
   // Client Portal State
   const [clientProfile, setClientProfile] = useState(initialClientProfile);

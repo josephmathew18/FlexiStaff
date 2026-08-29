@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -100,19 +101,15 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.removeItem('flexistaff_user');
       localStorage.removeItem('flexistaff_role');
+      localStorage.removeItem('flexistaff_token');
       localStorage.setItem('flexistaff_auth', 'false');
     }
   }, [user, role, isAuthenticated]);
 
   /**
-   * Validate and authenticate credentials
-   * @param {string} email
-   * @param {string} password
-   * @param {string} selectedRole
-   * @returns {Promise<{success: boolean, error?: string, user?: object, redirectPath?: string}>}
+   * Validate and authenticate credentials via Spring Boot REST API or Demo Accounts
    */
   const login = async (email, password, selectedRole) => {
-    // Basic validation
     const trimmedEmail = (email || '').trim().toLowerCase();
     const trimmedPassword = (password || '').trim();
 
@@ -134,19 +131,47 @@ export const AuthProvider = ({ children }) => {
     else if (selectedRole === 'Partner Company' || selectedRole === 'Partner') roleKey = 'partner';
     else if (selectedRole === 'Workforce' || selectedRole === 'Professional / Freelancer' || selectedRole === 'Professional' || selectedRole === 'Freelancer') roleKey = 'workforce';
 
-    const accountForRole = DEMO_ACCOUNTS[roleKey];
+    // 1. Attempt Spring Boot Backend REST API Authentication
+    const apiRes = await api.auth.login(trimmedEmail, trimmedPassword);
+    if (apiRes && apiRes.success && apiRes.data) {
+      const authData = apiRes.data;
+      if (authData.accessToken) {
+        localStorage.setItem('flexistaff_token', authData.accessToken);
+      }
 
-    // Find if credentials belong to any known account
+      // Map backend role to frontend portal path
+      let portalPath = '/admin/dashboard';
+      if (authData.role === 'ROLE_CLIENT') portalPath = '/client/dashboard';
+      else if (authData.role === 'ROLE_MANAGER') portalPath = '/manager/dashboard';
+      else if (authData.role === 'ROLE_PROFESSIONAL') portalPath = '/workforce/dashboard';
+
+      const backendUser = {
+        id: authData.userId,
+        name: authData.fullName,
+        email: authData.email,
+        role: selectedRole,
+        portalPath,
+      };
+
+      setUser(backendUser);
+      setRole(selectedRole);
+      setIsAuthenticated(true);
+
+      return {
+        success: true,
+        user: backendUser,
+        redirectPath: portalPath,
+      };
+    }
+
+    // 2. Fallback to Local Demo Accounts for frontend prototype capability
+    const accountForRole = DEMO_ACCOUNTS[roleKey];
     const matchedAccountKey = Object.keys(DEMO_ACCOUNTS).find((key) => {
       const acc = DEMO_ACCOUNTS[key];
-      const matchesEmail =
-        acc.email.toLowerCase() === trimmedEmail ||
-        acc.aliases.some((alias) => alias.toLowerCase() === trimmedEmail);
-      return matchesEmail;
+      return acc.email.toLowerCase() === trimmedEmail || acc.aliases.some((alias) => alias.toLowerCase() === trimmedEmail);
     });
 
     if (!matchedAccountKey) {
-      // Check if general demo match
       if (
         (trimmedEmail.includes('admin') && roleKey === 'admin') ||
         (trimmedEmail.includes('client') && roleKey === 'client') ||
@@ -166,12 +191,10 @@ export const AuthProvider = ({ children }) => {
       };
     }
 
-    // Check password
     if (matchedAccountKey && trimmedPassword !== DEMO_ACCOUNTS[matchedAccountKey].password && trimmedPassword !== 'password' && trimmedPassword !== 'demo123') {
       return { success: false, error: 'Invalid email or password.' };
     }
 
-    // Authenticate user
     const authenticatedUser = accountForRole;
     setUser(authenticatedUser);
     setRole(authenticatedUser.role);
