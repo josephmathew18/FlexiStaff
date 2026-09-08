@@ -31,13 +31,12 @@ export const ClientWorkforce = () => {
 
   // Client projects list
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || 'Finovate Global').toLowerCase();
+    const companyName = (clientProfile?.company || '').toLowerCase();
     const clientId = clientProfile?.id;
     return projects.filter(
       (p) =>
         p &&
-        ((p.client || '').toLowerCase().includes('finovate') ||
-          (p.client || '').toLowerCase() === companyName ||
+        ((companyName && (p.client || '').toLowerCase() === companyName) ||
           p.clientId === clientId)
     );
   }, [projects, clientProfile]);
@@ -51,93 +50,7 @@ export const ClientWorkforce = () => {
   // Consolidate deployed workforce roster strictly for the logged-in client's projects
   const deployedWorkforce = useMemo(() => {
     // Base roster of active contractors across projects
-    const baseRoster = [
-      {
-        id: 'wf-c-01',
-        name: 'Sarah Jenkins',
-        role: 'Senior QA Automation Engineer',
-        projectId: 'PRJ-101',
-        projectName: 'Cloud Infrastructure Modernization',
-        manager: 'Alex Morgan',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80',
-        skills: ['Selenium', 'Cypress', 'TypeScript', 'CI/CD'],
-        experience: '5+ years',
-        hourlyRate: '$105/hr',
-        weeklyHours: 40,
-        status: 'Active',
-        joinedDate: '2026-03-15',
-        rating: 4.9,
-        performance: 'Exceptional (Sprint MVP)',
-      },
-      {
-        id: 'wf-c-02',
-        name: 'David Miller',
-        role: 'Senior Frontend React Engineer',
-        projectId: 'PRJ-101',
-        projectName: 'Cloud Infrastructure Modernization',
-        manager: 'Alex Morgan',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-        skills: ['React.js', 'TypeScript', 'Tailwind CSS', 'Redux'],
-        experience: '4+ years',
-        hourlyRate: '$110/hr',
-        weeklyHours: 40,
-        status: 'Active',
-        joinedDate: '2026-04-01',
-        rating: 4.8,
-        performance: 'High Velocity',
-      },
-      {
-        id: 'wf-c-03',
-        name: 'Sophia Chen',
-        role: 'Lead ML & Python Engineer',
-        projectId: 'PRJ-102',
-        projectName: 'AI Clinical Decision Support Engine',
-        manager: 'Alex Morgan',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&q=80',
-        skills: ['Python', 'PyTorch', 'Transformers', 'FastAPI'],
-        experience: '6+ years',
-        hourlyRate: '$130/hr',
-        weeklyHours: 35,
-        status: 'Active',
-        joinedDate: '2026-02-10',
-        rating: 5.0,
-        performance: 'Top Specialist',
-      },
-      {
-        id: 'wf-c-04',
-        name: 'Marcus Vance',
-        role: 'DevOps & Kubernetes Specialist',
-        projectId: 'PRJ-101',
-        projectName: 'Cloud Infrastructure Modernization',
-        manager: 'Alex Morgan',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80',
-        skills: ['Kubernetes', 'Docker', 'Terraform', 'AWS'],
-        experience: '5+ years',
-        hourlyRate: '$120/hr',
-        weeklyHours: 40,
-        status: 'Active',
-        joinedDate: '2026-01-20',
-        rating: 4.9,
-        performance: 'Consistent On-Time Delivery',
-      },
-      {
-        id: 'wf-c-05',
-        name: 'Elena Rostova',
-        role: 'UI/UX Product Designer',
-        projectId: 'PRJ-REQ-201',
-        projectName: 'AI Smart Credit Scoring Engine',
-        manager: 'Alex Morgan',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
-        skills: ['Figma', 'UI Design', 'Design Systems', 'User Research'],
-        experience: '4+ years',
-        hourlyRate: '$95/hr',
-        weeklyHours: 30,
-        status: 'Onboarding',
-        joinedDate: '2026-08-01',
-        rating: 4.7,
-        performance: 'In Initial Sprint',
-      },
-    ];
+    const baseRoster = [];
 
     // Filter base roster strictly to contractors doing projects for THIS client
     const clientBaseRoster = baseRoster.filter((m) => {
@@ -148,10 +61,7 @@ export const ClientWorkforce = () => {
         clientProjects.some(
           (p) =>
             p.id === m.projectId ||
-            (p.title || p.name || '').toLowerCase() === pNameLower ||
-            pNameLower.includes('finovate') ||
-            pNameLower.includes('cloud') ||
-            pNameLower.includes('credit')
+            (p.title || p.name || '').toLowerCase() === pNameLower
         )
       );
     });
@@ -165,7 +75,7 @@ export const ClientWorkforce = () => {
         const isClientProj =
           clientProjectIds.has(a.projectId) ||
           clientProjectNames.has((a.projectName || '').toLowerCase()) ||
-          (a.client || '').toLowerCase().includes('finovate');
+          (clientProfile?.company && (a.client || '').toLowerCase() === clientProfile.company.toLowerCase());
         return isWorkingState && isClientProj;
       })
       .map((a, idx) => ({
@@ -174,7 +84,7 @@ export const ClientWorkforce = () => {
         role: a.role || 'Software Engineer',
         projectId: a.projectId,
         projectName: a.projectName || 'Client Project Pod',
-        manager: a.manager || 'Alex Morgan',
+        manager: a.manager || 'Assigned Manager',
         avatar: a.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
         skills: a.skills || ['React.js', 'JavaScript'],
         experience: a.experience || '3+ years',
@@ -279,7 +189,7 @@ export const ClientWorkforce = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Assigned Manager</span>
             <UserCheck size={16} className="text-purple-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900">Alex Morgan</p>
+          <p className="text-2xl font-black text-slate-900">Assigned Manager</p>
           <p className="text-[11px] text-slate-500 font-medium mt-1">Lead Client Success Manager</p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -23,47 +24,54 @@ import {
   User,
   Layers,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Logo } from '../../components/common/Logo';
+import UserAvatar from '../../components/common/UserAvatar';
+import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 export const PartnerLayout = () => {
-  const {
-    partnerProfile,
-    partnerProjects,
-    partnerWorkforce,
-    partnerNotifications,
-    markPartnerNotificationRead,
-    markAllPartnerNotificationsRead,
-  } = useData();
-
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { effectiveTheme } = useTheme();
+  const { partnerProfile, partnerProjects, partnerWorkforce, partnerNotifications } = useData() || {};
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const pendingApprovalCount = partnerProjects.filter((p) => p.status === 'Pending Approval').length;
-  const availableWorkforceCount = partnerWorkforce.filter((w) => w.availability === 'Available').length;
-  const unreadNotifCount = partnerNotifications.filter((n) => n.unread).length;
+  const pendingRequestsCount = (partnerWorkforce || []).filter(
+    (w) => w.status === 'Pending Allocation' || w.status === 'Under Review'
+  ).length;
+  const unreadNotifCount = (partnerNotifications || []).filter((n) => n.unread).length;
 
   const navItems = [
     { label: 'Dashboard', path: '/partner/dashboard', icon: LayoutDashboard },
     {
-      label: 'Projects',
+      label: 'Partner Projects',
       path: '/partner/projects',
       icon: FolderKanban,
-      badge: pendingApprovalCount > 0 ? `${pendingApprovalCount} Pending` : null,
-      badgeColor: 'bg-amber-100 text-amber-800',
+      badge: (partnerProjects || []).length > 0 ? `${(partnerProjects || []).length} Active` : null,
+      badgeColor: 'bg-[#004ac6]/10 text-[#004ac6]',
     },
+    { label: 'Project Progress', path: '/partner/project-progress', icon: TrendingUp },
     {
-      label: 'Workforce',
+      label: 'Workforce Roster',
       path: '/partner/workforce',
       icon: Users,
-      badge: availableWorkforceCount > 0 ? `${availableWorkforceCount} Avail` : null,
+      badge: (partnerWorkforce || []).length > 0 ? (partnerWorkforce || []).length : null,
       badgeColor: 'bg-emerald-100 text-emerald-800',
+    },
+    { label: 'Add Workforce Member', path: '/partner/workforce/register', icon: PlusCircle },
+    {
+      label: 'Allocation Requests',
+      path: '/partner/workforce-requests',
+      icon: GitPullRequest,
+      badge: pendingRequestsCount > 0 ? `${pendingRequestsCount} Pending` : null,
+      badgeColor: 'bg-amber-100 text-amber-800',
     },
     {
       label: 'Notifications',
@@ -72,8 +80,8 @@ export const PartnerLayout = () => {
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
-    { label: 'Profile', path: '/partner/profile', icon: Building2 },
-    { label: 'Support', path: '/partner/support', icon: HelpCircle },
+    { label: 'Company Profile', path: '/partner/profile', icon: Building2 },
+    { label: 'Support & Help', path: '/partner/support', icon: HelpCircle },
   ];
 
   const handleLogout = () => {
@@ -83,23 +91,15 @@ export const PartnerLayout = () => {
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-[#c3c6d7]/70 text-[#434655]">
+    <div className={`flex h-full flex-col justify-between border-r transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'
+    }`}>
       <div>
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-5 border-b border-slate-100 bg-gradient-to-r from-blue-50/40 to-indigo-50/40">
-          <Link to="/partner/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#004ac6] to-[#2563eb] text-white shadow-md shadow-[#2563eb]/20">
-              <Layers size={20} />
-            </div>
-            <div>
-              <span className="font-extrabold text-sm tracking-tight text-[#191b23] block leading-tight">
-                FlexiStaff<span className="text-[#2563eb]">AI</span>
-              </span>
-              <span className="text-[10px] font-bold text-slate-500 tracking-wide uppercase">
-                Partner Portal
-              </span>
-            </div>
-          </Link>
+        <div className={`flex h-16 items-center justify-between px-5 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10 bg-[#18172c]' : 'border-slate-100 bg-gradient-to-r from-blue-50/40 to-indigo-50/40'
+        }`}>
+          <Logo size="md" to="/partner/dashboard" />
           {isMobileMenuOpen && (
             <button
               type="button"
@@ -112,19 +112,24 @@ export const PartnerLayout = () => {
         </div>
 
         {/* Active Partner Company Identity Strip */}
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+        <div className={`px-4 py-3 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50/60'
+        }`}>
           <Link
             to="/partner/profile"
             onClick={() => setIsMobileMenuOpen(false)}
             className="flex items-center gap-2.5 group"
           >
-            <img
-              src={partnerProfile?.logoUrl || partnerProfile?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
-              alt={partnerProfile?.name || 'Partner Company'}
-              className="h-8 w-8 rounded-lg object-cover ring-1 ring-slate-200"
+            <UserAvatar
+              src={partnerProfile?.logoUrl || partnerProfile?.avatar}
+              name={partnerProfile?.name || 'Partner Company'}
+              size="sm"
+              className="h-8 w-8 rounded-lg"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 truncate">{partnerProfile?.name || 'Partner Company'}</p>
+              <p className={`text-xs font-bold group-hover:text-indigo-700 truncate ${
+                effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'
+              }`}>{partnerProfile?.name || 'Partner Company'}</p>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
                 <ShieldCheck size={10} className="text-emerald-600" />
                 <span>Verified Partner Company</span>
@@ -153,6 +158,8 @@ export const PartnerLayout = () => {
                 className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 ${
                   isActive
                     ? 'bg-[#2563eb] text-white shadow-sm shadow-[#2563eb]/25 font-bold'
+                    : effectiveTheme === 'dark'
+                    ? 'text-slate-300 hover:bg-white/5 hover:text-white'
                     : 'text-[#434655] hover:bg-slate-100 hover:text-[#191b23]'
                 }`}
               >
@@ -183,7 +190,7 @@ export const PartnerLayout = () => {
       </div>
 
       {/* Sidebar Footer */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/40">
+      <div className={`p-3 border-t ${effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'}`}>
         <button
           type="button"
           onClick={handleLogout}
@@ -197,7 +204,9 @@ export const PartnerLayout = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#faf8ff] text-[#191b23] font-sans antialiased">
+    <div className={`flex min-h-screen font-sans antialiased transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-30 shadow-xs">
         {sidebarContent}
@@ -219,7 +228,7 @@ export const PartnerLayout = () => {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="relative z-10 w-72 h-full bg-white shadow-2xl"
+              className="relative z-10 w-72 h-full shadow-2xl"
             >
               {sidebarContent}
             </motion.div>
@@ -230,7 +239,9 @@ export const PartnerLayout = () => {
       {/* Main Content */}
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#c3c6d7]/60 bg-white/90 px-4 sm:px-6 backdrop-blur-md">
+        <header className={`sticky top-0 z-20 flex h-16 items-center justify-between border-b px-4 sm:px-6 backdrop-blur-md transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324]/90 border-white/10 text-white' : 'bg-white/90 border-[#c3c6d7]/60 text-slate-900'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -241,13 +252,16 @@ export const PartnerLayout = () => {
             </button>
             <div className="hidden sm:block">
               <span className="text-xs font-semibold text-[#737686]">FlexiStaff Client & Partner Portal</span>
-              <h2 className="text-sm font-bold text-[#191b23] capitalize">
+              <h2 className={`text-sm font-bold capitalize ${
+                effectiveTheme === 'dark' ? 'text-white' : 'text-[#191b23]'
+              }`}>
                 {location.pathname.replace('/partner/', '').replace('/', ' / ') || 'Dashboard'}
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeDropdown />
             {/* Notifications Popover */}
             <div className="relative">
               <button
@@ -336,10 +350,11 @@ export const PartnerLayout = () => {
                 }}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
               >
-                <img
-                  src={partnerProfile.avatar}
-                  alt={partnerProfile.contactPerson}
-                  className="h-7 w-7 rounded-lg object-cover"
+                <UserAvatar
+                  src={partnerProfile?.avatar}
+                  name={partnerProfile?.contactPerson || partnerProfile?.name || 'Partner Contact'}
+                  size="xs"
+                  className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
                   <p className="font-bold text-xs leading-none">{partnerProfile.contactPerson}</p>

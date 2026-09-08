@@ -60,11 +60,11 @@ export const WorkforceAssignments = () => {
   });
   const [isSubmittingCommit, setIsSubmittingCommit] = useState(false);
 
-  // Find all assignments for this talent (David Miller / Elena Rostova or current user)
+  // Find all assignments for this talent
   const myAssignments = useMemo(() => {
     return (managerAssignments || []).filter(
       (a) =>
-        a.professionalName?.toLowerCase() === (workforceUserProfile?.name || 'David Miller').toLowerCase() ||
+        (workforceUserProfile?.name && a.professionalName?.toLowerCase() === workforceUserProfile.name.toLowerCase()) ||
         a.professionalId === workforceUserProfile?.id
     );
   }, [managerAssignments, workforceUserProfile]);
@@ -148,7 +148,7 @@ export const WorkforceAssignments = () => {
         addMilestoneCommit(pId, commitFormData.milestoneId, {
           commitMessage: commitFormData.commitMessage,
           workCompleted: commitFormData.workCompleted,
-          authorName: workforceUserProfile?.name || 'David Miller',
+          authorName: workforceUserProfile?.name || 'Workforce Specialist',
         });
       }
 
@@ -319,7 +319,7 @@ export const WorkforceAssignments = () => {
                   commitHash: 'a7f3d91',
                   commitMessage: 'feat(auth): Implement JWT token rotation & session refresh handler',
                   workCompleted: 'Configured secure HttpOnly cookies, added middleware route protection, and wrote unit tests for auth flow.',
-                  authorName: workforceUserProfile?.name || 'David Miller',
+                  authorName: workforceUserProfile?.name || 'Workforce Specialist',
                   dateTime: '2026-08-28 02:45 PM',
                 },
               ],
@@ -335,7 +335,7 @@ export const WorkforceAssignments = () => {
                   commitHash: 'c4d9e20',
                   commitMessage: 'feat(analytics): Wire WebSocket live metrics feed to dashboard UI',
                   workCompleted: 'Integrated Socket.io client listener with automatic reconnection and live chart state updates.',
-                  authorName: workforceUserProfile?.name || 'David Miller',
+                  authorName: workforceUserProfile?.name || 'Workforce Specialist',
                   dateTime: '2026-08-28 04:10 PM',
                 },
               ],

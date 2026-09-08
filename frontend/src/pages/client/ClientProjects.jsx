@@ -27,9 +27,8 @@ export const ClientProjects = () => {
   const clientProjects = useMemo(() => {
     return projects.filter(
       (p) =>
-        p.client?.toLowerCase() === (clientProfile?.company || 'Finovate Global').toLowerCase() ||
-        p.clientId === clientProfile?.id ||
-        p.client?.toLowerCase().includes('finovate')
+        (clientProfile?.company && p.client?.toLowerCase() === clientProfile.company.toLowerCase()) ||
+        p.clientId === clientProfile?.id
     );
   }, [projects, clientProfile]);
 

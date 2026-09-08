@@ -21,53 +21,7 @@ export const ClientNotifications = () => {
 
   const [filterType, setFilterType] = useState('all');
 
-  const [notificationsList, setNotificationsList] = useState([
-    {
-      id: 'cn-101',
-      title: 'Project In Progress',
-      message: 'AI Clinical Decision Support Engine has 3 assigned specialists active on Sprint 4.',
-      type: 'project',
-      unread: false,
-      time: '2 hours ago',
-      link: '/client/projects/PRJ-102',
-    },
-    {
-      id: 'cn-102',
-      title: 'Project Requirement Review Pending',
-      message: 'Your project requirement "AI Smart Credit Scoring Engine" is awaiting Admin sign-off.',
-      type: 'approval',
-      unread: true,
-      time: 'Just now',
-      link: '/client/projects/PRJ-REQ-201',
-    },
-    {
-      id: 'cn-103',
-      title: 'Workforce Assigned to Squad',
-      message: 'Sarah Jenkins (Senior QA Engineer) was assigned to Cloud Modernization pod by Alex Morgan.',
-      type: 'workforce',
-      unread: true,
-      time: '5 hours ago',
-      link: '/client/workforce',
-    },
-    {
-      id: 'cn-104',
-      title: 'Sprint 3 Milestone Approved',
-      message: 'Frontend architecture blueprint was approved by client lead.',
-      type: 'project',
-      unread: false,
-      time: 'Yesterday',
-      link: '/client/progress',
-    },
-    {
-      id: 'cn-105',
-      title: 'SOW Billing Verified',
-      message: 'Q3 Enterprise billing statement ready for invoice download.',
-      type: 'billing',
-      unread: false,
-      time: '2 days ago',
-      link: '/client/profile',
-    },
-  ]);
+  const [notificationsList, setNotificationsList] = useState(clientNotifications || []);
 
   const handleMarkRead = (id) => {
     setNotificationsList((prev) =>

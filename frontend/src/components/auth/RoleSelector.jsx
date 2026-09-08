@@ -8,8 +8,6 @@ export const ROLE_DEFINITIONS = [
     title: 'Admin',
     icon: ShieldCheck,
     description: 'Manage approvals and system operations',
-    defaultEmail: 'admin@flexistaff.com',
-    defaultPassword: 'admin123',
     redirectPath: '/admin/dashboard',
   },
   {
@@ -17,8 +15,6 @@ export const ROLE_DEFINITIONS = [
     title: 'Partner Company',
     icon: Building2,
     description: 'Manage projects and workforce requirements',
-    defaultEmail: 'partner@flexistaff.com',
-    defaultPassword: 'partner123',
     redirectPath: '/partner/dashboard',
   },
   {
@@ -26,8 +22,6 @@ export const ROLE_DEFINITIONS = [
     title: 'Manager',
     icon: Users,
     description: 'Match and assign workforce to projects',
-    defaultEmail: 'manager@flexistaff.com',
-    defaultPassword: 'manager123',
     redirectPath: '/manager/dashboard',
   },
 ];

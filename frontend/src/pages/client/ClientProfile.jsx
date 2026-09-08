@@ -18,25 +18,38 @@ import {
   Upload,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
+import UserAvatar from '../../components/common/UserAvatar';
 
 export const ClientProfile = () => {
+  const { user } = useAuth() || {};
   const { clientProfile, updateClientProfile } = useData();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: clientProfile?.name || 'David Sterling',
-    company: clientProfile?.company || 'Finovate Global',
-    email: clientProfile?.email || 'client@flexistaff.com',
-    phone: clientProfile?.phone || '+1 (212) 555-0192',
-    address: clientProfile?.address || '120 Broadway, Suite 3400',
-    city: clientProfile?.city || 'New York',
-    country: clientProfile?.country || 'United States',
-    avatar:
-      clientProfile?.avatar ||
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-    industry: clientProfile?.industry || 'Financial Technology',
+    name: clientProfile?.name || clientProfile?.contactPerson || user?.name || user?.fullName || 'Client Lead',
+    company: clientProfile?.company || clientProfile?.companyName || user?.companyName || user?.company || 'Client Organization',
+    email: clientProfile?.email || user?.email || '',
+    phone: clientProfile?.phone || user?.phone || '',
+    address: clientProfile?.address || 'MG Road, Indiranagar',
+    city: clientProfile?.city || 'Bengaluru',
+    country: clientProfile?.country || 'India',
+    avatar: clientProfile?.avatar || user?.avatar || '',
+    industry: clientProfile?.industry || 'Technology & Financial Services',
   });
+
+  React.useEffect(() => {
+    if (clientProfile || user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: clientProfile?.name || clientProfile?.contactPerson || user?.name || user?.fullName || prev.name,
+        company: clientProfile?.company || clientProfile?.companyName || user?.companyName || user?.company || prev.company,
+        email: clientProfile?.email || user?.email || prev.email,
+        phone: clientProfile?.phone || user?.phone || prev.phone,
+      }));
+    }
+  }, [clientProfile, user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -152,11 +165,15 @@ export const ClientProfile = () => {
 
       {/* Profile Overview Banner */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group">
-          <img
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UserAvatar
             src={formData.avatar}
-            alt={formData.name}
-            className="w-24 h-24 rounded-3xl object-cover ring-4 ring-emerald-50 shadow-md"
+            name={formData.name || formData.companyName}
+            size="xl"
+            className="w-24 h-24 rounded-3xl ring-4 ring-emerald-50 shadow-md"
           />
           <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white p-1.5 rounded-xl shadow-xs">
             <Camera size={14} />
@@ -337,7 +354,7 @@ export const ClientProfile = () => {
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="120 Broadway, Suite 3400"
+                placeholder="MG Road, Indiranagar"
                 className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-emerald-600"
               />
             </div>
@@ -348,7 +365,7 @@ export const ClientProfile = () => {
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="New York"
+                placeholder="Bengaluru"
                 className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-emerald-600"
               />
             </div>
@@ -359,7 +376,7 @@ export const ClientProfile = () => {
                 type="text"
                 value={formData.country}
                 onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                placeholder="United States"
+                placeholder="India"
                 className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-emerald-600"
               />
             </div>

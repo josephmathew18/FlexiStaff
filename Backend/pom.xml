@@ -66,11 +66,18 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- In-Memory H2 Database (Enables JPA auto-config & local testing without external PostgreSQL setup) -->
+        <!-- PostgreSQL JDBC Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- In-Memory H2 Database for testing -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <!-- Lombok for Boilerplate Reduction -->

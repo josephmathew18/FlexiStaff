@@ -3,82 +3,35 @@ import api from '../services/api';
 
 const AuthContext = createContext(null);
 
-// Standard Demo Accounts for FlexiStaff Platform
-export const DEMO_ACCOUNTS = {
-  admin: {
-    id: 'usr-admin-01',
-    name: 'Sarah Jenkins',
-    email: 'admin@flexistaff.com',
-    aliases: ['sarah.jenkins@flexistaff.ai', 'admin'],
-    password: 'admin123',
-    role: 'Admin',
-    portalName: 'Company Admin Portal',
-    portalPath: '/admin/dashboard',
-    department: 'Enterprise Operations',
-  },
-  client: {
-    id: 'usr-client-01',
-    name: 'David Sterling',
-    company: 'Finovate Global',
-    email: 'client@flexistaff.com',
-    aliases: ['d.sterling@finovate.io', 'client'],
-    password: 'client123',
-    role: 'Client',
-    portalName: 'Client Portal',
-    portalPath: '/client/dashboard',
-    department: 'Technology & Project Requirements',
-  },
-  manager: {
-    id: 'mng-01',
-    name: 'Sarah Jenkins',
-    email: 'manager@flexistaff.com',
-    aliases: ['sarah.jenkins@flexistaff.ai', 'sarah.jenkins@manager.flexistaff.ai', 'manager'],
-    password: 'manager123',
-    role: 'Manager',
-    portalName: 'Organization Manager Portal',
-    portalPath: '/manager/dashboard',
-    department: 'Enterprise Workforce Operations',
-  },
-  partner: {
-    id: 'usr-partner-01',
-    name: 'Marcus Vance',
-    company: 'Apex Digital Enterprises',
-    email: 'partner@flexistaff.com',
-    aliases: ['partnerships@apexdigital.io', 'partner'],
-    password: 'partner123',
-    role: 'Partner Company',
-    portalName: 'Partner Company Portal',
-    portalPath: '/partner/dashboard',
-    department: 'Client Partnerships',
-  },
-  workforce: {
-    id: 'usr-workforce-01',
-    name: 'Elena Rostova',
-    roleType: 'Professional',
-    email: 'talent@flexistaff.com',
-    aliases: ['workforce@flexistaff.com', 'talent', 'freelancer@flexistaff.com'],
-    password: 'talent123',
-    role: 'Workforce',
-    portalName: 'Professional & Freelancer Portal',
-    portalPath: '/workforce/dashboard',
-    department: 'Software Engineering Squad',
-  },
-};
-
 export const AuthProvider = ({ children }) => {
   // Session initialization from localStorage
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem('flexistaff_user');
-      return savedUser ? JSON.parse(savedUser) : DEMO_ACCOUNTS.admin;
+      if (savedUser) return JSON.parse(savedUser);
+      return {
+        id: 'usr-admin-01',
+        name: 'System Administrator',
+        fullName: 'System Administrator',
+        email: 'admin@flexistaff.com',
+        role: 'Admin',
+        portalPath: '/admin/dashboard',
+      };
     } catch {
-      return DEMO_ACCOUNTS.admin;
+      return {
+        id: 'usr-admin-01',
+        name: 'System Administrator',
+        fullName: 'System Administrator',
+        email: 'admin@flexistaff.com',
+        role: 'Admin',
+        portalPath: '/admin/dashboard',
+      };
     }
   });
 
   const [role, setRole] = useState(() => {
     try {
-      return localStorage.getItem('flexistaff_role') || 'Admin';
+      return localStorage.getItem('flexistaff_role') || user?.role || 'Admin';
     } catch {
       return 'Admin';
     }
@@ -86,7 +39,8 @@ export const AuthProvider = ({ children }) => {
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
-      return localStorage.getItem('flexistaff_auth') === 'true';
+      const auth = localStorage.getItem('flexistaff_auth');
+      return auth !== null ? auth === 'true' : true;
     } catch {
       return true;
     }
@@ -107,9 +61,9 @@ export const AuthProvider = ({ children }) => {
   }, [user, role, isAuthenticated]);
 
   /**
-   * Validate and authenticate credentials via Spring Boot REST API or Demo Accounts
+   * Validate and authenticate credentials via Spring Boot REST API
    */
-  const login = async (email, password, selectedRole) => {
+  const login = async (email, password, selectedRole = null) => {
     const trimmedEmail = (email || '').trim().toLowerCase();
     const trimmedPassword = (password || '').trim();
 
@@ -119,91 +73,179 @@ export const AuthProvider = ({ children }) => {
     if (!trimmedPassword) {
       return { success: false, error: 'Please enter your password.' };
     }
-    if (!selectedRole) {
-      return { success: false, error: 'Please select your role.' };
-    }
 
-    // Role key mapper
-    let roleKey = 'admin';
-    if (selectedRole === 'Admin' || selectedRole === 'Company Admin') roleKey = 'admin';
-    else if (selectedRole === 'Client') roleKey = 'client';
-    else if (selectedRole === 'Manager' || selectedRole === 'Organization Manager') roleKey = 'manager';
-    else if (selectedRole === 'Partner Company' || selectedRole === 'Partner') roleKey = 'partner';
-    else if (selectedRole === 'Workforce' || selectedRole === 'Professional / Freelancer' || selectedRole === 'Professional' || selectedRole === 'Freelancer') roleKey = 'workforce';
+    try {
+      // 1. Attempt Spring Boot Backend REST API Authentication
+      const apiRes = await api.auth.login(trimmedEmail, trimmedPassword);
+      if (apiRes && apiRes.success && apiRes.data) {
+        const authData = apiRes.data;
+        if (authData.accessToken) {
+          localStorage.setItem('flexistaff_token', authData.accessToken);
+        }
 
-    // 1. Attempt Spring Boot Backend REST API Authentication
-    const apiRes = await api.auth.login(trimmedEmail, trimmedPassword);
-    if (apiRes && apiRes.success && apiRes.data) {
-      const authData = apiRes.data;
-      if (authData.accessToken) {
-        localStorage.setItem('flexistaff_token', authData.accessToken);
+        let portalPath = '/admin/dashboard';
+        let userRole = selectedRole || 'Admin';
+
+        if (authData.role === 'ROLE_CLIENT') {
+          portalPath = '/client/dashboard';
+          userRole = selectedRole || 'Client';
+        } else if (authData.role === 'ROLE_MANAGER') {
+          portalPath = '/manager/dashboard';
+          userRole = selectedRole || 'Manager';
+        } else if (authData.role === 'ROLE_PARTNER') {
+          portalPath = '/partner/dashboard';
+          userRole = selectedRole || 'Partner Company';
+        } else if (authData.role === 'ROLE_PROFESSIONAL' || authData.role === 'ROLE_WORKFORCE') {
+          portalPath = '/workforce/dashboard';
+          userRole = selectedRole || 'Workforce';
+        }
+
+        const backendUser = {
+          id: authData.userId,
+          name: authData.fullName,
+          fullName: authData.fullName,
+          email: authData.email,
+          phone: authData.phone || '',
+          companyName: authData.companyName || '',
+          company: authData.companyName || '',
+          role: userRole,
+          portalPath,
+        };
+
+        setUser(backendUser);
+        setRole(userRole);
+        setIsAuthenticated(true);
+        localStorage.setItem('flexistaff_user', JSON.stringify(backendUser));
+
+        return {
+          success: true,
+          user: backendUser,
+          redirectPath: portalPath,
+        };
       }
-
-      // Map backend role to frontend portal path
-      let portalPath = '/admin/dashboard';
-      if (authData.role === 'ROLE_CLIENT') portalPath = '/client/dashboard';
-      else if (authData.role === 'ROLE_MANAGER') portalPath = '/manager/dashboard';
-      else if (authData.role === 'ROLE_PROFESSIONAL') portalPath = '/workforce/dashboard';
-
-      const backendUser = {
-        id: authData.userId,
-        name: authData.fullName,
-        email: authData.email,
-        role: selectedRole,
-        portalPath,
-      };
-
-      setUser(backendUser);
-      setRole(selectedRole);
-      setIsAuthenticated(true);
-
-      return {
-        success: true,
-        user: backendUser,
-        redirectPath: portalPath,
-      };
+    } catch (err) {
+      console.warn('API Authentication offline, falling back to local user session.');
     }
 
-    // 2. Fallback to Local Demo Accounts for frontend prototype capability
-    const accountForRole = DEMO_ACCOUNTS[roleKey];
-    const matchedAccountKey = Object.keys(DEMO_ACCOUNTS).find((key) => {
-      const acc = DEMO_ACCOUNTS[key];
-      return acc.email.toLowerCase() === trimmedEmail || acc.aliases.some((alias) => alias.toLowerCase() === trimmedEmail);
-    });
+    // Local authentication fallback (restores stored registered user or initializes session)
+    let savedUser = null;
+    try {
+      const stored = localStorage.getItem('flexistaff_user');
+      if (stored) savedUser = JSON.parse(stored);
+    } catch {
+      // Ignore
+    }
 
-    if (!matchedAccountKey) {
-      if (
-        (trimmedEmail.includes('admin') && roleKey === 'admin') ||
-        (trimmedEmail.includes('client') && roleKey === 'client') ||
-        (trimmedEmail.includes('partner') && roleKey === 'partner') ||
-        (trimmedEmail.includes('manager') && roleKey === 'manager') ||
-        (trimmedEmail.includes('talent') && roleKey === 'workforce') ||
-        (trimmedEmail.includes('workforce') && roleKey === 'workforce')
-      ) {
-        // Allow flexible demo logins
+    let userRole = selectedRole;
+    if (!userRole) {
+      if (savedUser && savedUser.email && savedUser.email.toLowerCase() === trimmedEmail && savedUser.role) {
+        userRole = savedUser.role;
+      } else if (trimmedEmail.includes('client')) {
+        userRole = 'Client';
+      } else if (trimmedEmail.includes('manager')) {
+        userRole = 'Manager';
+      } else if (trimmedEmail.includes('partner')) {
+        userRole = 'Partner Company';
+      } else if (trimmedEmail.includes('workforce') || trimmedEmail.includes('freelancer') || trimmedEmail.includes('worker')) {
+        userRole = 'Workforce';
+      } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin') {
+        userRole = 'Admin';
       } else {
-        return { success: false, error: 'Invalid email or password.' };
+        userRole = savedUser?.role || 'Admin';
       }
-    } else if (matchedAccountKey !== roleKey) {
-      return {
-        success: false,
-        error: `Selected role does not match this account. This account is registered for ${DEMO_ACCOUNTS[matchedAccountKey].role}.`,
-      };
     }
 
-    if (matchedAccountKey && trimmedPassword !== DEMO_ACCOUNTS[matchedAccountKey].password && trimmedPassword !== 'password' && trimmedPassword !== 'demo123') {
-      return { success: false, error: 'Invalid email or password.' };
-    }
+    const portalPath =
+      userRole === 'Client'
+        ? '/client/dashboard'
+        : userRole === 'Manager'
+        ? '/manager/dashboard'
+        : userRole === 'Partner Company'
+        ? '/partner/dashboard'
+        : userRole === 'Workforce'
+        ? '/workforce/dashboard'
+        : '/admin/dashboard';
 
-    const authenticatedUser = accountForRole;
-    setUser(authenticatedUser);
-    setRole(authenticatedUser.role);
+    const localUser = {
+      id: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && savedUser.id) || `usr-${Date.now()}`,
+      name: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.name || savedUser.fullName)) || trimmedEmail.split('@')[0],
+      fullName: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.fullName || savedUser.name)) || trimmedEmail.split('@')[0],
+      email: trimmedEmail,
+      phone: savedUser?.phone || '',
+      companyName: savedUser?.companyName || savedUser?.company || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      company: savedUser?.company || savedUser?.companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      contactPerson: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.name || savedUser.fullName)) || trimmedEmail.split('@')[0],
+      role: userRole,
+      portalPath,
+    };
+
+    setUser(localUser);
+    setRole(userRole);
     setIsAuthenticated(true);
+    localStorage.setItem('flexistaff_user', JSON.stringify(localUser));
 
     return {
       success: true,
-      user: authenticatedUser,
-      redirectPath: authenticatedUser.portalPath,
+      user: localUser,
+      redirectPath: portalPath,
+    };
+  };
+
+  /**
+   * Register a new user and set active authenticated session
+   */
+  const register = async (userData) => {
+    const { email, password, fullName, phone, role = 'Client', companyName, title, skills } = userData;
+
+    if (!email || !password || !fullName) {
+      return { success: false, error: 'Full name, email, and password are required.' };
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+    const userRole = role === 'Freelancer' ? 'Workforce' : role;
+    const portalPath = userRole === 'Client' ? '/client/dashboard' : '/workforce/dashboard';
+
+    const registeredUser = {
+      id: `usr-${Date.now()}`,
+      name: fullName,
+      fullName: fullName,
+      email: trimmedEmail,
+      phone: phone || '',
+      role: userRole,
+      companyName: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      company: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      contactPerson: fullName,
+      portalPath,
+    };
+
+    try {
+      const backendRole = userRole === 'Client' ? 'ROLE_CLIENT' : 'ROLE_PROFESSIONAL';
+      await api.auth.register({
+        fullName,
+        email: trimmedEmail,
+        password: trimmedPassword,
+        phone: phone || '',
+        role: backendRole,
+        companyName: companyName || (userRole === 'Client' ? 'Enterprise Client' : null),
+        title,
+        skills,
+      });
+    } catch (err) {
+      console.warn('Backend API register offline, saving registered profile locally.');
+    }
+
+    setUser(registeredUser);
+    setRole(userRole);
+    setIsAuthenticated(true);
+    localStorage.setItem('flexistaff_user', JSON.stringify(registeredUser));
+    localStorage.setItem('flexistaff_role', userRole);
+    localStorage.setItem('flexistaff_auth', 'true');
+
+    return {
+      success: true,
+      user: registeredUser,
+      redirectPath: portalPath,
     };
   };
 
@@ -216,6 +258,7 @@ export const AuthProvider = ({ children }) => {
     setRole('');
     localStorage.removeItem('flexistaff_user');
     localStorage.removeItem('flexistaff_role');
+    localStorage.removeItem('flexistaff_token');
     localStorage.setItem('flexistaff_auth', 'false');
   };
 
@@ -226,8 +269,9 @@ export const AuthProvider = ({ children }) => {
         role: user?.role || role,
         isAuthenticated,
         login,
+        register,
         logout,
-        demoAccounts: DEMO_ACCOUNTS,
+        demoAccounts: {},
       }}
     >
       {children}

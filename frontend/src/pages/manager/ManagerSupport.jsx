@@ -47,7 +47,7 @@ export const ManagerSupport = () => {
       if (submitSupportTicket) {
         submitSupportTicket({
           senderRole: 'Manager',
-          senderName: `${managerProfile?.name || 'Alex Morgan'} (Organization Manager)`,
+          senderName: `${managerProfile?.name || 'Manager'} (Organization Manager)`,
           senderEmail: managerProfile?.email || 'manager@flexistaff.com',
           ...formData,
         });
@@ -105,7 +105,7 @@ export const ManagerSupport = () => {
                   type="text"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g. Partner Skill Capacity Review for Finovate SOW"
+                  placeholder="e.g. Partner Skill Capacity Review for Project SOW"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-900 outline-none focus:border-[#4f46e5] focus:bg-white transition-all"
                   required
                 />

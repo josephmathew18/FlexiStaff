@@ -76,10 +76,10 @@ const SearchBar = ({ value = '', onChange, placeholder = 'Search...' }) => (
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-[#c3c6d7]/80 bg-white py-2.5 pl-9 pr-8 text-xs text-[#191b23] placeholder-slate-400 shadow-xs outline-none focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15 transition-all"
+      className="w-full rounded-xl border border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2.5 pl-9 pr-8 text-xs text-[#191b23] dark:text-white placeholder-slate-400 shadow-xs outline-none focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15 transition-all"
     />
     {value && (
-      <button type="button" onClick={() => onChange?.('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+      <button type="button" onClick={() => onChange?.('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
         <X size={14} />
       </button>
     )}
@@ -97,23 +97,23 @@ const FilterDropdown = ({ label = 'Filter', options = [], value, onChange }) => 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all ${
-          isFiltered ? 'border-[#2563eb] bg-blue-50/60 text-[#004ac6]' : 'border-[#c3c6d7]/80 bg-white text-[#434655] hover:bg-slate-50'
+          isFiltered ? 'border-[#2563eb] bg-blue-50/60 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-400' : 'border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] text-[#434655] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
         }`}
       >
-        <Filter size={13} className={isFiltered ? 'text-[#004ac6]' : 'text-slate-400'} />
+        <Filter size={13} className={isFiltered ? 'text-[#004ac6] dark:text-blue-400' : 'text-slate-400'} />
         <span>{label}: <strong>{selectedOption?.label || 'All'}</strong></span>
         <ChevronDown size={13} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
         {isOpen && (
-          <div className="absolute left-0 z-30 mt-1 min-w-[170px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/10">
+          <div className="absolute left-0 z-30 mt-1 min-w-[170px] rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#14132b] p-1 shadow-lg shadow-black/30">
             {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange?.(opt.value); setIsOpen(false); }}
                 className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs ${
-                  opt.value === value ? 'bg-blue-50 text-[#004ac6] font-bold' : 'text-[#434655] hover:bg-slate-100'
+                  opt.value === value ? 'bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-300 font-bold' : 'text-[#434655] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
                 }`}
               >
                 <span>{opt.label}</span>
@@ -132,21 +132,21 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
     {isOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
-        <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8`}>
+        <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/15 overflow-hidden my-8`}>
           {(title || showCloseButton) && (
-            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/60">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 px-6 py-4 bg-slate-50/60 dark:bg-[#1c1a36]">
               <div>
-                {title && <h3 className="text-base font-bold text-[#191b23]">{title}</h3>}
-                {subtitle && <p className="mt-0.5 text-xs text-[#737686]">{subtitle}</p>}
+                {title && <h3 className="text-base font-bold text-[#191b23] dark:text-white">{title}</h3>}
+                {subtitle && <p className="mt-0.5 text-xs text-[#737686] dark:text-slate-400">{subtitle}</p>}
               </div>
               {showCloseButton && (
-                <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors">
+                <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 transition-colors">
                   <X size={18} />
                 </button>
               )}
             </div>
           )}
-          <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">{children}</div>
+          <div className="px-6 py-5 max-h-[75vh] overflow-y-auto text-slate-900 dark:text-white">{children}</div>
         </motion.div>
       </div>
     )}
@@ -155,14 +155,14 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
 
 const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], className = '', disabled = false, ...rest }) => {
   const isError = Boolean(error);
-  const inputBaseClasses = `w-full rounded-xl border text-xs text-[#191b23] placeholder-slate-400 transition-all outline-none ${
-    isError ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' : 'border-[#c3c6d7] bg-white focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15'
-  } ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`;
+  const inputBaseClasses = `w-full rounded-xl border text-xs text-[#191b23] dark:text-white placeholder-slate-400 transition-all outline-none ${
+    isError ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
+  } ${disabled ? 'bg-slate-100 dark:bg-white/5 text-slate-500 cursor-not-allowed' : ''}`;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
       {label && (
-        <label className="flex items-center justify-between text-xs font-semibold text-[#434655]">
+        <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
           <span>{label}{required && <span className="text-rose-500 ml-0.5">*</span>}</span>
         </label>
       )}
@@ -335,10 +335,10 @@ export const PartnerManagement = () => {
               <Handshake size={20} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-[#191b23] tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[#191b23] dark:text-white tracking-tight">
                 Partner Staffing Organizations
               </h1>
-              <p className="text-xs text-[#737686]">
+              <p className="text-xs text-[#737686] dark:text-slate-400">
                 Manage vendor partnerships, external engineering guilds, talent supply agreements, and candidate submissions.
               </p>
             </div>
@@ -361,60 +361,60 @@ export const PartnerManagement = () => {
       {/* KPI METRICS OVERVIEW CARDS */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Partner Agencies</span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Partner Agencies</span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Handshake size={18} />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900">{partners.length}</span>
-            <span className="text-xs font-semibold text-emerald-600">Active Network</span>
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{partners.length}</span>
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active Network</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Approved staffing vendors</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Supplied Talent Pool</span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Supplied Talent Pool</span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Users size={18} />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900">{totalSuppliedStaff}</span>
-            <span className="text-xs text-slate-500">Engineers</span>
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{totalSuppliedStaff}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Engineers</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Total cataloged professionals</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Active Deployed Placements</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active Deployed Placements</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <CheckCircle2 size={18} />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900">{totalActivePlacements}</span>
-            <span className="text-xs font-bold text-emerald-600">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{totalActivePlacements}</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
               {totalSuppliedStaff > 0 ? `${Math.round((totalActivePlacements / totalSuppliedStaff) * 100)}%` : '0%'} Allocated
             </span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Engaged on client sprints</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Bench Readiness SLA</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bench Readiness SLA</span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Clock size={18} />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900">92.8%</span>
-            <span className="text-xs font-bold text-indigo-600">&lt; 24h Response</span>
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">92.8%</span>
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">&lt; 24h Response</span>
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Average candidate mobilization</p>
         </div>
@@ -423,7 +423,7 @@ export const PartnerManagement = () => {
       {/* ========================================================================= */}
       {/* FILTER CONTROLS BAR */}
       {/* ========================================================================= */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white p-4 rounded-2xl border border-[#c3c6d7]/70 shadow-xs">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 bg-white dark:bg-[#14132b] p-4 rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 shadow-xs">
         <div className="flex-1 max-w-md">
           <SearchBar
             value={searchQuery}
@@ -457,12 +457,12 @@ export const PartnerManagement = () => {
             ]}
           />
 
-          <div className="flex items-center rounded-xl border border-[#c3c6d7]/80 bg-slate-100 p-0.5">
+          <div className="flex items-center rounded-xl border border-[#c3c6d7]/80 dark:border-white/15 bg-slate-100 dark:bg-white/10 p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               className={`rounded-lg p-2 transition-all ${
-                viewMode === 'grid' ? 'bg-white shadow-xs text-[#004ac6]' : 'text-slate-500 hover:text-slate-800'
+                viewMode === 'grid' ? 'bg-white dark:bg-[#1c1a36] shadow-xs text-[#004ac6] dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
               title="Grid View"
             >
@@ -472,7 +472,7 @@ export const PartnerManagement = () => {
               type="button"
               onClick={() => setViewMode('table')}
               className={`rounded-lg p-2 transition-all ${
-                viewMode === 'table' ? 'bg-white shadow-xs text-[#004ac6]' : 'text-slate-500 hover:text-slate-800'
+                viewMode === 'table' ? 'bg-white dark:bg-[#1c1a36] shadow-xs text-[#004ac6] dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
               title="Table View"
             >
@@ -486,10 +486,10 @@ export const PartnerManagement = () => {
       {/* PARTNER CARDS GRID / TABLE VIEW */}
       {/* ========================================================================= */}
       {filteredPartners.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] bg-white p-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#14132b] p-12 text-center">
           <FolderSearch size={32} className="text-slate-400 mb-2" />
-          <h4 className="text-sm font-bold text-[#191b23]">No partner organizations found</h4>
-          <p className="text-xs text-slate-500 mt-0.5">Try adjusting your search criteria or register a new partner agency.</p>
+          <h4 className="text-sm font-bold text-[#191b23] dark:text-white">No partner organizations found</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Try adjusting your search criteria or register a new partner agency.</p>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -504,12 +504,12 @@ export const PartnerManagement = () => {
                 layout
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all space-y-4"
+                className="flex flex-col justify-between rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 sm:p-6 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-md transition-all space-y-4"
               >
                 <div>
                   {/* Top Bar: Tier Badge & Status */}
-                  <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200/60">
+                  <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-white/10">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-200/60 dark:border-indigo-800/40">
                       {partner.tier}
                     </span>
                     <StatusBadge status={partner.status} />
@@ -517,12 +517,12 @@ export const PartnerManagement = () => {
 
                   {/* Company Info */}
                   <div className="mt-3.5 flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-50 to-blue-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100 shadow-2xs">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-50 to-blue-50 dark:from-indigo-950/60 dark:to-blue-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-white/10 shadow-2xs">
                       <Building2 size={22} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">{partner.name}</h3>
-                      <p className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">{partner.name}</h3>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                         <MapPin size={12} className="text-slate-400 shrink-0" />
                         <span className="truncate">{partner.location}</span>
                       </p>
@@ -530,19 +530,19 @@ export const PartnerManagement = () => {
                   </div>
 
                   {/* Representative Card */}
-                  <div className="mt-3.5 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
-                    <div className="font-bold text-slate-800 flex items-center justify-between">
+                  <div className="mt-3.5 p-3 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10 text-xs space-y-1">
+                    <div className="font-bold text-slate-800 dark:text-white flex items-center justify-between">
                       <span>{partner.contactPerson}</span>
-                      <span className="text-[11px] text-amber-600 font-bold flex items-center gap-0.5">
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5">
                         <Star size={12} className="fill-amber-400 text-amber-400" />
                         <span>{partner.rating || 4.8}</span>
                       </span>
                     </div>
-                    <p className="text-slate-500 truncate text-[11px] flex items-center gap-1.5">
+                    <p className="text-slate-500 dark:text-slate-400 truncate text-[11px] flex items-center gap-1.5">
                       <Mail size={11} className="text-slate-400 shrink-0" />
                       <span className="truncate">{partner.email}</span>
                     </p>
-                    <p className="text-slate-500 text-[11px] flex items-center gap-1.5">
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1.5">
                       <Phone size={11} className="text-slate-400 shrink-0" />
                       <span>{partner.phone}</span>
                     </p>
@@ -550,15 +550,15 @@ export const PartnerManagement = () => {
 
                   {/* Metrics 2-column strip */}
                   <div className="mt-3.5 grid grid-cols-2 gap-2 text-center">
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
                       <span className="block text-[10px] font-bold text-slate-400 uppercase">Supplied Staff</span>
-                      <span className="block text-xs font-extrabold text-slate-900 mt-0.5">
+                      <span className="block text-xs font-extrabold text-slate-900 dark:text-white mt-0.5">
                         {partner.suppliedProfessionals || partnerStaffList.length} Engineers
                       </span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
                       <span className="block text-[10px] font-bold text-slate-400 uppercase">Active Placed</span>
-                      <span className="block text-xs font-extrabold text-emerald-600 mt-0.5">
+                      <span className="block text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {partner.activePlacements || 0} Placed
                       </span>
                     </div>
@@ -569,7 +569,7 @@ export const PartnerManagement = () => {
                     {partner.specialties?.slice(0, 3).map((spec, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-slate-700"
+                        className="px-2 py-0.5 rounded-md bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 text-[10px] font-semibold text-slate-700 dark:text-slate-300"
                       >
                         {spec}
                       </span>
@@ -583,7 +583,7 @@ export const PartnerManagement = () => {
                 </div>
 
                 {/* Bottom Action Buttons */}
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+                <div className="pt-3 border-t border-slate-100 dark:border-white/10 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -600,7 +600,7 @@ export const PartnerManagement = () => {
                         location: partner.location,
                       });
                     }}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors shadow-2xs"
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-colors shadow-2xs"
                   >
                     <UserPlus size={13} />
                     <span>Submit Staff</span>
@@ -609,7 +609,7 @@ export const PartnerManagement = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedPartner(partner)}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-colors"
                   >
                     <span>View Agreement</span>
                   </button>
@@ -619,10 +619,10 @@ export const PartnerManagement = () => {
           })}
         </div>
       ) : (
-        <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+              <thead className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1a1835] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <tr>
                   <th className="py-3.5 px-4">Partner Organization</th>
                   <th className="py-3.5 px-4">Representative</th>
@@ -633,22 +633,22 @@ export const PartnerManagement = () => {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/10">
                 {filteredPartners.map((partner) => (
-                  <tr key={partner.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={partner.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4">
                       <div>
-                        <p className="font-bold text-slate-900">{partner.name}</p>
-                        <p className="text-[11px] text-indigo-600 font-medium">{partner.tier}</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{partner.name}</p>
+                        <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">{partner.tier}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="font-semibold text-slate-800">{partner.contactPerson}</p>
-                      <p className="text-[11px] text-slate-500">{partner.email}</p>
+                      <p className="font-semibold text-slate-800 dark:text-white">{partner.contactPerson}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{partner.email}</p>
                     </td>
-                    <td className="py-3 px-4 font-bold text-slate-900">{partner.suppliedProfessionals} Engineers</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">{partner.activePlacements} Placed</td>
-                    <td className="py-3 px-4 font-semibold text-slate-700">{partner.availabilityRate || '90%'}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{partner.suppliedProfessionals} Engineers</td>
+                    <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">{partner.activePlacements} Placed</td>
+                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{partner.availabilityRate || '90%'}</td>
                     <td className="py-3 px-4">
                       <StatusBadge status={partner.status} />
                     </td>
@@ -656,7 +656,7 @@ export const PartnerManagement = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedPartner(partner)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-semibold"
                       >
                         Details
                       </button>
@@ -725,7 +725,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Phone Number"
               name="phone"
-              placeholder="+1 (415) 555-0182"
+              placeholder="+91 98765 43210"
               register={register}
               error={errors.phone}
               required
@@ -834,7 +834,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Phone Number"
               name="phone"
-              placeholder="+1 (415) 555-0199"
+              placeholder="+91 98765 43210"
               register={registerStaff}
               error={staffErrors.phone}
               required

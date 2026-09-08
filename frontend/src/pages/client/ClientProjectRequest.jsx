@@ -19,7 +19,7 @@ export const ClientProjectRequest = () => {
   const handleFormSubmit = (data) => {
     const newPrj = submitClientProjectRequest({
       ...data,
-      client: clientProfile?.company || 'Finovate Global',
+      client: clientProfile?.company || 'Client Organization',
       clientId: clientProfile?.id || 'cli-01',
     });
 

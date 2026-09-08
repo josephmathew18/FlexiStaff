@@ -84,43 +84,43 @@ export const AdminAssignmentApprovals = () => {
     switch (status) {
       case 'Pending Assignment Approval':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock size={12} className="text-amber-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+            <Clock size={12} className="text-amber-600 dark:text-amber-400" />
             <span>Pending Assignment Approval</span>
           </span>
         );
       case 'Awaiting Workforce Response':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Clock size={12} className="text-blue-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
+            <Clock size={12} className="text-blue-600 dark:text-blue-400" />
             <span>Awaiting Workforce Response</span>
           </span>
         );
       case 'Accepted':
       case 'Working':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 size={12} className="text-emerald-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+            <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
             <span>Accepted / Active</span>
           </span>
         );
       case 'Rejected':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle size={12} className="text-rose-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+            <XCircle size={12} className="text-rose-600 dark:text-rose-400" />
             <span>Rejected by Admin</span>
           </span>
         );
       case 'Declined':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            <XCircle size={12} className="text-slate-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <XCircle size={12} className="text-slate-500 dark:text-slate-400" />
             <span>Declined by Candidate</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
             <span>{status}</span>
           </span>
         );
@@ -133,23 +133,23 @@ export const AdminAssignmentApprovals = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Workforce Assignment Approvals
             </h1>
             {pendingCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold animate-pulse">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 text-xs font-bold animate-pulse">
                 {pendingCount} Pending Sign-off
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Review proposed candidate allocations submitted by Organization Managers. Authorize assignments before sending project invitations to talent.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center gap-2 text-xs text-indigo-900">
-            <ShieldCheck size={16} className="text-indigo-600 shrink-0" />
+          <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center gap-2 text-xs text-indigo-900 dark:text-indigo-300">
+            <ShieldCheck size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span>Admin Final Authorization Gate</span>
           </div>
         </div>
@@ -157,32 +157,32 @@ export const AdminAssignmentApprovals = () => {
 
       {/* KPI Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Pending Approval</span>
-          <p className="text-xl font-extrabold text-amber-600 mt-1">{pendingCount}</p>
+          <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{pendingCount}</p>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Awaiting Talent Response</span>
-          <p className="text-xl font-extrabold text-blue-600 mt-1">
+          <p className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
             {managerAssignments.filter((a) => a.status === 'Awaiting Workforce Response').length}
           </p>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Active / Accepted</span>
-          <p className="text-xl font-extrabold text-emerald-600 mt-1">
+          <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
             {managerAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working').length}
           </p>
         </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Rejected / Declined</span>
-          <p className="text-xl font-extrabold text-slate-700 mt-1">
+          <p className="text-xl font-extrabold text-slate-700 dark:text-slate-300 mt-1">
             {managerAssignments.filter((a) => a.status === 'Rejected' || a.status === 'Declined').length}
           </p>
         </div>
       </div>
 
       {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#14132b] p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -190,7 +190,7 @@ export const AdminAssignmentApprovals = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search candidate, role, project, client..."
-            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+            className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#004ac6]"
           />
         </div>
 
@@ -209,7 +209,7 @@ export const AdminAssignmentApprovals = () => {
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 statusFilter === tab.value
                   ? 'bg-[#004ac6] text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20'
               }`}
             >
               {tab.label}
@@ -219,10 +219,10 @@ export const AdminAssignmentApprovals = () => {
       </div>
 
       {/* Assignments Table */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <thead className="border-b border-slate-200 dark:border-white/10 bg-slate-50/75 dark:bg-[#1a1835] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="py-3.5 px-4">Candidate / Specialist</th>
                 <th className="py-3.5 px-4">Proposed Role</th>
@@ -232,7 +232,7 @@ export const AdminAssignmentApprovals = () => {
                 <th className="py-3.5 px-4 text-right">Decision Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/10">
               {filteredAssignments.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-slate-400">
@@ -241,17 +241,17 @@ export const AdminAssignmentApprovals = () => {
                 </tr>
               ) : (
                 filteredAssignments.map((asg) => (
-                  <tr key={asg.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={asg.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <img
                           src={asg.avatar}
                           alt={asg.professionalName}
-                          className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200"
+                          className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
                         />
                         <div>
-                          <p className="font-bold text-slate-900">{asg.professionalName}</p>
-                          <p className="text-[10px] text-slate-500 font-medium">
+                          <p className="font-bold text-slate-900 dark:text-white">{asg.professionalName}</p>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                             {asg.partnerName || 'Independent'} • {asg.experience || '3+ years'}
                           </p>
                         </div>
@@ -259,12 +259,12 @@ export const AdminAssignmentApprovals = () => {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <p className="font-bold text-blue-600">{asg.role}</p>
+                      <p className="font-bold text-blue-600 dark:text-blue-400">{asg.role}</p>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {(asg.skills || []).slice(0, 2).map((s, idx) => (
                           <span
                             key={idx}
-                            className="px-1.5 py-0.2 rounded bg-slate-100 text-[10px] font-semibold text-slate-600"
+                            className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-[#1c1a36] text-[10px] font-semibold text-slate-600 dark:text-slate-300"
                           >
                             {s}
                           </span>
@@ -273,15 +273,15 @@ export const AdminAssignmentApprovals = () => {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900 line-clamp-1">{asg.projectName}</p>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        Client: <strong className="text-slate-700">{asg.client || 'Enterprise'}</strong>
+                      <p className="font-bold text-slate-900 dark:text-white line-clamp-1">{asg.projectName}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                        Client: <strong className="text-slate-700 dark:text-slate-200">{asg.client || 'Enterprise'}</strong>
                       </p>
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{asg.hourlyRate || '$95/hr'}</p>
-                      <p className="text-[10px] text-slate-500">Current Workload: {asg.workload || 0}%</p>
+                      <p className="font-bold text-slate-900 dark:text-white">{asg.hourlyRate || '$95/hr'}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Current Workload: {asg.workload || 0}%</p>
                     </td>
 
                     <td className="py-3.5 px-4">

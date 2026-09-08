@@ -24,6 +24,7 @@ import {
   FileCheck,
   UserX,
   AlertTriangle,
+  AlertCircle,
   RefreshCw,
 } from 'lucide-react';
 import {
@@ -89,13 +90,13 @@ const DashboardCard = ({ title, value, icon: Icon, trend, trendLabel = 'vs last 
       whileHover={{ y: -2 }}
       transition={{ duration: 0.15 }}
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-xl border border-[#c3c6d7]/60 bg-white p-5 shadow-xs transition-all ${onClick ? 'cursor-pointer' : ''}`}
+      className={`group relative overflow-hidden rounded-xl border border-[#c3c6d7]/60 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs transition-all ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#737686]">{title}</p>
-          <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#191b23] sm:text-3xl">{value}</h3>
-          {subtitle && <p className="mt-1 text-xs text-[#565e74]">{subtitle}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#737686] dark:text-slate-400">{title}</p>
+          <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#191b23] dark:text-white sm:text-3xl">{value}</h3>
+          {subtitle && <p className="mt-1 text-xs text-[#565e74] dark:text-slate-400">{subtitle}</p>}
         </div>
         {Icon && (
           <div className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-110 ${iconStyle}`}>
@@ -104,12 +105,12 @@ const DashboardCard = ({ title, value, icon: Icon, trend, trendLabel = 'vs last 
         )}
       </div>
       {trend !== undefined && (
-        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-xs">
-          <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+        <div className="mt-4 flex items-center gap-2 border-t border-slate-100 dark:border-white/10 pt-3 text-xs">
+          <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
             <TrendingUp size={14} />
             {trend}
           </span>
-          <span className="text-[#737686]">{trendLabel}</span>
+          <span className="text-[#737686] dark:text-slate-400">{trendLabel}</span>
         </div>
       )}
     </motion.div>
@@ -198,7 +199,7 @@ export const Dashboard = () => {
               <span>Enterprise Workforce Orchestration</span>
             </div>
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
-              Welcome, {user?.name || 'Sarah Jenkins'}
+              Welcome, {user?.name || 'Administrator'}
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-blue-100 max-w-xl leading-relaxed">
               You currently have{' '}
@@ -294,26 +295,26 @@ export const Dashboard = () => {
       </div>
 
       {/* Organization Manager Lead Overview Strip */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-white/10">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700">
+              <span className="rounded-full bg-blue-100 dark:bg-blue-950/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
                 Organization Manager
               </span>
               <span className="text-xs text-slate-400">•</span>
-              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 Dedicated Enterprise Lead
               </span>
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-900 mt-0.5">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5">
               Enterprise Delivery Operations Lead
             </h3>
           </div>
           <Link
             to="/managers"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#004ac6] hover:bg-blue-50 transition-colors self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-bold text-[#004ac6] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-white/10 transition-colors self-start sm:self-auto"
           >
             <span>Manage Organization Manager</span>
             <ArrowRight size={13} />
@@ -323,51 +324,51 @@ export const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3.5 text-xs">
           <div
             onClick={() => navigate('/managers')}
-            className="rounded-xl bg-blue-50/60 border border-blue-200/70 p-3.5 cursor-pointer hover:bg-blue-50 transition-all flex items-center gap-3"
+            className="rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-all flex items-center gap-3"
           >
-            <div className="h-10 w-10 rounded-xl bg-blue-100 text-[#004ac6] flex items-center justify-center font-bold">
+            <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-[#004ac6] dark:text-blue-300 flex items-center justify-center font-bold">
               <UserCheck size={20} />
             </div>
             <div>
-              <p className="font-bold text-slate-900">{managers[0]?.name || 'Sarah Jenkins'}</p>
-              <p className="text-[11px] text-[#004ac6] font-semibold">{managers[0]?.employeeId || 'MNG-001'}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{managers[0]?.name || 'Assigned Manager'}</p>
+              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">{managers[0]?.employeeId || 'MNG-001'}</p>
             </div>
           </div>
 
           <div
             onClick={() => navigate('/managers')}
-            className="rounded-xl bg-emerald-50/60 border border-emerald-200/70 p-3.5 cursor-pointer hover:bg-emerald-50 transition-all"
+            className="rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-all"
           >
-            <div className="flex items-center justify-between text-emerald-700">
+            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Account Status</span>
               <CheckCircle2 size={14} />
             </div>
-            <p className="mt-1 text-base font-extrabold text-emerald-950">{managers[0]?.status || 'Active'}</p>
-            <span className="text-[10px] text-emerald-700 font-medium">Orchestrating squads</span>
+            <p className="mt-1 text-base font-extrabold text-emerald-950 dark:text-white">{managers[0]?.status || 'Active'}</p>
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Orchestrating squads</span>
           </div>
 
           <div
             onClick={() => navigate('/projects')}
-            className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 cursor-pointer hover:bg-slate-100 transition-all"
+            className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 p-3.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
           >
-            <div className="flex items-center justify-between text-slate-600">
+            <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Supervised Projects</span>
-              <FolderKanban size={14} className="text-[#004ac6]" />
+              <FolderKanban size={14} className="text-[#004ac6] dark:text-blue-400" />
             </div>
-            <p className="mt-1 text-base font-extrabold text-slate-900">{totalProjects} Projects</p>
-            <span className="text-[10px] text-slate-500 font-medium">100% Portfolio coverage</span>
+            <p className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">{totalProjects} Projects</p>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">100% Portfolio coverage</span>
           </div>
 
           <div
             onClick={() => navigate('/workforce')}
-            className="rounded-xl bg-purple-50/60 border border-purple-200/70 p-3.5 cursor-pointer hover:bg-purple-50 transition-all"
+            className="rounded-xl bg-purple-50/60 dark:bg-purple-950/40 border border-purple-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/60 transition-all"
           >
-            <div className="flex items-center justify-between text-purple-700">
+            <div className="flex items-center justify-between text-purple-700 dark:text-purple-400">
               <span className="text-[10px] font-bold uppercase tracking-wider">Supervised Talent</span>
               <Users size={14} />
             </div>
-            <p className="mt-1 text-base font-extrabold text-purple-950">{workforce.length} Members</p>
-            <span className="text-[10px] text-purple-700 font-medium">Vetted engineers</span>
+            <p className="mt-1 text-base font-extrabold text-purple-950 dark:text-white">{workforce.length} Members</p>
+            <span className="text-[10px] text-purple-700 dark:text-purple-400 font-medium">Vetted engineers</span>
           </div>
         </div>
       </div>
@@ -375,19 +376,19 @@ export const Dashboard = () => {
       {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Project Status Bar Chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-[#c3c6d7]/70 bg-white p-5 sm:p-6 shadow-xs">
+        <div className="lg:col-span-2 rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 sm:p-6 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
             <div>
-              <h3 className="text-base font-bold text-[#191b23] tracking-tight">
+              <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
                 Project Pipeline by Stage
               </h3>
-              <p className="text-xs text-[#737686]">
+              <p className="text-xs text-[#737686] dark:text-slate-400">
                 Distribution of client staffing engagements across project phases
               </p>
             </div>
             <Link
               to="/projects"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#004ac6] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:underline"
             >
               <span>View All Projects</span>
               <ArrowRight size={13} />
@@ -433,12 +434,12 @@ export const Dashboard = () => {
         </div>
 
         {/* Workforce Skill Distribution Pie Chart */}
-        <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+        <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 sm:p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-[#191b23] tracking-tight">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
               Workforce Specializations
             </h3>
-            <p className="text-xs text-[#737686]">
+            <p className="text-xs text-[#737686] dark:text-slate-400">
               Domain allocation across vetted talent
             </p>
           </div>
@@ -472,11 +473,11 @@ export const Dashboard = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 text-xs">
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-white/10 text-xs">
             {skillDemands.map((item, idx) => (
               <div key={idx} className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[#565e74] truncate text-[11px]">{item.name}</span>
+                <span className="text-[#565e74] dark:text-slate-300 truncate text-[11px]">{item.name}</span>
               </div>
             ))}
           </div>

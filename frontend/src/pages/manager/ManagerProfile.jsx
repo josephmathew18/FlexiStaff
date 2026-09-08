@@ -20,24 +20,23 @@ import {
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
+import UserAvatar from '../../components/common/UserAvatar';
 
 export const ManagerProfile = () => {
   const { managerProfile, updateManagerProfile } = useData();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: managerProfile?.name || 'Alex Morgan',
-    email: managerProfile?.email || 'manager@flexistaff.com',
-    phone: managerProfile?.phone || '+1 (415) 555-8910',
+    name: managerProfile?.name || 'Assigned Manager',
+    email: managerProfile?.email || '',
+    phone: managerProfile?.phone || '+91 98765 43210',
     jobTitle: managerProfile?.jobTitle || managerProfile?.role || 'Organization Manager',
     department: managerProfile?.department || 'Enterprise Talent Matching',
-    location: managerProfile?.location || 'San Francisco, CA',
+    location: managerProfile?.location || 'Bengaluru, India',
     bio:
       managerProfile?.bio ||
       'Oversees technical resource allocation, skill matching, and sprint milestone execution across enterprise partner projects.',
-    avatar:
-      managerProfile?.avatar ||
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
+    avatar: managerProfile?.avatar || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -155,11 +154,15 @@ export const ManagerProfile = () => {
 
       {/* Profile Overview Card */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group">
-          <img
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UserAvatar
             src={formData.avatar}
-            alt={formData.name}
-            className="w-24 h-24 rounded-3xl object-cover ring-4 ring-blue-50 shadow-md"
+            name={formData.name}
+            size="xl"
+            className="w-24 h-24 rounded-3xl ring-4 ring-blue-50 shadow-md"
           />
           <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-xl shadow-xs">
             <Camera size={14} />

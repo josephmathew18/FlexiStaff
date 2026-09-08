@@ -170,7 +170,7 @@ export const ManagerApprovedProjects = () => {
                     </p>
                     <p className="text-[11px] text-slate-400">{prj.category}</p>
                   </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-800">{prj.client || prj.partner || 'Apex Digital Enterprises'}</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-800">{prj.client || prj.partner || 'Client Organization'}</td>
                   <td className="py-3.5 px-4">
                     <span className="font-extrabold text-slate-900">{prj.workforceRequired || 6}</span>
                     <span className="text-[11px] text-slate-500 ml-1">({prj.workforceAssigned || 0} Assigned)</span>

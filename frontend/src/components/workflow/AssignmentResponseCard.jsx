@@ -76,7 +76,7 @@ export const AssignmentResponseCard = ({
                 <Building2 size={13} className="text-slate-400" />
                 <span>Client: <strong>{assignment.client || 'Enterprise Client'}</strong></span>
                 <span className="text-slate-300">•</span>
-                <span>Manager: <strong>{assignment.manager || 'Alex Morgan'}</strong></span>
+                <span>Manager: <strong>{assignment.manager || 'Assigned Manager'}</strong></span>
               </p>
             </div>
             <StatusBadge status={assignment.status} />

@@ -60,13 +60,12 @@ export const ClientProgress = () => {
 
   // Client projects list
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || 'Finovate Global').toLowerCase();
+    const companyName = (clientProfile?.company || '').toLowerCase();
     const clientId = clientProfile?.id;
     return projects.filter(
       (p) =>
         p &&
-        ((p.client || '').toLowerCase().includes('finovate') ||
-          (p.client || '').toLowerCase() === companyName ||
+        ((companyName && (p.client || '').toLowerCase() === companyName) ||
           p.clientId === clientId)
     );
   }, [projects, clientProfile]);
@@ -199,7 +198,7 @@ export const ClientProgress = () => {
                     <h3 className="text-base font-extrabold text-slate-900 truncate">{project.title || project.name}</h3>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Manager: <strong className="text-slate-800">{project.manager || 'Alex Morgan'}</strong> • Category: {project.category || 'Software Engineering'}
+                    Manager: <strong className="text-slate-800">{project.manager || 'Assigned Manager'}</strong> • Category: {project.category || 'Software Engineering'}
                   </p>
                 </div>
 

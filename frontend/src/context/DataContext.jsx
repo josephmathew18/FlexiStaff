@@ -54,27 +54,57 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   // Client Portal State
-  const [clientProfile, setClientProfile] = useState(initialClientProfile);
-  const [clientNotifications, setClientNotifications] = useState([
-    {
-      id: 'cnotif-01',
-      title: 'Project In Progress',
-      message: 'AI Clinical Decision Support Engine has 3 assigned specialists active.',
-      type: 'project',
-      unread: false,
-      time: '2 hours ago',
-      link: '/client/projects/PRJ-102',
-    },
-    {
-      id: 'cnotif-02',
-      title: 'Project Requirement Review Pending',
-      message: 'Your project "AI Smart Credit Scoring Engine" is awaiting Admin sign-off.',
-      type: 'project',
-      unread: true,
-      time: 'Just now',
-      link: '/client/projects/PRJ-REQ-201',
-    },
-  ]);
+  const [clientProfile, setClientProfile] = useState(() => {
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
+          return {
+            ...initialClientProfile,
+            name: savedUser.name || savedUser.fullName || initialClientProfile.name,
+            contactPerson: savedUser.name || savedUser.fullName || initialClientProfile.contactPerson,
+            email: savedUser.email || initialClientProfile.email,
+            phone: savedUser.phone || initialClientProfile.phone,
+            company: savedUser.companyName || savedUser.company || initialClientProfile.company,
+            companyName: savedUser.companyName || savedUser.company || initialClientProfile.company,
+          };
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return initialClientProfile;
+  });
+  const [clientNotifications, setClientNotifications] = useState([]);
+
+  // Sync client profile whenever flexistaff_user changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
+            setClientProfile((prev) => ({
+              ...prev,
+              name: savedUser.name || savedUser.fullName || prev.name,
+              contactPerson: savedUser.name || savedUser.fullName || prev.contactPerson,
+              email: savedUser.email || prev.email,
+              phone: savedUser.phone || prev.phone,
+              company: savedUser.companyName || savedUser.company || prev.company,
+              companyName: savedUser.companyName || savedUser.company || prev.company,
+            }));
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Partner Portal State
   const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);
@@ -89,74 +119,14 @@ export const DataProvider = ({ children }) => {
   const [managerProfile, setManagerProfile] = useState(initialManagerProfile);
   const [managerAssignments, setManagerAssignments] = useState(initialManagerAssignments);
   const [managerNotifications, setManagerNotifications] = useState(initialManagerNotifications);
-  const [freelancerRequests, setFreelancerRequests] = useState([
-    {
-      id: 'fl-req-01',
-      freelancerId: 'wf-01',
-      freelancerName: 'David Miller',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      projectId: 'PRJ-101',
-      projectName: 'Cloud Infrastructure Modernization',
-      client: 'Finovate Global',
-      role: 'Frontend Developer',
-      skills: ['React.js', 'JavaScript', 'Tailwind CSS'],
-      experience: '3+ years',
-      hourlyRate: '$110/hr',
-      duration: '6 Months',
-      startDate: '2026-09-01',
-      status: 'Accepted',
-      requestedDate: '2026-08-15',
-      notes: 'Need expert frontend engineer for responsive cloud dashboards.',
-    },
-    {
-      id: 'fl-req-02',
-      freelancerId: 'wf-03',
-      freelancerName: 'Sophia Chen',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&q=80',
-      projectId: 'PRJ-102',
-      projectName: 'AI Clinical Decision Support Engine',
-      client: 'Medix Health Tech',
-      role: 'Senior ML Engineer',
-      skills: ['Python', 'PyTorch', 'Transformers'],
-      experience: '5+ years',
-      hourlyRate: '$125/hr',
-      duration: '9 Months',
-      startDate: '2026-09-01',
-      status: 'Pending',
-      requestedDate: '2026-08-15',
-      notes: 'Lead NLP pipeline development for clinical records.',
-    },
-  ]);
+  const [freelancerRequests, setFreelancerRequests] = useState([]);
 
   // Workforce Portal State
   const [workforceUserProfile, setWorkforceUserProfile] = useState(initialWorkforceUserProfile);
   const [workforceNotifications, setWorkforceNotifications] = useState(initialWorkforceNotifications);
 
   // Freelancer Applications State (Submitted via Form for Freelancer)
-  const [freelancerApplications, setFreelancerApplications] = useState([
-    {
-      id: 'fl-app-01',
-      fullName: 'Marcus Vance',
-      email: 'marcus.vance@devpool.io',
-      phone: '+1 (555) 234-8901',
-      place: 'Austin, TX',
-      skills: ['React', 'Node.js', 'PostgreSQL', 'Tailwind CSS'],
-      experience: '5+ years',
-      submittedAt: '2026-08-27',
-      status: 'Pending Admin Approval',
-    },
-    {
-      id: 'fl-app-02',
-      fullName: 'Elena Rostova',
-      email: 'elena.rostova@techcraft.net',
-      phone: '+1 (555) 987-6543',
-      place: 'Seattle, WA',
-      skills: ['Python', 'AI / ML', 'Docker', 'Kubernetes'],
-      experience: '6+ years',
-      submittedAt: '2026-08-28',
-      status: 'Pending Admin Approval',
-    },
-  ]);
+  const [freelancerApplications, setFreelancerApplications] = useState([]);
 
   const addFreelancerApplication = (appData) => {
     const newApp = {
@@ -201,44 +171,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // Central Support & Feedback Tickets State (Submitted by Client, Manager, Partner, Workforce to Admin)
-  const [supportTickets, setSupportTickets] = useState([
-    {
-      id: 'st-01',
-      senderRole: 'Client',
-      senderName: 'Finovate Global (Sarah Jenkins)',
-      senderEmail: 'client@flexistaff.com',
-      subject: 'Milestone SLA Acceleration Request',
-      category: 'Project Execution',
-      priority: 'High',
-      message: 'We require an additional Senior React Engineer added to Sprint 3 for the Credit Scoring Engine.',
-      submittedAt: '2026-08-28 10:30 AM',
-      status: 'Pending Admin Review',
-    },
-    {
-      id: 'st-02',
-      senderRole: 'Workforce',
-      senderName: 'David Miller',
-      senderEmail: 'talent@flexistaff.com',
-      subject: 'Timesheet & Milestone Delivery Inquiry',
-      category: 'Workforce & Billing',
-      priority: 'Medium',
-      message: 'Completed Sprint 2 milestone deliverables on Cloud Infrastructure project. Requesting admin sign-off verification.',
-      submittedAt: '2026-08-28 11:15 AM',
-      status: 'Open',
-    },
-    {
-      id: 'st-03',
-      senderRole: 'Manager',
-      senderName: 'Alex Morgan',
-      senderEmail: 'manager@flexistaff.com',
-      subject: 'Partner Skill Match Consultation',
-      category: 'Talent Orchestration',
-      priority: 'Normal',
-      message: 'Requesting admin review for proposed AI Engineer allocation on Medix Health Tech SOW.',
-      submittedAt: '2026-08-27 04:45 PM',
-      status: 'Resolved',
-    },
-  ]);
+  const [supportTickets, setSupportTickets] = useState([]);
 
   const submitSupportTicket = (ticketData) => {
     const newTicket = {
@@ -273,75 +206,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // GitHub-style Milestone Commit System State for Workforce Module
-  const [projectMilestones, setProjectMilestones] = useState({
-    'PRJ-2026-001': [
-      {
-        id: 'ms-01',
-        title: 'Core OAuth2 & RBAC Auth Engine',
-        status: 'Completed',
-        dueDate: '2026-09-15',
-        commits: [
-          {
-            id: 'cmt-101',
-            commitHash: 'a7f3d91',
-            commitMessage: 'feat(auth): Implement JWT token rotation & session refresh handler',
-            workCompleted: 'Configured secure HttpOnly cookies, added middleware route protection, and wrote unit tests for auth flow.',
-            authorName: 'David Miller',
-            dateTime: '2026-08-28 02:45 PM',
-          },
-          {
-            id: 'cmt-102',
-            commitHash: 'b82e1c9',
-            commitMessage: 'fix(security): Enforce role-based permission verification on API endpoints',
-            workCompleted: 'Resolved permission bypass bug in admin route guards and updated Swagger documentation.',
-            authorName: 'David Miller',
-            dateTime: '2026-08-27 11:20 AM',
-          },
-        ],
-      },
-      {
-        id: 'ms-02',
-        title: 'Real-time Analytics & Dashboard Metrics',
-        status: 'In Progress',
-        dueDate: '2026-10-01',
-        commits: [
-          {
-            id: 'cmt-201',
-            commitHash: 'c4d9e20',
-            commitMessage: 'feat(analytics): Wire WebSocket live metrics feed to dashboard UI',
-            workCompleted: 'Integrated Socket.io client listener with automatic reconnection and live chart state updates.',
-            authorName: 'David Miller',
-            dateTime: '2026-08-28 04:10 PM',
-          },
-        ],
-      },
-      {
-        id: 'ms-03',
-        title: 'Billing Gateway & Webhook Integration',
-        status: 'Pending',
-        dueDate: '2026-10-20',
-        commits: [],
-      },
-    ],
-    'PRJ-2026-002': [
-      {
-        id: 'ms-11',
-        title: 'Cloud Infrastructure & CI/CD Pipeline',
-        status: 'In Progress',
-        dueDate: '2026-09-30',
-        commits: [
-          {
-            id: 'cmt-301',
-            commitHash: 'f1e82a4',
-            commitMessage: 'infra: Setup AWS EKS Cluster with Terraform manifests',
-            workCompleted: 'Provisioned VPC, subnets, worker node groups, and Helm charts for ingress controller.',
-            authorName: 'David Miller',
-            dateTime: '2026-08-28 01:15 PM',
-          },
-        ],
-      },
-    ],
-  });
+  const [projectMilestones, setProjectMilestones] = useState({});
 
   const addMilestoneCommit = (projectId, milestoneId, commitData) => {
     const newCommit = {
@@ -479,7 +344,28 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateClientProfile = (data) => {
-    setClientProfile((prev) => ({ ...prev, ...data }));
+    setClientProfile((prev) => {
+      const updated = { ...prev, ...data };
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          const updatedUser = {
+            ...savedUser,
+            name: updated.name || updated.contactPerson || savedUser.name,
+            contactPerson: updated.contactPerson || updated.name || savedUser.contactPerson,
+            email: updated.email || savedUser.email,
+            phone: updated.phone || savedUser.phone,
+            company: updated.company || updated.companyName || savedUser.company,
+            companyName: updated.companyName || updated.company || savedUser.companyName,
+          };
+          localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+        }
+      } catch {
+        // Ignore
+      }
+      return updated;
+    });
   };
 
   // Universal Project Submission & Approval Actions
@@ -496,8 +382,8 @@ export const DataProvider = ({ children }) => {
     const newProject = {
       id: newId,
       name: projectData.name,
-      client: partnerProfile.name || 'Apex Digital Enterprises',
-      partner: partnerProfile.name || 'Apex Digital Enterprises',
+      client: partnerProfile.name || 'Partner Organization',
+      partner: partnerProfile.name || 'Partner Organization',
       category: projectData.category || 'Full-Stack Software',
       techStack: projectData.techStack || 'React.js, Java Spring Boot, MySQL, Selenium',
       priority: projectData.priority || 'High',
@@ -514,7 +400,7 @@ export const DataProvider = ({ children }) => {
       expectedEndDate: projectData.expectedEndDate || '2027-02-28',
       duration: projectData.duration || '6 Months',
       workType: projectData.workType || 'Remote',
-      location: projectData.location || 'United States, California, San Francisco',
+      location: projectData.location || 'India, Karnataka, Bengaluru',
       additionalRequirements: projectData.additionalRequirements || '',
       workflowSteps: [
         { step: 1, label: 'Partner Creates Project', status: 'Completed', date: 'Just now' },
@@ -584,7 +470,7 @@ export const DataProvider = ({ children }) => {
       id: newId,
       name: formData.title || formData.name || 'Custom Enterprise Project',
       title: formData.title || formData.name || 'Custom Enterprise Project',
-      client: clientProfile?.company || 'Finovate Global',
+      client: clientProfile?.company || 'Client Organization',
       clientId: clientProfile?.id || 'cli-01',
       category: formData.category || 'Enterprise Software Engineering',
       techStack: formData.techStack || skillsArr.join(', ') || 'React.js, Python, Cloud',
@@ -635,7 +521,7 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   // COMPANY ADMIN: PROJECT APPROVAL & REJECTION
   // =========================================================================
-  const approveProject = (projectId, assignedManager = 'Alex Morgan') => {
+  const approveProject = (projectId, assignedManager = '') => {
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id === projectId) {
@@ -780,7 +666,7 @@ export const DataProvider = ({ children }) => {
     const adminNotif = {
       id: `notif-${Date.now()}`,
       title: 'Workforce Assignment Approval Request',
-      message: `Manager Alex Morgan proposed assigning ${cand.name || cand.pseudonym} (${assignedRole}) to "${prj.name || prj.title}". Review and approve.`,
+      message: `Manager proposed assigning ${cand.name || cand.pseudonym} (${assignedRole}) to "${prj.name || prj.title}". Review and approve.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -808,7 +694,7 @@ export const DataProvider = ({ children }) => {
       role: reqData.role || 'Senior Software Engineer',
       projectName: reqData.projectName || 'Enterprise Project',
       projectId: reqData.projectId || 'PRJ-101',
-      partnerName: reqData.partnerName || 'Apex Digital Enterprises',
+      partnerName: reqData.partnerName || partnerProfile?.name || 'Partner Company',
       required: Number(reqData.required) || 1,
       assigned: 0,
       remaining: Number(reqData.required) || 1,
@@ -1005,8 +891,8 @@ export const DataProvider = ({ children }) => {
         projectId: prj.id,
         projectName: prj.name || prj.title,
         client: prj.client || 'Enterprise Client',
-        manager: 'Alex Morgan',
-        partnerName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Apex Digital Enterprises') : 'Independent Freelancer',
+        manager: prj.manager || managerProfile?.name || 'Organization Manager',
+        partnerName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || partnerProfile?.name || 'Partner Company') : 'Independent Freelancer',
         roleType: cand.source === 'Partner Company' ? 'Professional' : 'Freelancer',
         source: cand.source || (cand.partnerName ? 'Partner Company' : 'Freelancer'),
         skills: cand.skills || [],
@@ -1045,7 +931,7 @@ export const DataProvider = ({ children }) => {
     setProjects((prev) =>
       prev.map((p) => {
         if (p.id === projectId) {
-          const numProg = Number(progress) !== undefined ? Number(progress) : p.progress;
+          const numProg = progress !== undefined && !isNaN(Number(progress)) ? Number(progress) : p.progress;
           const updatedMilestones = milestoneId && p.milestones
             ? p.milestones.map((m) => (m.id === milestoneId ? { ...m, completed: !m.completed } : m))
             : p.milestones;
@@ -1325,7 +1211,7 @@ export const DataProvider = ({ children }) => {
     // 5. Add to real-time activity stream
     const newAct = {
       id: `act-${Date.now()}`,
-      user: workforceUserProfile.name || 'David Miller',
+      user: workforceUserProfile.name || 'Workforce Specialist',
       action: `updated sprint task to "${task}" (${numProgress}% progress)`,
       project: 'E-Commerce Platform Development',
       time: 'Just now',
@@ -1387,7 +1273,7 @@ export const DataProvider = ({ children }) => {
       resume: formData.resume || 'resume.pdf',
       availability: formData.availability || 'Available',
       workPreference: formData.workPreference && formData.workPreference.length > 0 ? formData.workPreference : ['Remote'],
-      location: formData.location ? (typeof formData.location === 'string' ? formData.location : `${formData.location.city || 'City'}, ${formData.location.state || 'State'}, ${formData.location.country || 'Country'}`) : 'San Francisco, CA',
+      location: formData.location ? (typeof formData.location === 'string' ? formData.location : `${formData.location.city || 'Bengaluru'}, ${formData.location.state || 'Karnataka'}, ${formData.location.country || 'India'}`) : 'Bengaluru, India',
       availableFrom: formData.availableFrom || new Date().toISOString().split('T')[0],
       durationPreference: formData.durationPreference || 'Flexible',
       verificationStatus: 'Pending',
@@ -1593,7 +1479,7 @@ export const DataProvider = ({ children }) => {
 
     // Record Activity
     addActivity({
-      user: 'Sarah Jenkins',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: 'Onboarded new client',
       target: newClient.name,
       targetType: 'client',
@@ -1622,7 +1508,7 @@ export const DataProvider = ({ children }) => {
     setPartners((prev) => [newPartner, ...prev]);
 
     addActivity({
-      user: 'Sarah Jenkins',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: 'Registered new staffing partner',
       target: newPartner.name,
       targetType: 'partner',
@@ -1657,7 +1543,7 @@ export const DataProvider = ({ children }) => {
     setManagers((prev) => [newManager, ...prev]);
 
     addActivity({
-      user: 'Sarah Jenkins (Admin)',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: 'Registered new Organization Manager',
       target: `${newManager.name} (${newManager.employeeId})`,
       targetType: 'manager',
@@ -1778,7 +1664,7 @@ export const DataProvider = ({ children }) => {
     setWorkforce((prev) => [newMember, ...prev]);
 
     addActivity({
-      user: 'Sarah Jenkins',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: `Added ${newMember.roleType.toLowerCase()} to workforce`,
       target: newMember.name,
       targetType: 'talent',
@@ -1807,7 +1693,7 @@ export const DataProvider = ({ children }) => {
     );
 
     addActivity({
-      user: 'Sarah Jenkins (Admin)',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: `Approved & accepted into talent pool (${approvedSource})`,
       target: approvedName,
       targetType: 'talent',
@@ -1844,7 +1730,7 @@ export const DataProvider = ({ children }) => {
     );
 
     addActivity({
-      user: 'Sarah Jenkins (Admin)',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: `Rejected recruitment request (${reason})`,
       target: rejectedName,
       targetType: 'talent',
@@ -1949,9 +1835,9 @@ export const DataProvider = ({ children }) => {
       role: profData.role || profData.title || 'Full-Stack Developer',
       title: profData.title || profData.role || 'Full-Stack Developer',
       roleCategory: profData.roleCategory || 'Full-Stack Engineering',
-      partner: partnerProfile.name || 'Apex Digital Enterprises',
-      partnerName: partnerProfile.name || 'Apex Digital Enterprises',
-      partnerCompany: partnerProfile.name || 'Apex Digital Enterprises',
+      partner: partnerProfile.name || 'Partner Company',
+      partnerName: partnerProfile.name || 'Partner Company',
+      partnerCompany: partnerProfile.name || 'Partner Company',
       roleType: 'Professional',
       professionalType: 'PARTNER_EMPLOYEE',
       source: 'Partner Company',
@@ -1972,7 +1858,7 @@ export const DataProvider = ({ children }) => {
       accountStatus: 'Active',
       joinedDate: new Date().toISOString().split('T')[0],
       email: profData.email || `${(profData.name || 'talent').toLowerCase().replace(/\s+/g, '.')}@apexdigital.com`,
-      phone: profData.phone || '+1 (555) 234-5678',
+      phone: profData.phone || '+91 98765 43210',
       bio: profData.bio || 'Experienced software specialist dedicated to agile enterprise delivery.',
       certifications: profData.certifications || [],
       github: profData.github || '',
@@ -1991,7 +1877,7 @@ export const DataProvider = ({ children }) => {
     // Send activity & notifications
     addActivity({
       title: 'New Specialist Registered',
-      description: `${partnerProfile?.name || 'Apex Digital'} added ${newProf.name} (${newProf.role}) to workforce roster.`,
+      description: `${partnerProfile?.name || 'Partner Company'} added ${newProf.name} (${newProf.role}) to workforce roster.`,
       icon: 'Users',
       color: 'blue',
       timestamp: 'Just now',
@@ -2061,7 +1947,7 @@ export const DataProvider = ({ children }) => {
     setProjects((prev) => [newProject, ...prev]);
 
     addActivity({
-      user: 'Sarah Jenkins',
+      user: userProfile?.name || user?.name || 'System Admin',
       action: project.stage === 'Request' ? 'Created staffing request' : 'Launched new project',
       target: newProject.title,
       targetType: 'project',

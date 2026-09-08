@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Public Shared Pages (Root of pages/)
 import LandingPage from './pages/LandingPage';
@@ -35,6 +36,7 @@ import ClientProjects from './pages/client/ClientProjects';
 import ClientProjectDetails from './pages/client/ClientProjectDetails';
 import ClientWorkforce from './pages/client/ClientWorkforce';
 import ClientProgress from './pages/client/ClientProgress';
+import ClientMessages from './pages/client/ClientMessages';
 import ClientNotifications from './pages/client/ClientNotifications';
 import ClientProfile from './pages/client/ClientProfile';
 import ClientSupport from './pages/client/ClientSupport';
@@ -44,6 +46,7 @@ import PartnerLayout from './pages/partner/PartnerLayout';
 import PartnerDashboard from './pages/partner/PartnerDashboard';
 import PartnerProjects from './pages/partner/PartnerProjects';
 import PartnerProjectDetails from './pages/partner/PartnerProjectDetails';
+import PartnerProjectProgress from './pages/partner/PartnerProjectProgress';
 import PartnerWorkforce from './pages/partner/PartnerWorkforce';
 import PartnerAddWorkforce from './pages/partner/PartnerAddWorkforce';
 import PartnerAvailability from './pages/partner/PartnerAvailability';
@@ -57,6 +60,7 @@ import ManagerLayout from './pages/manager/ManagerLayout';
 import ManagerDashboard from './pages/manager/ManagerDashboard';
 import ManagerApprovedProjects from './pages/manager/ManagerApprovedProjects';
 import ManagerProjectDetails from './pages/manager/ManagerProjectDetails';
+import ManagerProjectProgress from './pages/manager/ManagerProjectProgress';
 import ManagerWorkforce from './pages/manager/ManagerWorkforce';
 import ManagerMatching from './pages/manager/ManagerMatching';
 import ManagerAssignments from './pages/manager/ManagerAssignments';
@@ -74,12 +78,32 @@ import WorkforceSupport from './pages/workforce/WorkforceSupport';
 
 // Authentication & Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import { useAuth } from './context/AuthContext';
+
+// Smart Role-Based Dashboard Redirect
+const DashboardRedirect = () => {
+  const { user, role, isAuthenticated } = useAuth() || {};
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const currentRole = (role || user?.role || '').toLowerCase();
+
+  if (currentRole.includes('client')) return <Navigate to="/client/dashboard" replace />;
+  if (currentRole.includes('manager')) return <Navigate to="/manager/dashboard" replace />;
+  if (currentRole.includes('partner')) return <Navigate to="/partner/dashboard" replace />;
+  if (currentRole.includes('workforce') || currentRole.includes('freelancer') || currentRole.includes('professional')) {
+    return <Navigate to="/workforce/dashboard" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
+};
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <DataProvider>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <DataProvider>
           <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
@@ -90,12 +114,13 @@ function App() {
             <Route path="/freelancer/apply" element={<FreelancerApply />} />
             <Route path="/forgot-password" element={<Login />} />
 
+            {/* Smart /dashboard Router */}
+            <Route path="/dashboard" element={<DashboardRedirect />} />
+
             {/* ========================================================================= */}
-            {/* DEDICATED ADMIN PORTAL SUITE (/admin/* and /dashboard) */}
+            {/* DEDICATED ADMIN PORTAL SUITE (/admin/*) */}
             {/* ========================================================================= */}
             <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-            <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<Navigate to="/dashboard" replace />} />
 
             <Route
               element={
@@ -104,7 +129,8 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/admin/dashboard" element={<Dashboard />} />
+              <Route path="/admin" element={<Dashboard />} />
               <Route path="/company" element={<CompanyManagement />} />
               <Route path="/clients" element={<ClientManagement />} />
               <Route path="/partners" element={<PartnerManagement />} />
@@ -112,9 +138,16 @@ function App() {
               <Route path="/workforce" element={<WorkforceManagement />} />
               <Route path="/projects" element={<ProjectManagement />} />
               <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/admin/company" element={<CompanyManagement />} />
+              <Route path="/admin/clients" element={<ClientManagement />} />
+              <Route path="/admin/partners" element={<PartnerManagement />} />
+              <Route path="/admin/managers" element={<ManagerManagement />} />
+              <Route path="/admin/workforce" element={<WorkforceManagement />} />
+              <Route path="/admin/projects" element={<ProjectManagement />} />
+              <Route path="/admin/projects/:id" element={<ProjectDetails />} />
               <Route path="/admin/assignment-approvals" element={<AdminAssignmentApprovals />} />
               <Route path="/admin/support-tickets" element={<AdminSupportTickets />} />
-              <Route path="/admin/profile" element={<AdminProfile />} />
+              <Route path="/admin/profile" element={<Navigate to="/company" replace />} />
             </Route>
 
             {/* ========================================================================= */}
@@ -133,10 +166,14 @@ function App() {
             >
               <Route path="/client/dashboard" element={<ClientDashboard />} />
               <Route path="/client/submit-request" element={<ClientProjectRequest />} />
+              <Route path="/client/request" element={<ClientProjectRequest />} />
+              <Route path="/client/project-request" element={<ClientProjectRequest />} />
+              <Route path="/client/new-project" element={<ClientProjectRequest />} />
               <Route path="/client/projects" element={<ClientProjects />} />
               <Route path="/client/projects/:projectId" element={<ClientProjectDetails />} />
               <Route path="/client/workforce" element={<ClientWorkforce />} />
               <Route path="/client/progress" element={<ClientProgress />} />
+              <Route path="/client/messages" element={<ClientMessages />} />
               <Route path="/client/notifications" element={<ClientNotifications />} />
               <Route path="/client/profile" element={<ClientProfile />} />
               <Route path="/client/support" element={<ClientSupport />} />
@@ -159,12 +196,14 @@ function App() {
               <Route path="/partner/projects" element={<PartnerProjects />} />
               <Route path="/partner/projects/:id" element={<PartnerProjectDetails />} />
               <Route path="/partner/workforce" element={<PartnerWorkforce />} />
+              <Route path="/partner/roster" element={<PartnerWorkforce />} />
               <Route path="/partner/workforce/register" element={<PartnerAddWorkforce />} />
               <Route path="/partner/workforce/new" element={<PartnerAddWorkforce />} />
+              <Route path="/partner/add-workforce" element={<PartnerAddWorkforce />} />
               <Route path="/partner/workforce/:id" element={<PartnerWorkforce />} />
               <Route path="/partner/availability" element={<PartnerAvailability />} />
               <Route path="/partner/workforce-requests" element={<PartnerWorkforceRequests />} />
-              <Route path="/partner/project-progress" element={<Navigate to="/partner/projects" replace />} />
+              <Route path="/partner/project-progress" element={<PartnerProjectProgress />} />
               <Route path="/partner/notifications" element={<PartnerNotifications />} />
               <Route path="/partner/profile" element={<PartnerProfile />} />
               <Route path="/partner/support" element={<PartnerSupport />} />
@@ -185,12 +224,14 @@ function App() {
             >
               <Route path="/manager/dashboard" element={<ManagerDashboard />} />
               <Route path="/manager/projects" element={<ManagerApprovedProjects />} />
+              <Route path="/manager/approved-projects" element={<ManagerApprovedProjects />} />
               <Route path="/manager/projects/:id" element={<ManagerProjectDetails />} />
               <Route path="/manager/workforce" element={<ManagerWorkforce />} />
+              <Route path="/manager/workforce-pool" element={<ManagerWorkforce />} />
               <Route path="/manager/matching" element={<ManagerMatching />} />
               <Route path="/manager/matching/:projectId" element={<ManagerMatching />} />
               <Route path="/manager/assignments" element={<ManagerAssignments />} />
-              <Route path="/manager/project-progress" element={<Navigate to="/manager/projects" replace />} />
+              <Route path="/manager/project-progress" element={<ManagerProjectProgress />} />
               <Route path="/manager/notifications" element={<ManagerNotifications />} />
               <Route path="/manager/profile" element={<ManagerProfile />} />
               <Route path="/manager/support" element={<ManagerSupport />} />
@@ -233,6 +274,7 @@ function App() {
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

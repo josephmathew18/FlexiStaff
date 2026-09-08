@@ -159,7 +159,7 @@ export const PartnerProjects = () => {
                   >
                     {prj.name}
                   </h3>
-                  <p className="text-xs text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Finovate Global'}</p>
+                  <p className="text-xs text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Client Organization'}</p>
                   <p className="text-xs text-slate-500 font-medium">{prj.category}</p>
                 </div>
                 <StatusBadge status={prj.status} />

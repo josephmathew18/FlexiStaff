@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, NavLink, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
-import { motion, AnimatePresence } from 'framer-motion';
-
+import { Logo } from '../../components/common/Logo';
+import UserAvatar from '../../components/common/UserAvatar';
 import {
   LayoutDashboard,
   Building2,
@@ -34,6 +35,8 @@ import { MdHub } from 'react-icons/md';
 
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useTheme } from '../../context/ThemeContext';
+import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 
 // ====================================================================
 // INLINE REUSABLE UI: Modal
@@ -79,26 +82,26 @@ const InlineModal = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8`}
+            className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-8`}
           >
             {(title || showCloseButton) && (
-              <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 px-6 py-4 bg-slate-50/50 dark:bg-[#1c1a36]/50">
                 <div>
-                  {title && <h3 className="text-base font-bold text-[#191b23]">{title}</h3>}
-                  {subtitle && <p className="mt-0.5 text-xs text-[#737686]">{subtitle}</p>}
+                  {title && <h3 className="text-base font-bold text-[#191b23] dark:text-white">{title}</h3>}
+                  {subtitle && <p className="mt-0.5 text-xs text-[#737686] dark:text-slate-400">{subtitle}</p>}
                 </div>
                 {showCloseButton && (
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-[#191b23] transition-colors"
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 hover:text-[#191b23] dark:hover:text-white transition-colors"
                   >
                     <X size={18} />
                   </button>
                 )}
               </div>
             )}
-            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">{children}</div>
+            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto text-slate-800 dark:text-slate-200">{children}</div>
           </motion.div>
         </div>
       )}
@@ -269,9 +272,9 @@ const InlineNotificationMenu = () => {
             transition={{ duration: 0.15 }}
             className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white p-0 shadow-xl shadow-slate-900/10 overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-[#faf8ff] px-4 py-3">
+            <div className="flex items-center justify-between border-b border-white/10 bg-[#16152B] px-4 py-3">
               <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#191b23]">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-white">
                   Notifications
                 </h4>
                 {unreadCount > 0 && (
@@ -356,6 +359,7 @@ const InlineSidebar = ({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { projects, workforce, managerAssignments, supportTickets = [] } = useData();
+  const { effectiveTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -375,7 +379,7 @@ const InlineSidebar = ({
   ).length;
 
   const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Company', path: '/company', icon: Building2 },
     { label: 'Client Directory', path: '/clients', icon: Users },
     { label: 'Partner Companies', path: '/partners', icon: Handshake },
@@ -411,24 +415,14 @@ const InlineSidebar = ({
   ];
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-[#c3c6d7]/70 text-[#434655]">
+    <div className={`flex h-full flex-col justify-between border-r transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-white' : 'bg-white border-[#c3c6d7]/70 text-[#434655]'
+    }`}>
       <div>
-        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
-          <Link to="/" className="flex items-center gap-2.5 overflow-hidden group">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#004ac6] to-[#2563eb] text-white shadow-md shadow-[#2563eb]/20 group-hover:scale-105 transition-transform">
-              <MdHub className="text-xl" />
-            </div>
-            {(!isCollapsed || isMobileOpen) && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-base font-bold tracking-tight text-[#191b23] leading-none">
-                  FlexiStaff<span className="text-[#2563eb]">AI</span>
-                </span>
-                <span className="text-[10px] font-semibold text-[#737686] tracking-wider uppercase mt-0.5">
-                  Enterprise
-                </span>
-              </div>
-            )}
-          </Link>
+        <div className={`flex h-16 items-center justify-between px-4 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'
+        }`}>
+          <Logo size="md" to="/admin/dashboard" />
 
           {isMobileOpen && (
             <button
@@ -443,8 +437,9 @@ const InlineSidebar = ({
 
         <nav className="space-y-1 px-3 py-4">
           <div
-            className={`px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#737686] ${isCollapsed && !isMobileOpen ? 'text-center' : ''
-              }`}
+            className={`px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${
+              effectiveTheme === 'dark' ? 'text-slate-400' : 'text-[#737686]'
+            } ${isCollapsed && !isMobileOpen ? 'text-center' : ''}`}
           >
             {isCollapsed && !isMobileOpen ? '•••' : 'Main Navigation'}
           </div>
@@ -457,9 +452,12 @@ const InlineSidebar = ({
                 to={item.path}
                 onClick={onCloseMobile}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${isActive
-                    ? 'bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white shadow-sm shadow-blue-500/20'
-                    : 'text-[#434655] hover:bg-[#faf8ff] hover:text-[#004ac6]'
+                  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white shadow-sm shadow-blue-500/20'
+                      : effectiveTheme === 'dark'
+                      ? 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      : 'text-slate-700 hover:bg-blue-50/80 hover:text-[#004ac6]'
                   } ${isCollapsed && !isMobileOpen ? 'justify-center px-2' : ''}`
                 }
                 title={isCollapsed && !isMobileOpen ? item.label : undefined}
@@ -483,11 +481,13 @@ const InlineSidebar = ({
         </nav>
       </div>
 
-      <div className="p-3 border-t border-slate-100 space-y-1.5">
+      <div className={`p-3 border-t space-y-1.5 ${
+        effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'
+      }`}>
         <button
           type="button"
           onClick={handleLogout}
-          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors ${
+          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ${
             isCollapsed && !isMobileOpen ? 'justify-center px-2' : ''
           }`}
           title="Sign Out"
@@ -499,7 +499,11 @@ const InlineSidebar = ({
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="hidden md:flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200/80 bg-white py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+          className={`hidden md:flex w-full items-center justify-center gap-2 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
+            effectiveTheme === 'dark'
+              ? 'border-white/10 bg-[#1e1c38] text-slate-300 hover:bg-white/10 hover:text-white'
+              : 'border-slate-200/80 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+          }`}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? (
@@ -547,6 +551,7 @@ const InlineSidebar = ({
 const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { adminProfile } = useData();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -581,9 +586,12 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
   };
 
   const breadcrumbs = getBreadcrumbs();
+  const { effectiveTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#c3c6d7]/70 bg-white/90 px-4 backdrop-blur-md md:px-6">
+    <header className={`sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b px-4 backdrop-blur-md md:px-6 transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324]/90 border-white/10 text-white' : 'bg-white/90 border-[#c3c6d7]/70 text-slate-900'
+    }`}>
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -600,7 +608,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
               <span
                 className={
                   idx === breadcrumbs.length - 1
-                    ? 'font-bold text-[#191b23]'
+                    ? effectiveTheme === 'dark' ? 'font-bold text-white' : 'font-bold text-[#191b23]'
                     : 'text-[#737686] hover:text-[#004ac6]'
                 }
               >
@@ -612,6 +620,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <ThemeDropdown />
         <InlineNotificationMenu />
 
         {/* Profile Dropdown */}
@@ -619,16 +628,20 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
           <button
             type="button"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
+            className={`flex items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-xs transition-colors shadow-2xs ${
+              effectiveTheme === 'dark'
+                ? 'border-white/10 bg-[#1e1c38] text-white hover:bg-white/10'
+                : 'border-slate-200 bg-white text-[#191b23] hover:bg-slate-50'
+            }`}
           >
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80"
-              alt={user?.name || 'FlexiStaff Admin'}
-              className="h-7 w-7 rounded-lg object-cover"
+            <UserAvatar
+              src={adminProfile?.avatar || user?.avatar}
+              name={user?.name || adminProfile?.name || 'System Administrator'}
+              size="xs"
+              className="h-7 w-7 rounded-lg"
             />
             <div className="hidden lg:block text-left">
               <p className="font-bold text-xs leading-none">{user?.name || 'FlexiStaff Admin'}</p>
-              <p className="text-[10px] text-[#737686] leading-tight mt-0.5">Platform Administrator</p>
             </div>
             <ChevronDown size={14} className="text-slate-400" />
           </button>
@@ -639,40 +652,52 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10 text-xs"
+                className={`absolute right-0 z-50 mt-2 w-64 rounded-2xl border p-2 shadow-xl text-xs ${
+                  effectiveTheme === 'dark'
+                    ? 'border-white/15 bg-[#14132b] text-white shadow-black/50'
+                    : 'border-slate-200 bg-white text-slate-900 shadow-slate-900/10'
+                }`}
               >
-                <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                  <p className="text-xs font-bold text-slate-900">{user?.name || 'FlexiStaff Admin'}</p>
-                  <p className="text-[11px] text-slate-500 truncate">{user?.email || 'admin@flexistaff.com'}</p>
-                  <span className="mt-1.5 inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                <div className={`p-3 rounded-xl mb-1.5 ${
+                  effectiveTheme === 'dark' ? 'bg-[#1c1a36]' : 'bg-slate-50'
+                }`}>
+                  <p className={`text-xs font-bold ${effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    {user?.name || 'FlexiStaff Admin'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">{user?.email || ''}</p>
+                  <span className="mt-1.5 inline-block rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:text-blue-300">
                     Super Admin Access
                   </span>
                 </div>
 
                 <Link
-                  to="/admin/profile"
+                  to="/company"
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    effectiveTheme === 'dark' ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
                 >
                   <Building2 size={15} className="text-slate-400" />
-                  <span>Profile</span>
+                  <span>Company Profile</span>
                 </Link>
 
                 <Link
                   to="/admin/support-tickets"
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    effectiveTheme === 'dark' ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
                 >
                   <LifeBuoy size={15} className="text-slate-400" />
                   <span>Support Desk</span>
                 </Link>
 
-                <div className="border-t border-slate-100 my-1" />
+                <div className={`border-t my-1 ${effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'}`} />
 
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 >
                   <LogOut size={15} />
                   <span>Sign Out</span>
@@ -747,8 +772,12 @@ export const DashboardLayout = () => {
     navigate(`/projects/${newPrj.id}`);
   };
 
+  const { effectiveTheme } = useTheme();
+
   return (
-    <div className="flex min-h-screen w-full bg-[#faf8ff] text-[#191b23] font-sans antialiased">
+    <div className={`flex min-h-screen w-full font-sans antialiased transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#0b0a1a] text-white' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Unified Inline Sidebar */}
       <InlineSidebar
         isCollapsed={isCollapsed}
@@ -770,7 +799,9 @@ export const DashboardLayout = () => {
           <Outlet />
         </main>
 
-        <footer className="border-t border-slate-200/60 bg-white py-3 px-6 text-center text-xs text-slate-400 font-medium shrink-0">
+        <footer className={`border-t py-3 px-6 text-center text-xs font-medium shrink-0 transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-slate-400' : 'bg-white border-slate-200/60 text-slate-400'
+        }`}>
           © 2026 FlexiStaffAI.
         </footer>
       </div>

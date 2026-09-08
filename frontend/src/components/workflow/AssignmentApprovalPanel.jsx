@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import StatusBadge from './StatusBadge';
 import RejectionReasonModal from './RejectionReasonModal';
 import ConfirmationModal from './ConfirmationModal';
+import UserAvatar from '../common/UserAvatar';
 import { toast } from 'react-toastify';
 
 export const AssignmentApprovalPanel = ({
@@ -81,7 +82,7 @@ export const AssignmentApprovalPanel = ({
                 <Building2 size={13} className="text-slate-400" />
                 <span>Client: <strong>{assignment.client || project?.client || 'Enterprise'}</strong></span>
                 <span className="text-slate-300">•</span>
-                <span>Manager: <strong>{assignment.manager || 'Alex Morgan'}</strong></span>
+                <span>Manager: <strong>{assignment.manager || 'Assigned Manager'}</strong></span>
               </p>
             </div>
             <StatusBadge status={assignment.status} />
@@ -91,13 +92,11 @@ export const AssignmentApprovalPanel = ({
           <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <img
-                  src={
-                    assignment.avatar ||
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'
-                  }
-                  alt={assignment.professionalName}
-                  className="w-12 h-12 rounded-2xl object-cover ring-2 ring-white shadow-2xs shrink-0"
+                <UserAvatar
+                  src={assignment.avatar}
+                  name={assignment.professionalName || 'Specialist'}
+                  size="sm"
+                  className="w-12 h-12 rounded-2xl ring-2 ring-white shadow-2xs shrink-0"
                 />
                 <div>
                   <h4 className="font-extrabold text-slate-900 text-xs">
@@ -108,7 +107,7 @@ export const AssignmentApprovalPanel = ({
                     {isProf ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
                         <Building2 size={10} />
-                        <span>Partner: {assignment.partnerName || 'Apex Digital'}</span>
+                        <span>Partner: {assignment.partnerName || 'Partner Organization'}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold border border-purple-100">

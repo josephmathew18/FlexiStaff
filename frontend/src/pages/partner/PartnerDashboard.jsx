@@ -398,7 +398,7 @@ export const PartnerDashboard = () => {
                       <p className="font-bold text-slate-900 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => navigate(`/partner/projects/${prj.id}`)}>
                         {prj.name}
                       </p>
-                      <p className="text-[11px] text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Finovate Global'}</p>
+                      <p className="text-[11px] text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Client Organization'}</p>
                       <p className="text-[10px] text-slate-400 font-medium">{prj.category}</p>
                     </div>
                   </td>

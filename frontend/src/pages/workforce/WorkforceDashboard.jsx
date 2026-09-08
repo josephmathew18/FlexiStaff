@@ -31,43 +31,13 @@ export const WorkforceDashboard = () => {
 
   const myAssignments = (managerAssignments || []).filter(
     (a) =>
-      a.professionalName?.toLowerCase() === (workforceUserProfile?.name || 'Elena Rostova').toLowerCase() ||
+      (workforceUserProfile?.name && a.professionalName?.toLowerCase() === workforceUserProfile.name.toLowerCase()) ||
       a.professionalId === workforceUserProfile?.id
   );
 
   const pendingOffers = myAssignments.filter((a) => a.status === 'Awaiting Workforce Response');
   const activeAssignments = myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working');
   const completedAssignments = myAssignments.filter((a) => a.status === 'Completed');
-
-  const handleSwitchToPartnerEmployee = () => {
-    updateWorkforceUserProfile({
-      name: 'Elena Rostova',
-      role: 'Senior Full-Stack Developer',
-      roleType: 'Professional',
-      employmentType: 'Partner Company Employee',
-      partnerCompany: 'Apex Digital Enterprises',
-      partnerName: 'Apex Digital Enterprises',
-      email: 'elena.rostova@apexdigital.io',
-      experience: '6+ Years',
-      hourlyRate: '$110/hr',
-    });
-    toast.success('Switched profile view to: Partner Company Employee (Apex Digital Enterprises)');
-  };
-
-  const handleSwitchToFreelancer = () => {
-    updateWorkforceUserProfile({
-      name: 'Amara Okafor',
-      role: 'Mobile Application Specialist',
-      roleType: 'Freelancer',
-      employmentType: 'Independent Freelancer',
-      partnerCompany: 'Independent Talent (Direct Registration)',
-      partnerName: 'Direct Freelancer Application',
-      email: 'amara.o@talent.flexistaff.ai',
-      experience: '6+ Years',
-      hourlyRate: '$85/hr',
-    });
-    toast.success('Switched profile view to: Independent Freelancer (Self-Registered)');
-  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -79,7 +49,7 @@ export const WorkforceDashboard = () => {
               {isCompanyEmployee ? (
                 <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
                   <Building2 size={13} />
-                  <span>{workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}</span>
+                  <span>{workforceUserProfile?.partnerCompany || 'Partner Organization'}</span>
                 </span>
               ) : (
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
@@ -90,7 +60,7 @@ export const WorkforceDashboard = () => {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome, {workforceUserProfile?.name || 'Elena Rostova'}
+              Welcome, {workforceUserProfile?.name || 'Workforce Specialist'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
               Review Company-approved project invitations, accept assignment offers, track sprint milestones, and maintain your availability.
@@ -143,37 +113,10 @@ export const WorkforceDashboard = () => {
               </div>
               <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
                 {isCompanyEmployee
-                  ? `Employed by ${workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}`
+                  ? `Employed by ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
                   : 'Independent Technical Freelancer (Direct Contractor)'}
               </h2>
             </div>
-          </div>
-
-          {/* Quick Demo Switcher */}
-          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 self-start sm:self-auto">
-            <span className="text-[10px] font-bold text-slate-400 px-2 uppercase">Switch View:</span>
-            <button
-              type="button"
-              onClick={handleSwitchToPartnerEmployee}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                isCompanyEmployee
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Company Employee
-            </button>
-            <button
-              type="button"
-              onClick={handleSwitchToFreelancer}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                !isCompanyEmployee
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Freelancer
-            </button>
           </div>
         </div>
 

@@ -1,4 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Instrument+Serif:ital@0;1&display=swap');
 @import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@utility font-instrument-sans {
+  font-family: 'Instrument Sans', sans-serif;
+}
+
+@utility font-instrument-serif {
+  font-family: 'Instrument Serif', serif;
+}
 
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -54,9 +65,15 @@
   }
   body {
     font-family: var(--font-sans);
-    color: #1e293b;
-    background-color: #f8fafc;
     overflow-x: hidden;
+  }
+  html.dark, html.dark body, html.dark #root {
+    background-color: #0b0a1a;
+    color: #f8fafc;
+  }
+  html.light, html.light body, html.light #root {
+    background-color: #f8fafc;
+    color: #0f172a;
   }
   html, body, #root {
     margin: 0;
@@ -73,6 +90,19 @@
   input::-ms-reveal,
   input::-ms-clear {
     display: none;
+  }
+  /* Prevent Chrome/Edge/Safari browser autofill dark/grey background box override */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+    -webkit-text-fill-color: #0f172a !important;
+    caret-color: #0f172a !important;
+    transition: background-color 5000s ease-in-out 0s;
   }
 }
 

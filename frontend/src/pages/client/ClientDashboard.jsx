@@ -58,11 +58,11 @@ export default function ClientDashboard() {
 
   // Filter projects belonging to current client
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || "Finovate Global").toLowerCase();
+    const companyName = (clientProfile?.company || "").toLowerCase();
     const clientId = clientProfile?.id;
     return projects.filter((p) => {
       if (!p) return false;
-      const matchName = (p.client || "").toLowerCase().includes("finovate") || (p.client || "").toLowerCase() === companyName;
+      const matchName = companyName && (p.client || "").toLowerCase() === companyName;
       const matchId = p.clientId === clientId;
       return matchName || matchId;
     });
@@ -224,7 +224,7 @@ export default function ClientDashboard() {
         <div className="relative z-10 space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold uppercase tracking-wider">
-              {clientProfile?.company || "Finovate Global"}
+              {clientProfile?.company || "Client Organization"}
             </span>
             <span className="text-xs text-slate-400 font-medium">• Enterprise Client Portal</span>
           </div>
@@ -398,7 +398,7 @@ export default function ClientDashboard() {
 
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-[11px] font-semibold text-slate-500">
-                          <span>Manager: {project.manager || "Alex Morgan"}</span>
+                          <span>Manager: {project.manager || "Assigned Manager"}</span>
                           <span className="font-extrabold text-slate-900">{progressVal}%</span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">

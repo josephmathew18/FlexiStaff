@@ -122,7 +122,7 @@ export const ManagerMatching = () => {
           ...p,
           source: 'Partner Company',
           roleType: 'Professional',
-          partnerName: p.partnerCompany || p.partner || 'Apex Digital Enterprises',
+          partnerName: p.partnerCompany || p.partner || 'Partner Organization',
         });
       }
     });

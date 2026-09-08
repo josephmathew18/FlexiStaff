@@ -32,8 +32,8 @@ export const ManagerProjectDetails = () => {
       all.find((p) => p.id === id) || {
         id: id || 'PRJ-PARTNER-101',
         name: 'E-Commerce Platform Development',
-        client: 'Apex Digital Enterprises',
-        partner: 'Apex Digital Enterprises',
+        client: 'Client Organization',
+        partner: 'Partner Organization',
         category: 'Full-Stack Web & Mobile Architecture',
         techStack: 'React.js, Java Spring Boot, MySQL, Selenium',
         priority: 'High',
@@ -44,8 +44,8 @@ export const ManagerProjectDetails = () => {
         startDate: '2026-08-01',
         expectedEndDate: '2027-01-31',
         duration: '6 Months',
-        workType: 'Hybrid (San Francisco & Remote)',
-        location: 'San Francisco, CA',
+        workType: 'Hybrid (Bengaluru & Remote)',
+        location: 'Bengaluru, India',
         status: 'Approved',
         requirements: [
           { role: 'Frontend React Developer', required: 2, assigned: 1, skills: 'React.js, JavaScript, HTML, CSS' },
@@ -139,7 +139,7 @@ export const ManagerProjectDetails = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-6 text-xs">
           <div>
             <span className="text-slate-400 font-medium">Partner Company</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.client || project.partner || 'Apex Digital'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{project.client || project.partner || 'Client Organization'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Category</span>
@@ -159,7 +159,7 @@ export const ManagerProjectDetails = () => {
           </div>
           <div>
             <span className="text-slate-400 font-medium">Location</span>
-            <p className="font-bold text-slate-900 mt-0.5 truncate">{project.location || 'San Francisco, CA'}</p>
+            <p className="font-bold text-slate-900 mt-0.5 truncate">{project.location || 'Bengaluru, India'}</p>
           </div>
         </div>
       </div>
@@ -257,7 +257,7 @@ export const ManagerProjectDetails = () => {
                   commitHash: 'a7f3d91',
                   commitMessage: 'feat(auth): Implement JWT token rotation & session refresh handler',
                   workCompleted: 'Configured secure HttpOnly cookies, added middleware route protection, and wrote unit tests for auth flow.',
-                  authorName: 'David Miller',
+                  authorName: 'Workforce Specialist',
                   dateTime: '2026-08-28 02:45 PM',
                 },
               ],
@@ -273,7 +273,7 @@ export const ManagerProjectDetails = () => {
                   commitHash: 'c4d9e20',
                   commitMessage: 'feat(analytics): Wire WebSocket live metrics feed to dashboard UI',
                   workCompleted: 'Integrated Socket.io client listener with automatic reconnection and live chart state updates.',
-                  authorName: 'David Miller',
+                  authorName: 'Workforce Specialist',
                   dateTime: '2026-08-28 04:10 PM',
                 },
               ],

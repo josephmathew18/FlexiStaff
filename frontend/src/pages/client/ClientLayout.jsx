@@ -18,14 +18,18 @@ import {
   ChevronDown,
   HelpCircle,
 } from 'lucide-react';
-import { MdHub } from 'react-icons/md';
+import { Logo } from '../../components/common/Logo';
+import UserAvatar from '../../components/common/UserAvatar';
+import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ClientLayout = () => {
   const { user, logout } = useAuth();
+  const { effectiveTheme } = useTheme();
   const { clientProfile, projects = [], clientNotifications = [], markAllNotificationsRead } = useData() || {};
   const navigate = useNavigate();
 
@@ -67,23 +71,15 @@ export const ClientLayout = () => {
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-[#c3c6d7]/70 text-[#434655]">
+    <div className={`flex h-full flex-col justify-between border-r transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'
+    }`}>
       <div>
         {/* Top Header Logo */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
-          <Link to="/" className="flex items-center gap-2.5 overflow-hidden group">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#059669] to-[#10b981] text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <MdHub className="text-xl" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold tracking-tight text-[#191b23] leading-none">
-                FlexiStaff<span className="text-[#059669]">Client</span>
-              </span>
-              <span className="text-[10px] font-semibold text-emerald-600 tracking-wider uppercase mt-0.5">
-                Enterprise Portal
-              </span>
-            </div>
-          </Link>
+        <div className={`flex h-16 items-center justify-between px-4 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'
+        }`}>
+          <Logo size="md" to="/client/dashboard" />
           {isMobileMenuOpen && (
             <button
               type="button"
@@ -111,6 +107,8 @@ export const ClientLayout = () => {
                   `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${
                     isActive
                       ? 'bg-gradient-to-r from-[#059669] to-[#10b981] text-white shadow-sm shadow-emerald-500/20'
+                      : effectiveTheme === 'dark'
+                      ? 'text-slate-300 hover:bg-white/5 hover:text-white'
                       : 'text-[#434655] hover:bg-emerald-50/50 hover:text-[#059669]'
                   }`
                 }
@@ -131,7 +129,7 @@ export const ClientLayout = () => {
       </div>
 
       {/* Bottom Actions: Clean Sign Out Button */}
-      <div className="p-3 border-t border-slate-100">
+      <div className={`p-3 border-t ${effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'}`}>
         <button
           type="button"
           onClick={handleLogout}
@@ -145,7 +143,9 @@ export const ClientLayout = () => {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc] text-slate-900">
+    <div className={`flex h-screen overflow-hidden font-sans antialiased transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
         {sidebarContent}
@@ -167,7 +167,7 @@ export const ClientLayout = () => {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl"
+              className="fixed inset-y-0 left-0 w-72 shadow-2xl"
             >
               {sidebarContent}
             </motion.div>
@@ -178,7 +178,9 @@ export const ClientLayout = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col md:pl-64 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        <header className={`h-16 border-b px-4 sm:px-6 flex items-center justify-between shrink-0 z-20 transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324]/90 border-white/10 text-white backdrop-blur-md' : 'bg-white/90 border-slate-200 text-slate-900 backdrop-blur-md'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -189,12 +191,14 @@ export const ClientLayout = () => {
             </button>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                {clientProfile?.company || 'Finovate Global'}
+                {clientProfile?.company || 'Client Organization'}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Theme Selector Dropdown */}
+            <ThemeDropdown />
             {/* Notifications Dropdown */}
             <div className="relative">
               <button
@@ -252,14 +256,15 @@ export const ClientLayout = () => {
                 }}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
               >
-                <img
-                  src={clientProfile?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80'}
-                  alt={clientProfile?.contactPerson || 'Sarah Jenkins'}
-                  className="h-7 w-7 rounded-lg object-cover"
+                <UserAvatar
+                  src={clientProfile?.avatar}
+                  name={clientProfile?.contactPerson || user?.name || 'Client Contact'}
+                  size="xs"
+                  className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{clientProfile?.contactPerson || 'Sarah Jenkins'}</p>
-                  <p className="text-[10px] text-[#737686] leading-tight mt-0.5">{clientProfile?.company || 'Finovate Global'}</p>
+                  <p className="font-bold text-xs leading-none">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
+                  <p className="text-[10px] text-[#737686] leading-tight mt-0.5">{clientProfile?.company || ''}</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
               </button>
@@ -273,10 +278,10 @@ export const ClientLayout = () => {
                     className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
                   >
                     <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{clientProfile?.contactPerson || 'Sarah Jenkins'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{clientProfile?.email || 'client@flexistaff.com'}</p>
+                      <p className="text-xs font-bold text-slate-900">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{clientProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                        {clientProfile?.company || 'Finovate Global'}
+                        {clientProfile?.company || 'Client Organization'}
                       </span>
                     </div>
 

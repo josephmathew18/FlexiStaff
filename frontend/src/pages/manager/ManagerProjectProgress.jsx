@@ -60,7 +60,7 @@ export const ManagerProjectProgress = () => {
                     {prj.id}
                   </span>
                   <h3 className="text-lg font-bold text-slate-900 mt-1">{prj.name}</h3>
-                  <p className="text-xs text-slate-500">{prj.client || prj.partner || 'Apex Digital'}</p>
+                  <p className="text-xs text-slate-500">{prj.client || prj.partner || 'Client Organization'}</p>
                 </div>
                 <span className="text-2xl font-black text-[#004ac6]">{currentProgress}%</span>
               </div>

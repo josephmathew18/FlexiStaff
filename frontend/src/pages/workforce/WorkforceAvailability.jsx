@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, Clock, X } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import UserAvatar from '../../components/common/UserAvatar';
 import { toast } from 'react-toastify';
 
 export const WorkforceAvailability = () => {
@@ -34,15 +35,16 @@ export const WorkforceAvailability = () => {
 
       {/* Top Profile Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
-        <img
-          src={workforceUserProfile?.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80'}
-          alt={workforceUserProfile?.name || 'David Miller'}
-          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover shadow-xs shrink-0"
+        <UserAvatar
+          src={workforceUserProfile?.avatar}
+          name={workforceUserProfile?.name || 'Workforce Specialist'}
+          size="xl"
+          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl text-2xl shadow-xs shrink-0"
         />
 
         <div className="space-y-2">
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            {workforceUserProfile?.name || 'David Miller'}
+            {workforceUserProfile?.name || 'Workforce Specialist'}
           </h2>
           <p className="text-xs sm:text-sm font-medium text-slate-500">
             {workforceUserProfile?.role || 'Frontend React Developer'}

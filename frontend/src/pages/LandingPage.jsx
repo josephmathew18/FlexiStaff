@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
+import Hls from 'hls.js';
+import { Logo } from '../components/common/Logo';
 import {
   Briefcase,
   Sparkles,
@@ -35,6 +37,13 @@ import {
   BrainCircuit,
   Compass,
   Target,
+  ChevronRight,
+  ChevronDown,
+  ArrowDown,
+  Globe,
+  Award,
+  CreditCard,
+  CheckCircle,
 } from 'lucide-react';
 import {
   FaLinkedin,
@@ -43,6 +52,34 @@ import {
 } from 'react-icons/fa';
 
 export const LandingPage = () => {
+  // Video Stream Reference
+  const videoRef = useRef(null);
+  const videoSrc = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260423_084718_72a17915-4964-4059-afcd-22d59399b72e.mp4";
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = true;
+    video.defaultMuted = true;
+
+    const playVideo = () => {
+      const promise = video.play();
+      if (promise !== undefined) {
+        promise.catch((err) => {
+          console.log("Auto-play blocked or waiting for user interaction:", err);
+        });
+      }
+    };
+
+    if (video.readyState >= 2) {
+      playVideo();
+    } else {
+      video.addEventListener('canplay', playVideo, { once: true });
+      video.addEventListener('loadeddata', playVideo, { once: true });
+    }
+  }, [videoSrc]);
+
   // Navigation & Scroll State
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -50,6 +87,10 @@ export const LandingPage = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollDirection, setScrollDirection] = useState('up');
   const [activeSection, setActiveSection] = useState('home');
+
+  // Upwork Hero Mode & Search State
+  const [workMode, setWorkMode] = useState('hire'); // 'hire' | 'work'
+  const [heroSearch, setHeroSearch] = useState('');
 
   // Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -150,49 +191,91 @@ export const LandingPage = () => {
   const problemCards = [
     {
       icon: Clock,
-      title: 'Manual Workforce Selection',
-      desc: 'Finding suitable professionals manually can take significant time, effort, and administrative overhead.',
-      color: 'amber',
+      title: 'Slow Workforce Selection',
+      desc: 'Organizations spend excessive time finding qualified temporary personnel for specialized project requirements manually.',
     },
     {
       icon: AlertTriangle,
-      title: 'Skill Mismatch',
-      desc: 'Project requirements may not always align with available workforce capabilities without structured analysis.',
-      color: 'rose',
+      title: 'Mismatch in Skills',
+      desc: 'Generic job postings often lead to wrong talent assignments, causing project delays and costly retraining cycles.',
     },
     {
-      icon: Layers,
-      title: 'Complex Coordination',
-      desc: 'Managing temporary workforce pipelines across multiple projects and vendors can quickly become difficult.',
-      color: 'indigo',
-    },
-    {
-      icon: Zap,
-      title: 'Slow Deployment',
-      desc: 'Delays in identifying and deploying suitable professionals can affect sprint timelines and project momentum.',
-      color: 'blue',
+      icon: FileText,
+      title: 'Unorganized Requirements',
+      desc: 'Project needs, deliverables, and resource allocations are scattered across disconnected spreadsheets and emails.',
     },
   ];
 
-  // 5-Step Horizontal Workflow
-  const workflowSteps = [
+  // The Solution Cards
+  const solutionCards = [
+    {
+      icon: Sparkles,
+      title: 'AI Requirement Processing',
+      desc: 'Automatically extract technical skill requirements and project constraints directly from project documentation.',
+    },
+    {
+      icon: Cpu,
+      title: 'Smart Skill Matching',
+      desc: 'Correlate project needs with verified temporary workforce capabilities to deliver instant, high-precision matches.',
+    },
+    {
+      icon: Workflow,
+      title: 'Structured Deployment',
+      desc: 'Streamline the entire pipeline from project creation to workforce deployment and milestone tracking.',
+    },
+  ];
+
+  // Target Stakeholders / Roles
+  const roles = [
+    {
+      title: 'Enterprise Clients',
+      subtitle: 'Post Projects & Hire Talent',
+      desc: 'Create detailed project requisitions, define required skill matrices, and receive AI-matched workforce recommendations.',
+      icon: Building2,
+      badge: 'For Organizations',
+    },
+    {
+      title: 'Project Managers',
+      subtitle: 'Oversee Operations',
+      desc: 'Evaluate incoming project requirements, allocate temporary workforce teams, and monitor project milestones.',
+      icon: FolderKanban,
+      badge: 'For Operations',
+    },
+    {
+      title: 'Temporary Workforce',
+      subtitle: 'Showcase Skills & Deploy',
+      desc: 'Maintain verified skill profiles, review project invitations, and execute project deliverables efficiently.',
+      icon: Users,
+      badge: 'For Talent',
+    },
+    {
+      title: 'Staffing Partners',
+      subtitle: 'Supply Qualified Candidates',
+      desc: 'Partner organizations submit pre-vetted temporary workers into client requisitions to fulfill staffing needs.',
+      icon: ShieldCheck,
+      badge: 'For Agencies',
+    },
+  ];
+
+  // How It Works Steps
+  const steps = [
     {
       step: '01',
-      title: 'Identify Requirements',
-      desc: 'Project requirements such as skills, roles, duration, and workforce needs are clearly defined.',
+      title: 'Create Project Requisition',
+      desc: 'Clients post project details, timelines, budgets, and specific technical skill requirements.',
       icon: FileText,
     },
     {
       step: '02',
-      title: 'Analyze Requirements',
-      desc: 'Project information is analyzed to understand the required workforce capabilities and constraints.',
+      title: 'AI Skill Analysis',
+      desc: 'FlexiStaff AI processes the project scope to generate candidate skill vectors and match criteria.',
       icon: BrainCircuit,
     },
     {
       step: '03',
-      title: 'Smart Workforce Matching',
-      desc: 'Suitable professionals can be identified based on project requirements and relevant skills.',
-      icon: Cpu,
+      title: 'Evaluate & Select Candidates',
+      desc: 'Project managers and clients review top-ranked workforce matches with detailed skill fit scores.',
+      icon: Users,
     },
     {
       step: '04',
@@ -222,7 +305,7 @@ export const LandingPage = () => {
     },
     {
       icon: BarChart3,
-      title: 'Intelligent Workforce Insights',
+      title: 'Workforce Insights & Analytics',
       desc: 'Use workforce and project information to support better staffing decisions, capacity planning, and resource balancing.',
     },
   ];
@@ -250,13 +333,8 @@ export const LandingPage = () => {
       desc: 'Maintain an organized catalog of temporary professionals with verified domain expertise and availability records.',
     },
     {
-      icon: Workflow,
-      title: 'Project Coordination',
-      desc: 'Streamline collaboration between managers, staffing partners, and engineering teams throughout the sprint lifecycle.',
-    },
-    {
-      icon: Clock,
-      title: 'Workforce Availability Management',
+      icon: Sliders,
+      title: 'Resource Bandwidth Allocation',
       desc: 'Track resource bandwidth in real-time to prevent scheduling overlaps and identify immediate capacity for new projects.',
     },
     {
@@ -310,64 +388,77 @@ export const LandingPage = () => {
   ];
 
   return (
-    <div id="home" className="min-h-screen bg-slate-50/50 text-slate-900 font-sans antialiased overflow-x-hidden selection:bg-blue-600 selection:text-white">
+    <div id="home" className="min-h-screen bg-black text-white font-sans antialiased overflow-x-hidden selection:bg-[#6A54F4] selection:text-white relative">
+      {/* ========================================================================= */}
+      {/* GLOBAL FIXED ANIMATED BACKGROUND VIDEO (SHOWS WHEN SCROLLING DOWN) */}
+      {/* ========================================================================= */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover opacity-80 transition-opacity duration-700"
+        >
+          <source src={videoSrc} type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/75 backdrop-blur-[1px]" />
+      </div>
+
       {/* ========================================================================= */}
       {/* 0. TOP SCROLL PROGRESS INDICATOR BAR */}
       {/* ========================================================================= */}
       <div
-        className="fixed top-0 left-0 right-0 z-[60] h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 transition-all duration-75 shadow-sm"
+        className="fixed top-0 left-0 right-0 z-[60] h-1 bg-[#6A54F4] transition-all duration-75 shadow-sm"
         style={{ width: `${scrollProgress}%` }}
       />
 
       {/* ========================================================================= */}
-      {/* 1. NAVBAR */}
+      {/* 1. HEADER / NAVIGATION */}
       {/* ========================================================================= */}
       <header
-        className={`fixed top-0 z-50 w-full transition-all duration-300 transform ${
-          scrollDirection === 'down' && isScrolled
-            ? '-translate-y-full shadow-none'
-            : 'translate-y-0'
-        } ${
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm py-3'
+            ? 'bg-black/95 backdrop-blur-md border-b border-white/10 py-3.5 shadow-xl'
             : 'bg-transparent py-5'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo & Tagline */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white shadow-md shadow-blue-600/20 group-hover:scale-105 transition-transform">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6A54F4] text-white font-bold text-lg shadow-lg shadow-purple-900/40 group-hover:scale-105 transition-transform">
               <Briefcase size={20} />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-extrabold tracking-tight text-slate-900 leading-none">
-                FlexiStaff<span className="text-blue-600">AI</span>
+              <span className="text-xl font-extrabold tracking-tight text-white leading-none">
+                FlexiStaff<span className="text-[#7B66FF]">AI</span>
               </span>
-              <span className="text-[9px] font-bold text-slate-500 tracking-wider uppercase mt-1">
-                SMART WORKFORCE MANAGEMENT
+              <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">
+                Workforce Management
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation Links with ScrollSpy indicator */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
+          {/* Desktop Nav Links */}
+          <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-300">
             {navLinks.map((link) => {
-              const isActive = activeSection === link.href.replace('#', '');
+              const sectionId = link.href.replace('#', '');
+              const isActive = activeSection === sectionId;
               return (
                 <a
                   key={link.name}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link.href)}
-                  className={`relative py-1 transition-colors ${
-                    isActive ? 'text-blue-600 font-bold' : 'hover:text-blue-600 text-slate-600'
+                  className={`transition-colors py-1 relative ${
+                    isActive ? 'text-white font-bold' : 'hover:text-white'
                   }`}
                 >
                   {link.name}
                   {isActive && (
                     <motion.div
                       layoutId="activeNavIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#6A54F4] rounded-full"
                     />
                   )}
                 </a>
@@ -375,71 +466,68 @@ export const LandingPage = () => {
             })}
           </nav>
 
-          {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Action CTAs */}
+          <div className="hidden md:flex items-center gap-4">
             <Link
               to="/login"
-              className="px-4 py-2 text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors"
+              className="text-xs font-bold text-slate-200 hover:text-white px-4 py-2 rounded-xl transition-colors"
             >
               Sign In
             </Link>
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all"
+              className="px-5 py-2.5 rounded-xl bg-[#6A54F4] hover:bg-[#5844E5] text-white text-xs font-bold shadow-lg shadow-purple-900/30 hover:shadow-purple-700/50 transition-all hover:scale-[1.02]"
             >
-              <span>Get Started</span>
-              <ArrowRight size={15} />
+              Get Started
             </Link>
           </div>
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile Menu Button */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden rounded-xl p-2 text-slate-700 hover:bg-slate-100 transition-colors"
-            aria-label="Toggle navigation menu"
+            className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white focus:outline-none"
+            aria-label="Toggle Navigation Menu"
           >
-            <div className="w-6 h-5 flex flex-col justify-between">
-              <span className={`h-0.5 w-full bg-slate-700 rounded-full transition-transform ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-              <span className={`h-0.5 w-full bg-slate-700 rounded-full transition-opacity ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
-              <span className={`h-0.5 w-full bg-slate-700 rounded-full transition-transform ${isMobileMenuOpen ? '-rotate-45 -translate-y-2.5' : ''}`} />
-            </div>
+            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+              {isMobileMenuOpen ? (
+                <path fillRule="evenodd" clipRule="evenodd" d="M18.278 16.864a1 1 0 01-1.414 1.414l-4.829-4.828-4.828 4.828a1 1 0 01-1.414-1.414l4.828-4.829-4.828-4.828a1 1 0 011.414-1.414l4.829 4.828 4.828-4.828a1 1 0 111.414 1.414l-4.828 4.829 4.828 4.828z" />
+              ) : (
+                <path fillRule="evenodd" d="M4 5h16a1 1 0 010 2H4a1 1 0 110-2zm0 6h16a1 1 0 010 2H4a1 1 0 010-2zm0 6h16a1 1 0 010 2H4a1 1 0 010-2z" />
+              )}
+            </svg>
           </button>
         </div>
 
-        {/* Mobile Navigation Drawer */}
+        {/* Mobile Dropdown Menu */}
         <AnimatePresence>
           {isMobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-b border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3"
+              className="md:hidden bg-black border-b border-white/10 px-4 pt-3 pb-6 space-y-3"
             >
-              <div className="flex flex-col space-y-2 text-sm font-semibold text-slate-700">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.name}
-                    href={link.href}
-                    onClick={(e) => handleNavClick(e, link.href)}
-                    className="py-1.5 hover:text-blue-600"
-                  >
-                    {link.name}
-                  </a>
-                ))}
-              </div>
-              <div className="pt-3 border-t border-slate-200 flex flex-col gap-2">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className="block py-2 text-sm font-semibold text-slate-200 hover:text-purple-400"
+                >
+                  {link.name}
+                </a>
+              ))}
+              <div className="pt-3 border-t border-white/10 flex flex-col gap-2.5">
                 <Link
                   to="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 text-sm font-bold text-slate-700 hover:text-blue-600"
+                  className="w-full text-center py-2.5 border border-white/20 rounded-xl text-white font-semibold text-xs"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold shadow-md shadow-blue-600/20"
+                  className="w-full text-center py-2.5 bg-[#6A54F4] rounded-xl text-white font-semibold text-xs"
                 >
                   Get Started
                 </Link>
@@ -450,695 +538,469 @@ export const LandingPage = () => {
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. HERO SECTION */}
+      {/* 2. HERO SECTION COMPONENT */}
       {/* ========================================================================= */}
-      <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden bg-gradient-to-b from-blue-50/60 via-indigo-50/20 to-slate-50/50">
-        {/* Soft Background Geometry with subtle scroll motion */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute top-10 right-10 w-[500px] h-[500px] bg-gradient-to-br from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl" />
-          <div className="absolute top-40 left-10 w-[450px] h-[450px] bg-gradient-to-tr from-purple-400/10 to-blue-400/10 rounded-full blur-3xl" />
-        </div>
+      <section className="relative w-full min-h-screen bg-transparent text-white overflow-hidden flex flex-col justify-center pt-24 pb-16 z-10">
+        {/* Decorative Gradients */}
+        <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none z-1" />
+        <div className="absolute bottom-[-10%] right-[20%] w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none z-1" />
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 25 }}
+        {/* Content Container */}
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-12 space-y-8 flex flex-col items-center">
+          {/* Main Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="space-y-6 max-w-3xl mx-auto"
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight max-w-4xl"
           >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100/80 border border-blue-200 text-blue-800 text-xs font-bold shadow-2xs">
-              <Sparkles size={14} className="text-blue-600" />
-              <span>AI-POWERED WORKFORCE MANAGEMENT</span>
+            Temporary Workforce Allocation & Project Skill Matching
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-slate-200 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl drop-shadow-sm"
+          >
+            Hire experts who use AI to amplify their talent, turning complex work into high impact business outcomes. FlexiStaff organizes resource deployment into one seamless platform.
+          </motion.p>
+
+          {/* Primary Action Buttons & Trust Badges */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="pt-2 flex flex-wrap items-center justify-center gap-4"
+          >
+            <Link
+              to="/register"
+              className="px-7 py-3 rounded-xl bg-[#6A54F4] hover:bg-[#5844E5] text-white text-xs sm:text-sm font-bold shadow-lg shadow-purple-900/50 hover:shadow-purple-700/60 transition-all hover:scale-105 flex items-center gap-2"
+            >
+              <span>Get Started Now</span>
+              <ArrowRight size={16} />
+            </Link>
+            <a
+              href="#how-it-works"
+              onClick={(e) => handleNavClick(e, '#how-it-works')}
+              className="px-7 py-3 rounded-xl border border-white/20 hover:bg-white/10 text-slate-200 text-xs sm:text-sm font-bold transition-all backdrop-blur-sm"
+            >
+              Explore
+            </a>
+          </motion.div>
+
+          {/* Trust Indicators */}
+          <div className="pt-4 flex flex-wrap items-center justify-center gap-6 text-xs sm:text-sm text-slate-300 font-medium">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span>AI Skill Vector Matching</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span>Real-time Resource Tracking</span>
+            </div>
+          </div>
 
-            {/* Main Heading */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
-              Smarter{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-                Workforce Management
-              </span>{' '}
-              for Every Project
-            </h1>
-
-            {/* Description */}
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto font-normal">
-              FlexiStaff helps organizations efficiently manage temporary workforce requirements, connect project needs with suitable professionals, and streamline workforce deployment through intelligent technology.
-            </p>
-
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
-              <Link
-                to="/register"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 active:scale-98 transition-all"
+          {/* Animated Scroll Down Indicator */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="pt-6 sm:pt-10"
+          >
+            <a
+              href="#about"
+              onClick={(e) => handleNavClick(e, '#about')}
+              className="flex flex-col items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white transition-colors group cursor-pointer"
+              aria-label="Scroll down to learn more"
+            >
+              <span className="tracking-wider uppercase text-[10px] text-slate-400 group-hover:text-purple-300">Scroll Down</span>
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-9 h-9 rounded-full border border-white/20 bg-white/5 backdrop-blur-md flex items-center justify-center group-hover:border-[#7B66FF] group-hover:bg-[#6A54F4]/20 transition-all shadow-lg"
               >
-                <span>Get Started →</span>
-              </Link>
-              <a
-                href="#how-it-works"
-                onClick={(e) => handleNavClick(e, '#how-it-works')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-xs transition-all"
-              >
-                <span>Explore How It Works</span>
-              </a>
-            </div>
-
-            {/* Simple Benefits Strip */}
-            <div className="pt-6 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-blue-600" />
-                <span>Smart Workforce Matching</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-indigo-600" />
-                <span>Faster Project Staffing</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-purple-600" />
-                <span>Efficient Project Coordination</span>
-              </div>
-            </div>
-
-            {/* Interactive Scroll Down Indicator */}
-            <div className="pt-8 flex justify-center">
-              <a
-                href="#about"
-                onClick={(e) => handleNavClick(e, '#about')}
-                className="flex flex-col items-center gap-2 text-slate-400 hover:text-blue-600 transition-colors group cursor-pointer"
-                aria-label="Scroll down to About section"
-              >
-                <span className="text-[11px] font-bold tracking-wider uppercase">Scroll to explore</span>
-                <motion.div
-                  animate={{ y: [0, 6, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-slate-200 shadow-xs group-hover:border-blue-300 group-hover:bg-blue-50/50"
-                >
-                  <ArrowRight className="rotate-90 text-blue-600" size={16} />
-                </motion.div>
-              </a>
-            </div>
+                <ArrowDown size={15} className="text-[#7B66FF] group-hover:text-white" />
+              </motion.div>
+            </a>
           </motion.div>
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. ABOUT FLEXISTAFF */}
+      {/* 3. PROBLEM & SOLUTION SECTION */}
       {/* ========================================================================= */}
-      <section id="about" className="py-20 bg-white border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Content */}
-            <div className="lg:col-span-6 space-y-6">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100/80 px-3 py-1 rounded-full">
-                About FlexiStaff
+      <section id="about" className="py-20 bg-[#0E0D18]/70 backdrop-blur-md relative z-10 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+          
+          {/* Header */}
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+              Addressing Modern Workforce Challenges
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              Why Traditional Staffing Needs Modernization
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              FlexiStaff addresses common operational bottlenecks in managing temporary project teams.
+            </p>
+          </div>
+
+          {/* Problem Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {problemCards.map((item, idx) => {
+              const IconComp = item.icon;
+              return (
+                <div key={idx} className="bg-[#16152B] border border-white/10 rounded-3xl p-6 space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center">
+                    <IconComp size={20} />
+                  </div>
+                  <h3 className="text-base font-bold text-white">{item.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Solution Banner */}
+          <div className="bg-[#151426] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-8">
+            <div className="text-center max-w-2xl mx-auto space-y-2">
+              <span className="text-xs font-bold text-emerald-400 tracking-wider uppercase">
+                The FlexiStaff Approach
               </span>
-
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                Transforming the Way Organizations Manage Temporary Workforce
-              </h2>
-
-              <div className="space-y-3.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-                <p>
-                  Modern organizations often need skilled temporary professionals to accelerate specific projects, build new initiatives, and respond rapidly to market opportunities.
-                </p>
-                <p>
-                  However, traditional workforce selection and coordination can be time-consuming, fragmented across spreadsheets, and prone to skill mismatches.
-                </p>
-                <p>
-                  FlexiStaff provides a centralized technology platform that organizes project requirements, identifies suitable workforce capabilities, and streamlines end-to-end deployment.
-                </p>
-                <p>
-                  By applying intelligent requirement analysis and skill matching techniques, FlexiStaff supports faster, data-driven staffing decisions for projects of any scale.
-                </p>
-              </div>
-
-              {/* Key Bullet Highlights */}
-              <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-start gap-2 text-xs font-semibold text-slate-700">
-                  <Check size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                  <span>Centralized Platform</span>
-                </div>
-                <div className="flex items-start gap-2 text-xs font-semibold text-slate-700">
-                  <Check size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                  <span>Skill-Based Matching</span>
-                </div>
-                <div className="flex items-start gap-2 text-xs font-semibold text-slate-700">
-                  <Check size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                  <span>Streamlined Deployment</span>
-                </div>
-                <div className="flex items-start gap-2 text-xs font-semibold text-slate-700">
-                  <Check size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                  <span>Lifecycle Coordination</span>
-                </div>
-              </div>
+              <h3 className="text-xl sm:text-3xl font-extrabold text-white">
+                Modern Workforce Management
+              </h3>
             </div>
 
-            {/* Right Abstract Workflow Illustration */}
-            <div className="lg:col-span-6">
-              <div className="bg-slate-50/80 rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-4">
-                  <h3 className="text-sm font-bold text-slate-900">Platform Operational Ecosystem</h3>
-                  <span className="text-xs font-semibold text-blue-600">Integrated Architecture</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-                      <Building2 size={18} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {solutionCards.map((item, idx) => {
+                const IconComp = item.icon;
+                return (
+                  <div key={idx} className="bg-[#1A192F] border border-white/5 rounded-2xl p-6 space-y-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#6A54F4]/20 text-[#7B66FF] flex items-center justify-center">
+                      <IconComp size={20} />
                     </div>
-                    <h4 className="text-xs font-bold text-slate-900">Organization Demand</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Defines project scopes and technical requisitions.
-                    </p>
+                    <h4 className="text-sm font-bold text-white">{item.title}</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
                   </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                      <BrainCircuit size={18} />
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-900">Intelligent Analysis</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Evaluates required workforce competencies.
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                    <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
-                      <Users size={18} />
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-900">Workforce Pipeline</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Verified professionals and partner talent pools.
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                      <Workflow size={18} />
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-900">Deployment Engine</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Coordinates assignments and milestone tracking.
-                    </p>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. THE PROBLEM SECTION */}
+      {/* 4. ROLES / STAKEHOLDERS SECTION */}
       {/* ========================================================================= */}
-      <section className="py-20 bg-slate-50/80 border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-rose-600 bg-rose-100/80 px-3 py-1 rounded-full">
-              The Challenge
+      <section className="py-20 bg-black/60 backdrop-blur-md relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+              Designed for Key Stakeholders
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Why Traditional Workforce Management Needs to Change
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              One Unified System for Every Role
             </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              Traditional staffing methods introduce bottlenecks that slow down engineering progress and inflate coordination costs.
-            </p>
           </div>
 
-          {/* 4 Problem Cards */}
-          <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {problemCards.map((card, idx) => {
-              const IconComponent = card.icon;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {roles.map((role, idx) => {
+              const IconComp = role.icon;
               return (
-                <motion.div
-                  key={idx}
-                  whileHover={{ y: -4 }}
-                  className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-slate-300 hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between"
-                >
-                  <div className="space-y-3.5">
-                    <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-                      <IconComponent size={20} />
+                <div key={idx} className="bg-[#16152B] border border-white/10 hover:border-[#6A54F4]/50 rounded-3xl p-6 space-y-4 transition-all hover:-translate-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-[#6A54F4]/20 text-[#7B66FF] flex items-center justify-center">
+                      <IconComp size={20} />
                     </div>
-                    <h3 className="text-base font-bold text-slate-900">{card.title}</h3>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                      {card.desc}
-                    </p>
+                    <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 border border-purple-500/30 px-2.5 py-0.5 rounded-full">
+                      {role.badge}
+                    </span>
                   </div>
-                  <div className="pt-2 text-[11px] font-semibold text-slate-400">
-                    Challenge 0{idx + 1}
+                  <div>
+                    <h3 className="text-base font-bold text-white">{role.title}</h3>
+                    <p className="text-xs font-medium text-slate-400">{role.subtitle}</p>
                   </div>
-                </motion.div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{role.desc}</p>
+                </div>
               );
             })}
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. HOW FLEXISTAFF WORKS */}
+      {/* 5. HOW IT WORKS / PIPELINE */}
       {/* ========================================================================= */}
-      <section id="how-it-works" className="py-20 bg-white border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/80 px-3 py-1 rounded-full">
-              Process Overview
+      <section id="how-it-works" className="py-20 bg-[#0E0D18]/70 backdrop-blur-md relative z-10 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+              Step-by-Step Workflow
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              How FlexiStaff Works
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              How FlexiStaff Operates
             </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              A simple and intelligent process for efficient temporary workforce management.
-            </p>
           </div>
 
-          {/* 5-Step Connected Timeline */}
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 relative">
-            {workflowSteps.map((item, idx) => {
-              const IconComponent = item.icon;
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {steps.map((item, idx) => {
+              const IconComp = item.icon;
               return (
-                <div
-                  key={item.step}
-                  className="bg-slate-50/70 rounded-2xl border border-slate-200 p-5 flex flex-col justify-between shadow-2xs hover:border-blue-400 hover:bg-white hover:shadow-md transition-all group"
-                >
-                  <div className="space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xl font-black text-slate-300 group-hover:text-blue-600 transition-colors">
-                        {item.step}
-                      </span>
-                      <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-2xs group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <IconComponent size={16} />
-                      </div>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
-
-                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                      {item.desc}
-                    </p>
+                <div key={idx} className="bg-[#16152B] border border-white/10 rounded-2xl p-5 space-y-3 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-black text-[#6A54F4]">{item.step}</span>
+                    <IconComp size={18} className="text-slate-400" />
                   </div>
-
-                  <div className="mt-5 pt-3 border-t border-slate-200/60 text-[11px] font-semibold text-slate-400 flex items-center justify-between">
-                    <span>Phase {idx + 1}</span>
-                    <ArrowRight size={13} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
+                  <div>
+                    <h3 className="text-xs font-bold text-white mb-1">{item.title}</h3>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               );
             })}
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 6. SMART TECHNOLOGY SECTION */}
+      {/* 6. SMART TECHNOLOGY */}
       {/* ========================================================================= */}
-      <section className="py-20 bg-gradient-to-b from-slate-50/80 to-white border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-100/80 px-3 py-1 rounded-full">
-              Intelligent Capabilities
+      <section className="py-20 bg-black/60 backdrop-blur-md relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+              Advanced Automation Engine
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Powered by Intelligent Technology
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              Smart Technology Powered Staffing
             </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              Intelligent techniques assist organizations in evaluating project requirements and matching suitable workforce capabilities objectively.
-            </p>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-8">
-            {smartTechCards.map((tech, idx) => {
-              const IconComponent = tech.icon;
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {smartTechCards.map((card, idx) => {
+              const IconComp = card.icon;
               return (
-                <div
-                  key={idx}
-                  className="bg-white rounded-3xl border border-slate-200 p-7 shadow-xs hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 transition-all space-y-4"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
-                    <IconComponent size={22} />
+                <div key={idx} className="bg-[#16152B] border border-white/10 rounded-3xl p-6 space-y-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#6A54F4]/20 text-[#7B66FF] flex items-center justify-center">
+                    <IconComp size={20} />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">{tech.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                    {tech.desc}
-                  </p>
+                  <h3 className="text-base font-bold text-white">{card.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{card.desc}</p>
                 </div>
               );
             })}
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 7. KEY FEATURES */}
+      {/* 7. KEY FEATURES GRID */}
       {/* ========================================================================= */}
-      <section id="features" className="py-20 bg-white border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100/80 px-3 py-1 rounded-full">
-              Platform Features
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+      <section id="features" className="py-20 bg-[#0E0D18]/70 backdrop-blur-md relative z-10 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
               Comprehensive Platform Capabilities
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              Built for Complete Workforce Management
             </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              A complete suite of tools to coordinate temporary workforce requirements and track project execution.
-            </p>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {keyFeatures.map((feat, idx) => {
-              const IconComponent = feat.icon;
+              const IconComp = feat.icon;
               return (
-                <div
-                  key={idx}
-                  className="bg-slate-50/60 rounded-2xl border border-slate-200/80 p-6 shadow-2xs hover:bg-white hover:border-blue-300 hover:shadow-md transition-all space-y-3"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-                    <IconComponent size={20} />
+                <div key={idx} className="bg-[#16152B] border border-white/10 hover:border-[#6A54F4]/40 rounded-3xl p-6 space-y-3 transition-all">
+                  <div className="w-9 h-9 rounded-xl bg-[#6A54F4]/20 text-[#7B66FF] flex items-center justify-center">
+                    <IconComp size={18} />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">{feat.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                    {feat.desc}
-                  </p>
+                  <h3 className="text-sm font-bold text-white">{feat.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{feat.desc}</p>
                 </div>
               );
             })}
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 8. BENEFITS (WHY CHOOSE FLEXISTAFF) */}
+      {/* 8. BENEFITS SECTION */}
       {/* ========================================================================= */}
-      <section className="py-20 bg-slate-50/80 border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100/80 px-3 py-1 rounded-full">
-              Value Proposition
+      <section className="py-20 bg-black/60 backdrop-blur-md relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+              Measurable Outcomes
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Why Choose FlexiStaff?
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+              Why Choose FlexiStaff
             </h2>
-            <p className="text-sm sm:text-base text-slate-600">
-              Clear business advantages for modern organizations scaling their project operations.
-            </p>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {benefits.map((b, idx) => {
-              const IconComponent = b.icon;
+              const IconComp = b.icon;
               return (
-                <div
-                  key={b.number}
-                  className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-emerald-300 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl font-black text-slate-200">
-                        {b.number}
-                      </span>
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                        <IconComponent size={20} />
-                      </div>
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900">{b.title}</h3>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
-                      {b.desc}
-                    </p>
-                  </div>
+                <div key={idx} className="bg-[#16152B] border border-white/10 rounded-3xl p-6 space-y-4">
+                  <span className="text-2xl font-black text-[#6A54F4]">{b.number}</span>
+                  <h3 className="text-base font-bold text-white">{b.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{b.desc}</p>
                 </div>
               );
             })}
           </div>
+
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 9. PROJECT VISION */}
+      {/* 9. CONTACT SECTION */}
       {/* ========================================================================= */}
-      <section className="py-20 bg-white border-t border-slate-200/80">
+      <section id="contact" className="py-20 bg-[#0E0D18]/75 backdrop-blur-md relative z-10 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-100/80 px-3 py-1 rounded-full">
-              Our Vision
-            </span>
-
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              Building a More Flexible Workforce Future
-            </h2>
-
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-              FlexiStaff aims to create a smarter and more organized approach to temporary workforce management by combining workforce coordination, project management, and intelligent matching technologies in a single platform.
-            </p>
-
-            {/* Abstract Connectivity Diagram */}
-            <div className="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <Building2 size={24} className="mx-auto text-blue-600 mb-2" />
-                <p className="text-xs font-bold text-slate-800">Connected Organizations</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <FolderKanban size={24} className="mx-auto text-indigo-600 mb-2" />
-                <p className="text-xs font-bold text-slate-800">Project Initiatives</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <BrainCircuit size={24} className="mx-auto text-purple-600 mb-2" />
-                <p className="text-xs font-bold text-slate-800">Skill Competencies</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <Users size={24} className="mx-auto text-emerald-600 mb-2" />
-                <p className="text-xs font-bold text-slate-800">Flexible Workforce</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 10. CALL TO ACTION SECTION */}
-      {/* ========================================================================= */}
-      <section className="py-20 bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-6">
-          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight max-w-2xl mx-auto leading-tight">
-            Ready to Simplify Workforce Management?
-          </h2>
-
-          <p className="text-blue-100 text-base sm:text-lg max-w-xl mx-auto font-normal">
-            Discover how FlexiStaff can make temporary workforce and project staffing more organized, efficient, and intelligent.
-          </p>
-
-          <div className="pt-2">
-            <Link
-              to="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-blue-700 hover:bg-blue-50 font-extrabold text-sm shadow-xl active:scale-95 transition-all"
-            >
-              <span>Get Started →</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 11. CONTACT SECTION */}
-      {/* ========================================================================= */}
-      <section id="contact" className="py-20 bg-white border-t border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            {/* Contact Details */}
-            <div className="lg:col-span-5 space-y-6">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100/80 px-3 py-1 rounded-full">
-                  Contact
+          <div className="bg-[#151426] border border-white/10 rounded-3xl p-8 sm:p-12 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              <div className="lg:col-span-5 space-y-4">
+                <span className="text-xs font-bold text-[#7B66FF] tracking-wider uppercase">
+                  Get in Touch
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3">
-                  Let’s Connect
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-white">
+                  Have Questions About FlexiStaff?
                 </h2>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Have questions about the FlexiStaff technology platform? Reach out to our team.
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  Our team is available to assist organizations, managers, and temporary workforce professionals.
                 </p>
-              </div>
 
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-3.5 text-sm text-slate-700">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-                    <Mail size={18} />
+                <div className="space-y-3 pt-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-3">
+                    <Mail size={16} className="text-[#7B66FF]" />
+                    <span>support@flexistaff.com</span>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-medium">Email</p>
-                    <a href="mailto:contact@flexistaff.org" className="font-bold text-slate-900 hover:text-blue-600">
-                      contact@flexistaff.org
-                    </a>
+                  <div className="flex items-center gap-3">
+                    <Phone size={16} className="text-[#7B66FF]" />
+                    <span>+91 98765 43210</span>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3.5 text-sm text-slate-700">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
-                    <Phone size={18} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-medium">Phone</p>
-                    <a href="tel:+14155552671" className="font-bold text-slate-900 hover:text-indigo-600">
-                      +1 (415) 555-2671
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3.5 text-sm text-slate-700">
-                  <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
-                    <MapPin size={18} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-medium">Location</p>
-                    <p className="font-bold text-slate-900">Academic Project Repository • Department of Computer Applications</p>
+                  <div className="flex items-center gap-3">
+                    <MapPin size={16} className="text-[#7B66FF]" />
+                    <span>FlexiStaff HQ, Tech Park, Bengaluru, India</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Clean Contact Form */}
-            <div className="lg:col-span-7">
-              <form
-                onSubmit={handleContactSubmit}
-                className="bg-slate-50/80 rounded-3xl border border-slate-200/80 p-6 sm:p-8 space-y-4 shadow-2xs"
-              >
-                <h3 className="text-lg font-bold text-slate-900">Send a Message</h3>
+              <div className="lg:col-span-7">
+                <form onSubmit={handleContactSubmit} className="bg-[#1A192F] border border-white/5 rounded-2xl p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                        className="w-full bg-[#121123] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#6A54F4]"
+                        placeholder="Your Name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                        className="w-full bg-[#121123] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#6A54F4]"
+                        placeholder="your.email@example.com"
+                      />
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Subject</label>
                     <input
                       type="text"
-                      value={contactForm.name}
-                      onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                      placeholder="Your Name"
                       required
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                      value={contactForm.subject}
+                      onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                      className="w-full bg-[#121123] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#6A54F4]"
+                      placeholder="Inquiry Subject"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={contactForm.email}
-                      onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                      placeholder="your.email@example.com"
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Message</label>
+                    <textarea
+                      rows={4}
                       required
-                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
+                      value={contactForm.message}
+                      onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                      className="w-full bg-[#121123] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#6A54F4] resize-none"
+                      placeholder="Enter your message..."
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Subject</label>
-                  <input
-                    type="text"
-                    value={contactForm.subject}
-                    onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                    placeholder="Inquiry Subject"
-                    required
-                    className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 rounded-xl bg-[#6A54F4] hover:bg-[#5844E5] text-white text-xs font-bold shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Send size={14} />
+                    <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
+                  </button>
+                </form>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Message</label>
-                  <textarea
-                    rows={4}
-                    value={contactForm.message}
-                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                    placeholder="Enter your message..."
-                    required
-                    className="w-full rounded-xl bg-white border border-slate-300 p-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 resize-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
-                >
-                  <Send size={14} />
-                  <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
-                </button>
-              </form>
             </div>
           </div>
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 12. FOOTER */}
+      {/* 10. FOOTER */}
       {/* ========================================================================= */}
-      <footer className="border-t border-slate-200 bg-white py-12 text-slate-500 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-100">
-            {/* Logo */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <Briefcase size={16} />
-                </div>
-                <span className="text-base font-extrabold text-slate-900">
-                  FlexiStaff<span className="text-blue-600">AI</span>
-                </span>
-              </div>
-              <span className="hidden sm:inline text-slate-300">|</span>
-              <span className="text-xs text-slate-500">
-                Smart Workforce Management for Modern Organizations
-              </span>
-            </div>
+      <footer className="border-t border-white/10 bg-[#08080E] py-12 text-slate-400 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-white/5">
+            <Logo size="sm" />
 
-            {/* Links */}
-            <div className="flex flex-wrap items-center justify-center gap-6 font-semibold text-slate-600">
-              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="hover:text-blue-600 transition-colors">Home</a>
-              <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-blue-600 transition-colors">About</a>
-              <a href="#how-it-works" onClick={(e) => handleNavClick(e, '#how-it-works')} className="hover:text-blue-600 transition-colors">How It Works</a>
-              <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-blue-600 transition-colors">Features</a>
-              <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="hover:text-blue-600 transition-colors">Contact</a>
-            </div>
-
-            {/* Social Media */}
-            <div className="flex items-center gap-3 text-slate-400">
-              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-600 transition-colors" aria-label="LinkedIn">
-                <FaLinkedin size={16} />
-              </a>
-              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-slate-800 transition-colors" aria-label="GitHub">
-                <FaGithub size={16} />
-              </a>
-              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 hover:text-blue-400 transition-colors" aria-label="Twitter">
-                <FaTwitter size={16} />
-              </a>
+            <div className="flex items-center gap-6 text-slate-400 font-medium">
+              <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="hover:text-white">Home</a>
+              <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-white">About</a>
+              <a href="#how-it-works" onClick={(e) => handleNavClick(e, '#how-it-works')} className="hover:text-white">How It Works</a>
+              <a href="#features" onClick={(e) => handleNavClick(e, '#features')} className="hover:text-white">Features</a>
+              <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="hover:text-white">Contact</a>
             </div>
           </div>
 
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-400 text-[11px]">
-            <p>© 2026 FlexiStaffAI.</p>
-            <div className="flex items-center gap-4">
-              <span className="hover:text-slate-600 cursor-pointer">Privacy Policy</span>
-              <span>•</span>
-              <span className="hover:text-slate-600 cursor-pointer">Terms of Service</span>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-xs">
+            <p>© {new Date().getFullYear()} FlexiStaffAI. All rights reserved.</p>
+            {showBackToTop && (
+              <button
+                type="button"
+                onClick={scrollToTop}
+                className="p-2 bg-[#16152B] border border-white/15 rounded-xl text-slate-300 hover:text-white"
+                aria-label="Back to Top"
+              >
+                <ArrowUp size={16} />
+              </button>
+            )}
           </div>
         </div>
       </footer>
-
-      {/* Floating Back to Top Button */}
-      <AnimatePresence>
-        {showBackToTop && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.5, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: 20 }}
-            transition={{ duration: 0.2 }}
-            type="button"
-            onClick={scrollToTop}
-            className="fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 transition-all hover:scale-110 active:scale-95 group cursor-pointer"
-            aria-label="Back to Top"
-          >
-            <ArrowUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

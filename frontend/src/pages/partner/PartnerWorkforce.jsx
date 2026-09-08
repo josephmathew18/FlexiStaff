@@ -373,7 +373,7 @@ export const PartnerWorkforce = () => {
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-slate-400 font-semibold">Client Company:</span>
                       <span className="font-bold text-blue-700 truncate max-w-[170px]">
-                        {emp.clientName || 'Finovate Global'}
+                        {emp.clientName || 'Client Organization'}
                       </span>
                     </div>
                     {emp.currentMilestone && (

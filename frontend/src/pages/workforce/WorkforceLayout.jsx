@@ -17,14 +17,18 @@ import {
   ChevronDown,
   HelpCircle,
 } from 'lucide-react';
-import { MdHub } from 'react-icons/md';
+import { Logo } from '../../components/common/Logo';
+import UserAvatar from '../../components/common/UserAvatar';
+import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const WorkforceLayout = () => {
   const { user, logout } = useAuth();
+  const { effectiveTheme } = useTheme();
   const { workforceUserProfile, managerAssignments = [], workforceNotifications = [] } = useData() || {};
   const navigate = useNavigate();
 
@@ -63,22 +67,14 @@ export const WorkforceLayout = () => {
     workforceUserProfile?.employmentType?.includes('Company');
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-[#c3c6d7]/70 text-[#434655]">
+    <div className={`flex h-full flex-col justify-between border-r transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'
+    }`}>
       <div>
-        <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
-          <Link to="/" className="flex items-center gap-2.5 overflow-hidden group">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#8b5cf6] text-white shadow-md shadow-purple-500/20 group-hover:scale-105 transition-transform">
-              <MdHub className="text-xl" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold tracking-tight text-[#191b23] leading-none">
-                FlexiStaff<span className="text-[#7c3aed]">Talent</span>
-              </span>
-              <span className="text-[10px] font-semibold text-purple-600 tracking-wider uppercase mt-0.5">
-                Workforce Portal
-              </span>
-            </div>
-          </Link>
+        <div className={`flex h-16 items-center justify-between px-4 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'
+        }`}>
+          <Logo size="md" to="/workforce/dashboard" />
           {isMobileMenuOpen && (
             <button
               type="button"
@@ -105,6 +101,8 @@ export const WorkforceLayout = () => {
                   `flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-150 ${
                     isActive
                       ? 'bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] text-white shadow-sm shadow-purple-500/20'
+                      : effectiveTheme === 'dark'
+                      ? 'text-slate-300 hover:bg-white/5 hover:text-white'
                       : 'text-[#434655] hover:bg-purple-50/50 hover:text-[#7c3aed]'
                   }`
                 }
@@ -124,7 +122,7 @@ export const WorkforceLayout = () => {
         </nav>
       </div>
 
-      <div className="p-3 border-t border-slate-100">
+      <div className={`p-3 border-t ${effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'}`}>
         <button
           type="button"
           onClick={handleLogout}
@@ -138,7 +136,9 @@ export const WorkforceLayout = () => {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc] text-slate-900">
+    <div className={`flex h-screen overflow-hidden font-sans antialiased transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
         {sidebarContent}
@@ -160,7 +160,7 @@ export const WorkforceLayout = () => {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl"
+              className="fixed inset-y-0 left-0 w-72 shadow-2xl"
             >
               {sidebarContent}
             </motion.div>
@@ -171,7 +171,9 @@ export const WorkforceLayout = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col md:pl-64 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        <header className={`h-16 border-b px-4 sm:px-6 flex items-center justify-between shrink-0 z-20 transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324]/90 border-white/10 text-white backdrop-blur-md' : 'bg-white/90 border-slate-200 text-slate-900 backdrop-blur-md'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -191,7 +193,7 @@ export const WorkforceLayout = () => {
                 <span className={`w-2 h-2 rounded-full ${isCompanyEmployee ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
                 <span>
                   {isCompanyEmployee
-                    ? workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'
+                    ? workforceUserProfile?.partnerCompany || 'Partner Employee'
                     : 'Independent Freelancer'}
                 </span>
               </span>
@@ -199,6 +201,8 @@ export const WorkforceLayout = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Theme Selector Dropdown */}
+            <ThemeDropdown />
             {/* Notifications Dropdown */}
             <div className="relative">
               <button
@@ -256,15 +260,16 @@ export const WorkforceLayout = () => {
                 }}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
               >
-                <img
-                  src={workforceUserProfile?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80'}
-                  alt={workforceUserProfile?.name || 'David Miller'}
-                  className="h-7 w-7 rounded-lg object-cover"
+                <UserAvatar
+                  src={workforceUserProfile?.avatar}
+                  name={workforceUserProfile?.name || user?.name || 'Workforce Specialist'}
+                  size="xs"
+                  className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{workforceUserProfile?.name || 'David Miller'}</p>
+                  <p className="font-bold text-xs leading-none">{workforceUserProfile?.name || user?.name || 'Workforce Specialist'}</p>
                   <p className="text-[10px] text-[#737686] leading-tight mt-0.5">
-                    {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Apex Digital') : 'Independent Freelancer'}
+                    {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Partner Employee') : 'Independent Freelancer'}
                   </p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
@@ -279,10 +284,10 @@ export const WorkforceLayout = () => {
                     className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
                   >
                     <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{workforceUserProfile?.name || 'David Miller'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{workforceUserProfile?.email || 'talent@flexistaff.com'}</p>
+                      <p className="text-xs font-bold text-slate-900">{workforceUserProfile?.name || user?.name || 'Professional / Freelancer'}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{workforceUserProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-800">
-                        {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Apex Digital') : 'Independent Freelancer'}
+                        {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Partner Employee') : 'Independent Freelancer'}
                       </span>
                     </div>
 

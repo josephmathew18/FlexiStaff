@@ -156,7 +156,7 @@ export const PartnerAddWorkforce = () => {
         name: formData.name.trim(),
         pseudonym: formData.pseudonym.trim() || formData.name.trim(),
         email: formData.email.trim() || `${formData.name.trim().toLowerCase().replace(/\s+/g, '.')}@apexdigital.com`,
-        phone: formData.phone.trim() || '+1 (555) 234-5678',
+        phone: formData.phone.trim() || '+91 98765 43210',
         location: formData.location,
         role: formData.title.trim(),
         title: formData.title.trim(),
@@ -173,8 +173,8 @@ export const PartnerAddWorkforce = () => {
         github: formData.github.trim(),
         linkedin: formData.linkedin.trim(),
         portfolio: formData.portfolio.trim(),
-        partner: partnerProfile?.name || 'Apex Digital Enterprises Inc.',
-        partnerCompany: partnerProfile?.name || 'Apex Digital Enterprises Inc.',
+        partner: partnerProfile?.name || 'Partner Organization',
+        partnerCompany: partnerProfile?.name || 'Partner Organization',
       };
 
       if (typeof addPartnerProfessional === 'function') {
@@ -209,7 +209,7 @@ export const PartnerAddWorkforce = () => {
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Enroll certified full-time or specialist engineering talent from{' '}
-            <strong className="text-slate-800">{partnerProfile?.name || 'Apex Digital Enterprises'}</strong> into the FlexiStaff verified talent matching pool.
+            <strong className="text-slate-800">{partnerProfile?.name || 'Partner Organization'}</strong> into the FlexiStaff verified talent matching pool.
           </p>
         </div>
 
@@ -399,7 +399,7 @@ export const PartnerAddWorkforce = () => {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1 (415) 555-0192"
+                    placeholder="+91 98765 43210"
                     className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6] focus:ring-1 focus:ring-[#004ac6]"
                   />
                 </div>
@@ -416,7 +416,7 @@ export const PartnerAddWorkforce = () => {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                    placeholder="San Francisco, CA (PST / UTC-8)"
+                    placeholder="Bengaluru, India (IST / UTC+5:30)"
                     className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6] focus:ring-1 focus:ring-[#004ac6]"
                   />
                 </div>
@@ -738,7 +738,7 @@ export const PartnerAddWorkforce = () => {
                 <div className="text-xs">
                   <span className="font-bold text-slate-900 block">Verified Partner Background Check</span>
                   <span className="text-slate-500 text-[11px]">
-                    Employee identity, criminal record, and employment credentials have been verified by {partnerProfile?.name || 'Apex Digital Enterprises Inc.'}
+                    Employee identity, criminal record, and employment credentials have been verified by {partnerProfile?.name || 'Partner Organization'}
                   </span>
                 </div>
               </label>
@@ -819,7 +819,7 @@ export const PartnerAddWorkforce = () => {
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
                     <Building2 size={12} className="text-slate-400" />
                     <span className="truncate font-semibold text-slate-700">
-                      {partnerProfile?.name || 'Apex Digital Enterprises'}
+                      {partnerProfile?.name || 'Partner Organization'}
                     </span>
                   </div>
                 </div>
@@ -863,7 +863,7 @@ export const PartnerAddWorkforce = () => {
 
               {/* Bio snippet */}
               <div className="p-3 rounded-2xl bg-blue-50/40 border border-blue-100 text-[11px] text-slate-600 line-clamp-3">
-                {formData.bio || 'Comprehensive engineering specialist profile registered under Apex Digital Enterprises partner roster.'}
+                {formData.bio || 'Comprehensive engineering specialist profile registered under partner roster.'}
               </div>
 
               {/* Bottom Verification Seal */}

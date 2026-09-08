@@ -46,7 +46,7 @@ export const WorkforceSupport = () => {
       if (submitSupportTicket) {
         submitSupportTicket({
           senderRole: 'Workforce',
-          senderName: `${workforceUserProfile?.name || 'David Miller'} (Workforce Specialist)`,
+          senderName: `${workforceUserProfile?.name || 'Workforce Specialist'} (Workforce Specialist)`,
           senderEmail: workforceUserProfile?.email || 'talent@flexistaff.com',
           ...formData,
         });

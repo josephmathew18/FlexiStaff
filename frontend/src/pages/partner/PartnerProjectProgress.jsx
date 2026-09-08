@@ -141,18 +141,18 @@ export const PartnerProjectProgress = () => {
               <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
                 <div className="h-full rounded-full bg-[#2563eb]" style={{ width: '80%' }} />
               </div>
-              <p className="text-[10px] text-slate-500">David Miller • Working</p>
+              <p className="text-[10px] text-slate-500">Frontend Specialist • Active</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900">Java Developer</span>
+                <span className="font-bold text-slate-900">Backend Developer</span>
                 <span className="font-extrabold text-blue-600">70%</span>
               </div>
               <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
                 <div className="h-full rounded-full bg-[#2563eb]" style={{ width: '70%' }} />
               </div>
-              <p className="text-[10px] text-slate-500">Elena Rostova • Working</p>
+              <p className="text-[10px] text-slate-500">Backend Specialist • Active</p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">

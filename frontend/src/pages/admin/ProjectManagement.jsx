@@ -68,10 +68,10 @@ const SearchBar = ({ value = '', onChange, placeholder = 'Search...' }) => (
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-[#c3c6d7]/80 bg-white py-2 pl-9 pr-8 text-xs text-[#191b23] placeholder-slate-400 shadow-xs outline-none focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15"
+      className="w-full rounded-xl border border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-8 text-xs text-[#191b23] dark:text-white placeholder-slate-400 shadow-xs outline-none focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15"
     />
     {value && (
-      <button type="button" onClick={() => onChange?.('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+      <button type="button" onClick={() => onChange?.('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
         <X size={14} />
       </button>
     )}
@@ -89,23 +89,23 @@ const FilterDropdown = ({ label = 'Filter', options = [], value, onChange }) => 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
-          isFiltered ? 'border-[#2563eb] bg-blue-50/50 text-[#004ac6]' : 'border-[#c3c6d7]/80 bg-white text-[#434655] hover:bg-slate-50'
+          isFiltered ? 'border-[#2563eb] bg-blue-50/50 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-400' : 'border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] text-[#434655] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
         }`}
       >
-        <Filter size={13} className={isFiltered ? 'text-[#004ac6]' : 'text-slate-400'} />
+        <Filter size={13} className={isFiltered ? 'text-[#004ac6] dark:text-blue-400' : 'text-slate-400'} />
         <span>{label}: <strong>{selectedOption?.label || 'All'}</strong></span>
         <ChevronDown size={13} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
         {isOpen && (
-          <div className="absolute left-0 z-30 mt-1 min-w-[160px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+          <div className="absolute left-0 z-30 mt-1 min-w-[160px] rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#14132b] p-1 shadow-lg shadow-black/30">
             {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange?.(opt.value); setIsOpen(false); }}
                 className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs ${
-                  opt.value === value ? 'bg-blue-50 text-[#004ac6] font-bold' : 'text-[#434655] hover:bg-slate-100'
+                  opt.value === value ? 'bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-300 font-bold' : 'text-[#434655] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
                 }`}
               >
                 <span>{opt.label}</span>
@@ -122,30 +122,30 @@ const FilterDropdown = ({ label = 'Filter', options = [], value, onChange }) => 
 const DataTable = ({ columns = [], data = [], keyField = 'id', onRowClick }) => {
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#c3c6d7] bg-white/60 p-8 text-center my-4">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#c3c6d7] dark:border-white/10 bg-white/60 dark:bg-[#14132b] p-8 text-center my-4">
         <FolderSearch size={28} className="text-slate-400" />
-        <h4 className="mt-2 text-sm font-bold text-[#191b23]">No projects found</h4>
-        <p className="text-xs text-slate-500">Try adjusting your search criteria or filters.</p>
+        <h4 className="mt-2 text-sm font-bold text-[#191b23] dark:text-white">No projects found</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Try adjusting your search criteria or filters.</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-[#c3c6d7]/70 bg-white shadow-xs">
+    <div className="w-full overflow-hidden rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] shadow-xs">
       <div className="w-full overflow-x-auto">
-        <table className="w-full text-left text-xs text-[#434655]">
-          <thead className="border-b border-[#c3c6d7]/60 bg-[#f8f9fc] text-[11px] font-bold uppercase tracking-wider text-[#737686]">
+        <table className="w-full text-left text-xs text-[#434655] dark:text-slate-300">
+          <thead className="border-b border-[#c3c6d7]/60 dark:border-white/10 bg-[#f8f9fc] dark:bg-[#1a1835] text-[11px] font-bold uppercase tracking-wider text-[#737686] dark:text-slate-400">
             <tr>
               {columns.map((col, idx) => (
                 <th key={col.accessor || idx} className="px-4 py-3.5">{col.header}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/10">
             {data.map((row, rIdx) => (
-              <tr key={row[keyField] || rIdx} onClick={() => onRowClick?.(row)} className="hover:bg-blue-50/40 cursor-pointer transition-colors">
+              <tr key={row[keyField] || rIdx} onClick={() => onRowClick?.(row)} className="hover:bg-blue-50/40 dark:hover:bg-white/5 cursor-pointer transition-colors">
                 {columns.map((col, cIdx) => (
-                  <td key={col.accessor || cIdx} className="px-4 py-3.5 align-middle text-[#191b23]">
+                  <td key={col.accessor || cIdx} className="px-4 py-3.5 align-middle text-[#191b23] dark:text-white">
                     {col.render ? col.render(row) : row[col.accessor]}
                   </td>
                 ))}
@@ -162,24 +162,24 @@ const ProjectCard = ({ project, onClick }) => {
   const { id, title, client, stage, status, priority, budget, progress = 0, deadline, requiredSkills = [] } = project;
 
   return (
-    <div onClick={() => onClick?.(project)} className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 bg-white p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all cursor-pointer">
+    <div onClick={() => onClick?.(project)} className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all cursor-pointer">
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
-          <span className="text-[11px] font-mono font-semibold text-[#737686]">{id}</span>
+          <span className="text-[11px] font-mono font-semibold text-[#737686] dark:text-slate-400">{id}</span>
           <div className="flex items-center gap-1.5">
             <StatusBadge status={priority} type="priority" />
             <StatusBadge status={stage || status} />
           </div>
         </div>
-        <h4 className="text-sm font-bold text-[#191b23] group-hover:text-[#004ac6] transition-colors line-clamp-1">{title}</h4>
-        <p className="text-xs text-[#565e74] mt-0.5">Client: <strong className="text-[#191b23]">{client}</strong></p>
+        <h4 className="text-sm font-bold text-[#191b23] dark:text-white group-hover:text-[#004ac6] dark:group-hover:text-blue-400 transition-colors line-clamp-1">{title}</h4>
+        <p className="text-xs text-[#565e74] dark:text-slate-400 mt-0.5">Client: <strong className="text-[#191b23] dark:text-white">{client}</strong></p>
 
         <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#737686] mb-1">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-[#737686] dark:text-slate-400 mb-1">
             <span>Overall Progress</span>
-            <span className="text-[#191b23]">{progress}%</span>
+            <span className="text-[#191b23] dark:text-white">{progress}%</span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
             <div className={`h-full rounded-full ${progress === 100 ? 'bg-emerald-500' : 'bg-[#2563eb]'}`} style={{ width: `${progress}%` }} />
           </div>
         </div>
@@ -187,14 +187,14 @@ const ProjectCard = ({ project, onClick }) => {
         {requiredSkills.length > 0 && (
           <div className="mt-3.5 flex flex-wrap gap-1">
             {requiredSkills.slice(0, 3).map((s, idx) => (
-              <span key={idx} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700">{s}</span>
+              <span key={idx} className="rounded bg-slate-100 dark:bg-[#1c1a36] px-1.5 py-0.5 text-[10px] text-slate-700 dark:text-slate-300">{s}</span>
             ))}
           </div>
         )}
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-[#737686]">
-        <span className="font-bold text-[#191b23]">{budget}</span>
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-xs text-[#737686] dark:text-slate-400">
+        <span className="font-bold text-[#191b23] dark:text-white">{budget}</span>
         <span className="text-[11px]">{deadline}</span>
       </div>
     </div>
@@ -206,21 +206,21 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
     {isOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" />
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8`}>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/15 overflow-hidden my-8`}>
           {(title || showCloseButton) && (
-            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 px-6 py-4 bg-slate-50/50 dark:bg-[#1c1a36]">
               <div>
-                {title && <h3 className="text-base font-bold text-[#191b23]">{title}</h3>}
-                {subtitle && <p className="mt-0.5 text-xs text-[#737686]">{subtitle}</p>}
+                {title && <h3 className="text-base font-bold text-[#191b23] dark:text-white">{title}</h3>}
+                {subtitle && <p className="mt-0.5 text-xs text-[#737686] dark:text-slate-400">{subtitle}</p>}
               </div>
               {showCloseButton && (
-                <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 transition-colors">
+                <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 transition-colors">
                   <X size={18} />
                 </button>
               )}
             </div>
           )}
-          <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">{children}</div>
+          <div className="px-6 py-5 max-h-[75vh] overflow-y-auto text-slate-900 dark:text-white">{children}</div>
         </motion.div>
       </div>
     )}
@@ -229,21 +229,21 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
 
 const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], className = '', disabled = false, ...rest }) => {
   const isError = Boolean(error);
-  const inputBaseClasses = `w-full rounded-lg border text-xs text-[#191b23] placeholder-slate-400 transition-all outline-none ${
-    isError ? 'border-rose-400 bg-rose-50/20' : 'border-[#c3c6d7] bg-white focus:border-[#004ac6]'
-  } ${disabled ? 'bg-slate-100 text-slate-500' : ''}`;
+  const inputBaseClasses = `w-full rounded-lg border text-xs text-[#191b23] dark:text-white placeholder-slate-400 transition-all outline-none ${
+    isError ? 'border-rose-400 bg-rose-50/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
+  } ${disabled ? 'bg-slate-100 dark:bg-white/5 text-slate-500' : ''}`;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
       {label && (
-        <label className="flex items-center justify-between text-xs font-semibold text-[#434655]">
+        <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
           <span>{label}{required && <span className="text-rose-500 ml-0.5">*</span>}</span>
         </label>
       )}
       {type === 'select' ? (
-        <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2 bg-white`} {...rest}>
+        <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2 bg-white dark:bg-[#1c1a36]`} {...rest}>
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value} className="bg-white dark:bg-[#1c1a36] text-[#191b23] dark:text-white">{opt.label}</option>
           ))}
         </select>
       ) : (
@@ -286,7 +286,7 @@ export const ProjectManagement = () => {
   const [selectedProjectForApproval, setSelectedProjectForApproval] = useState(null);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [assignedManagerSelect, setAssignedManagerSelect] = useState('Alex Morgan');
+  const [assignedManagerSelect, setAssignedManagerSelect] = useState(managers[0]?.name || '');
   const [rejectionReason, setRejectionReason] = useState('');
 
   const {
@@ -301,7 +301,7 @@ export const ProjectManagement = () => {
       client: clients[0]?.name || '',
       stage: 'Pending Admin Approval',
       priority: 'High',
-      manager: managers[0]?.name || 'Alex Morgan',
+      manager: managers[0]?.name || 'Assigned Manager',
       budget: '$150,000',
       deadline: '2026-11-30',
       description: '',
@@ -415,8 +415,8 @@ export const ProjectManagement = () => {
       sortable: true,
       render: (row) => (
         <div>
-          <span className="text-[10px] font-mono text-[#737686] block">{row.id}</span>
-          <h4 className="font-bold text-[#191b23] hover:text-[#004ac6] transition-colors line-clamp-1">
+          <span className="text-[10px] font-mono text-[#737686] dark:text-slate-400 block">{row.id}</span>
+          <h4 className="font-bold text-[#191b23] dark:text-white hover:text-[#004ac6] dark:hover:text-blue-400 transition-colors line-clamp-1">
             {row.title}
           </h4>
         </div>
@@ -426,7 +426,7 @@ export const ProjectManagement = () => {
       header: 'Client',
       accessor: 'client',
       sortable: true,
-      render: (row) => <span className="font-semibold text-[#434655]">{row.client}</span>,
+      render: (row) => <span className="font-semibold text-[#434655] dark:text-slate-300">{row.client}</span>,
     },
     {
       header: 'Stage & Priority',
@@ -449,10 +449,10 @@ export const ProjectManagement = () => {
             <img
               src={row.managerAvatar}
               alt={row.manager}
-              className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200"
+              className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
             />
           )}
-          <span className="text-xs font-medium text-[#191b23]">{row.manager}</span>
+          <span className="text-xs font-medium text-[#191b23] dark:text-white">{row.manager}</span>
         </div>
       ),
     },
@@ -468,16 +468,16 @@ export const ProjectManagement = () => {
                 src={res.avatar}
                 alt={res.name}
                 title={res.name}
-                className="h-6 w-6 rounded-full border-2 border-white object-cover"
+                className="h-6 w-6 rounded-full border-2 border-white dark:border-slate-800 object-cover"
               />
             ))
           ) : (
-            <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/50">
               Needs Staffing
             </span>
           )}
           {row.assignedResources?.length > 3 && (
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-bold text-slate-600">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">
               +{row.assignedResources.length - 3}
             </span>
           )}
@@ -490,10 +490,10 @@ export const ProjectManagement = () => {
       sortable: true,
       render: (row) => (
         <div className="w-24">
-          <div className="flex justify-between text-[10px] font-semibold text-[#191b23] mb-0.5">
+          <div className="flex justify-between text-[10px] font-semibold text-[#191b23] dark:text-white mb-0.5">
             <span>{row.progress}%</span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-slate-100">
+          <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700">
             <div
               className={`h-full rounded-full ${
                 row.progress === 100
@@ -568,10 +568,10 @@ export const ProjectManagement = () => {
       {/* Header with Title & Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[#191b23] tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#191b23] dark:text-white tracking-tight">
             Central Project & Requirements Approval
           </h2>
-          <p className="text-xs sm:text-sm text-[#737686]">
+          <p className="text-xs sm:text-sm text-[#737686] dark:text-slate-400">
             Review client project requirement requests, authorize project approval, and assign Organization Managers.
           </p>
         </div>
@@ -587,14 +587,14 @@ export const ProjectManagement = () => {
       </div>
 
       {/* Workflow Stage Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setStageTab('all')}
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'all'
               ? 'bg-[#2563eb] text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <FolderKanban size={15} />
@@ -607,7 +607,7 @@ export const ProjectManagement = () => {
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'Pending Admin Approval'
               ? 'bg-amber-600 text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <Clock size={15} />
@@ -622,7 +622,7 @@ export const ProjectManagement = () => {
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'Approved'
               ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <CheckCircle2 size={15} />
@@ -637,7 +637,7 @@ export const ProjectManagement = () => {
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'In Progress'
               ? 'bg-[#2563eb] text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <PlayCircle size={15} />
@@ -652,7 +652,7 @@ export const ProjectManagement = () => {
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'Rejected'
               ? 'bg-rose-600 text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <X size={15} />
@@ -667,7 +667,7 @@ export const ProjectManagement = () => {
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
             stageTab === 'Completed'
               ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-[#565e74] hover:bg-slate-100'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <CheckCircle2 size={15} />
@@ -678,7 +678,7 @@ export const ProjectManagement = () => {
       </div>
 
       {/* Filter Controls Bar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[#c3c6d7]/70 shadow-xs">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white dark:bg-[#14132b] p-4 rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 shadow-xs">
         <div className="flex-1 max-w-md">
           <SearchBar
             value={searchQuery}
@@ -709,12 +709,14 @@ export const ProjectManagement = () => {
           />
 
           {/* View Toggle */}
-          <div className="flex items-center rounded-lg border border-[#c3c6d7]/80 bg-slate-100 p-0.5">
+          <div className="flex items-center rounded-lg border border-[#c3c6d7]/80 dark:border-white/15 bg-slate-100 dark:bg-[#1c1a36] p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               className={`rounded-md p-1.5 transition-colors ${
-                viewMode === 'grid' ? 'bg-white shadow-xs text-[#004ac6]' : 'text-slate-500'
+                viewMode === 'grid'
+                  ? 'bg-white dark:bg-[#2563eb] shadow-xs text-[#004ac6] dark:text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="Grid View"
             >
@@ -724,7 +726,9 @@ export const ProjectManagement = () => {
               type="button"
               onClick={() => setViewMode('table')}
               className={`rounded-md p-1.5 transition-colors ${
-                viewMode === 'table' ? 'bg-white shadow-xs text-[#004ac6]' : 'text-slate-500'
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-[#2563eb] shadow-xs text-[#004ac6] dark:text-white'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="Table View"
             >

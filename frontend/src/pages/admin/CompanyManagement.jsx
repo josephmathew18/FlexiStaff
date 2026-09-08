@@ -54,19 +54,19 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8`}
+            className={`relative z-10 w-full ${maxWidth} rounded-2xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-8`}
           >
             {(title || showCloseButton) && (
-              <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 px-6 py-4 bg-slate-50/50 dark:bg-[#1c1a36]">
                 <div>
-                  {title && <h3 className="text-base font-bold text-[#191b23]">{title}</h3>}
-                  {subtitle && <p className="mt-0.5 text-xs text-[#737686]">{subtitle}</p>}
+                  {title && <h3 className="text-base font-bold text-[#191b23] dark:text-white">{title}</h3>}
+                  {subtitle && <p className="mt-0.5 text-xs text-[#737686] dark:text-slate-400">{subtitle}</p>}
                 </div>
                 {showCloseButton && (
                   <button
                     type="button"
                     onClick={onClose}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-[#191b23] transition-colors"
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 hover:text-[#191b23] dark:hover:text-white transition-colors"
                   >
                     <X size={18} />
                   </button>
@@ -83,16 +83,16 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
 
 const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], rows = 3, helperText, className = '', disabled = false, ...rest }) => {
   const isError = Boolean(error);
-  const inputBaseClasses = `w-full rounded-lg border text-xs md:text-sm text-[#191b23] placeholder-slate-400 transition-all outline-none ${
+  const inputBaseClasses = `w-full rounded-lg border text-xs md:text-sm text-[#191b23] dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none ${
     isError
-      ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-      : 'border-[#c3c6d7] bg-white focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15'
-  } ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`;
+      ? 'border-rose-400 bg-rose-50/20 dark:bg-rose-950/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+      : 'border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/15'
+  } ${disabled ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed' : ''}`;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
       {label && (
-        <label className="flex items-center justify-between text-xs font-semibold text-[#434655]">
+        <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
           <span>
             {label}
             {required && <span className="text-rose-500 ml-0.5">*</span>}
@@ -102,9 +102,9 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
       )}
       <div className="relative">
         {type === 'select' ? (
-          <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2.5 bg-white`} {...rest}>
+          <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2.5 bg-white dark:bg-[#1c1a36]`} {...rest}>
             {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value} className="bg-white dark:bg-[#1c1a36] text-[#191b23] dark:text-white">{opt.label}</option>
             ))}
           </select>
         ) : type === 'textarea' ? (
@@ -142,85 +142,12 @@ const companySchema = yup.object().shape({
 });
 
 export const CompanyManagement = () => {
-  const { companyProfile, updateCompanyProfile } = useData();
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: yupResolver(companySchema),
-    defaultValues: {
-      name: companyProfile.name,
-      legalName: companyProfile.legalName,
-      registrationNumber: companyProfile.registrationNumber,
-      taxId: companyProfile.taxId,
-      industry: companyProfile.industry,
-      employeeCount: companyProfile.employeeCount,
-      email: companyProfile.email,
-      phone: companyProfile.phone,
-      website: companyProfile.website,
-      overview: companyProfile.overview,
-      address: companyProfile.headquarters.address,
-      city: companyProfile.headquarters.city,
-      state: companyProfile.headquarters.state,
-      postalCode: companyProfile.headquarters.postalCode,
-      country: companyProfile.headquarters.country,
-    },
-  });
-
-  const onEditSubmit = (data) => {
-    updateCompanyProfile({
-      name: data.name,
-      legalName: data.legalName,
-      registrationNumber: data.registrationNumber,
-      taxId: data.taxId,
-      industry: data.industry,
-      employeeCount: data.employeeCount,
-      email: data.email,
-      phone: data.phone,
-      website: data.website,
-      overview: data.overview,
-      headquarters: {
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        postalCode: data.postalCode,
-        country: data.country,
-      },
-    });
-
-    toast.success('Company profile updated successfully!');
-    setIsEditModalOpen(false);
-  };
-
-  const handleOpenModal = () => {
-    reset({
-      name: companyProfile.name,
-      legalName: companyProfile.legalName,
-      registrationNumber: companyProfile.registrationNumber,
-      taxId: companyProfile.taxId,
-      industry: companyProfile.industry,
-      employeeCount: companyProfile.employeeCount,
-      email: companyProfile.email,
-      phone: companyProfile.phone,
-      website: companyProfile.website,
-      overview: companyProfile.overview,
-      address: companyProfile.headquarters.address,
-      city: companyProfile.headquarters.city,
-      state: companyProfile.headquarters.state,
-      postalCode: companyProfile.headquarters.postalCode,
-      country: companyProfile.headquarters.country,
-    });
-    setIsEditModalOpen(true);
-  };
+  const { companyProfile } = useData();
 
   return (
     <div className="space-y-6">
       {/* Header Profile Card */}
-      <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 sm:p-8 shadow-xs">
+      <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#004ac6] to-[#2563eb] text-white shadow-lg shadow-[#004ac6]/20">
@@ -229,15 +156,15 @@ export const CompanyManagement = () => {
 
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-bold text-[#191b23] tracking-tight">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#191b23] dark:text-white tracking-tight">
                   {companyProfile.name}
                 </h2>
                 <StatusBadge status={companyProfile.status} size="sm" />
               </div>
-              <p className="text-xs sm:text-sm text-[#565e74] mt-0.5 font-medium">
-                Legal Entity: <span className="text-[#191b23]">{companyProfile.legalName}</span>
+              <p className="text-xs sm:text-sm text-[#565e74] dark:text-slate-300 mt-0.5 font-medium">
+                Legal Entity: <span className="text-[#191b23] dark:text-white">{companyProfile.legalName}</span>
               </p>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#737686]">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#737686] dark:text-slate-400">
                 <span>Founded {companyProfile.founded}</span>
                 <span>•</span>
                 <span>{companyProfile.industry}</span>
@@ -246,15 +173,6 @@ export const CompanyManagement = () => {
               </div>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={handleOpenModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] active:scale-95 transition-all"
-          >
-            <Edit3 size={15} />
-            <span>Edit Profile</span>
-          </button>
         </div>
       </div>
 
@@ -263,60 +181,60 @@ export const CompanyManagement = () => {
         {/* Left 2 Columns: Overview & Registration Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Company Overview */}
-          <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 shadow-xs">
-            <h3 className="text-base font-bold text-[#191b23] tracking-tight mb-3">
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight mb-3">
               About & Enterprise Mission
             </h3>
-            <p className="text-xs sm:text-sm text-[#434655] leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#434655] dark:text-slate-300 leading-relaxed">
               {companyProfile.overview}
             </p>
           </div>
 
           {/* Registration & Legal Identifiers */}
-          <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 shadow-xs">
-            <h3 className="text-base font-bold text-[#191b23] tracking-tight mb-4">
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight mb-4">
               Corporate Registration & Tax Details
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686]">
+              <div className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] p-4 border border-slate-100 dark:border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686] dark:text-slate-400">
                   Registration Number
                 </span>
-                <p className="mt-1 font-mono font-bold text-sm text-[#191b23]">
+                <p className="mt-1 font-mono font-bold text-sm text-[#191b23] dark:text-white">
                   {companyProfile.registrationNumber}
                 </p>
-                <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
                   ✓ Verified Corporate Entity
                 </span>
               </div>
 
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686]">
+              <div className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] p-4 border border-slate-100 dark:border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686] dark:text-slate-400">
                   Federal Tax ID / EIN
                 </span>
-                <p className="mt-1 font-mono font-bold text-sm text-[#191b23]">
+                <p className="mt-1 font-mono font-bold text-sm text-[#191b23] dark:text-white">
                   {companyProfile.taxId}
                 </p>
-                <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
                   ✓ Good Standing
                 </span>
               </div>
 
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686]">
+              <div className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] p-4 border border-slate-100 dark:border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686] dark:text-slate-400">
                   Corporate Structure
                 </span>
-                <p className="mt-1 font-semibold text-sm text-[#191b23]">
+                <p className="mt-1 font-semibold text-sm text-[#191b23] dark:text-white">
                   {companyProfile.companyType}
                 </p>
               </div>
 
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686]">
+              <div className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] p-4 border border-slate-100 dark:border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#737686] dark:text-slate-400">
                   Workforce Size
                 </span>
-                <p className="mt-1 font-semibold text-sm text-[#191b23]">
+                <p className="mt-1 font-semibold text-sm text-[#191b23] dark:text-white">
                   {companyProfile.employeeCount}
                 </p>
               </div>
@@ -324,8 +242,8 @@ export const CompanyManagement = () => {
           </div>
 
           {/* Security & Regulatory Compliance */}
-          <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 shadow-xs">
-            <h3 className="text-base font-bold text-[#191b23] tracking-tight mb-4">
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight mb-4">
               Security Standards & Compliance
             </h3>
 
@@ -333,15 +251,15 @@ export const CompanyManagement = () => {
               {companyProfile.certifications.map((cert, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3.5"
+                  className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36] p-3.5"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
                       <ShieldCheck size={18} />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-[#191b23]">{cert.name}</h4>
-                      <p className="text-[11px] text-[#737686]">Audit verified: {cert.verifiedDate}</p>
+                      <h4 className="text-xs font-bold text-[#191b23] dark:text-white">{cert.name}</h4>
+                      <p className="text-[11px] text-[#737686] dark:text-slate-400">Audit verified: {cert.verifiedDate}</p>
                     </div>
                   </div>
                   <StatusBadge status={cert.status} size="sm" />
@@ -354,43 +272,43 @@ export const CompanyManagement = () => {
         {/* Right Column: Contact & Addresses */}
         <div className="space-y-6">
           {/* Contact Details */}
-          <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 shadow-xs">
-            <h3 className="text-base font-bold text-[#191b23] tracking-tight mb-4">
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight mb-4">
               Contact Channels
             </h3>
 
             <div className="space-y-3.5 text-xs">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#004ac6]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400">
                   <Mail size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] text-[#737686] uppercase font-bold">Email</span>
-                  <p className="font-semibold text-[#191b23] truncate">{companyProfile.email}</p>
+                  <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Email</span>
+                  <p className="font-semibold text-[#191b23] dark:text-white truncate">{companyProfile.email}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#004ac6]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400">
                   <Phone size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] text-[#737686] uppercase font-bold">Phone</span>
-                  <p className="font-semibold text-[#191b23]">{companyProfile.phone}</p>
+                  <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Phone</span>
+                  <p className="font-semibold text-[#191b23] dark:text-white">{companyProfile.phone}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#004ac6]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400">
                   <Globe size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-[10px] text-[#737686] uppercase font-bold">Website</span>
+                  <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Website</span>
                   <a
                     href={companyProfile.website}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-[#2563eb] hover:underline block truncate"
+                    className="font-semibold text-[#2563eb] dark:text-blue-400 hover:underline block truncate"
                   >
                     {companyProfile.website}
                   </a>
@@ -400,154 +318,23 @@ export const CompanyManagement = () => {
           </div>
 
           {/* Headquarters Location */}
-          <div className="rounded-2xl border border-[#c3c6d7]/70 bg-white p-6 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin size={18} className="text-[#004ac6]" />
-              <h3 className="text-base font-bold text-[#191b23] tracking-tight">
-                Global Headquarters
-              </h3>
-            </div>
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight mb-4 flex items-center gap-2">
+              <MapPin size={18} className="text-[#004ac6] dark:text-blue-400" />
+              <span>Global Headquarters</span>
+            </h3>
 
-            <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-xs space-y-1 text-[#434655]">
-              <p className="font-bold text-[#191b23]">{companyProfile.headquarters.address}</p>
-              <p>
+            <div className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] p-4 border border-slate-100 dark:border-white/10 text-xs space-y-1">
+              <p className="font-semibold text-[#191b23] dark:text-white">{companyProfile.headquarters.address}</p>
+              <p className="text-[#565e74] dark:text-slate-300">
                 {companyProfile.headquarters.city}, {companyProfile.headquarters.state}{' '}
                 {companyProfile.headquarters.postalCode}
               </p>
-              <p className="font-medium text-[#737686]">{companyProfile.headquarters.country}</p>
+              <p className="text-[#737686] dark:text-slate-400 font-medium">{companyProfile.headquarters.country}</p>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Edit Profile Modal with React Hook Form + Yup */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Edit Corporate Information"
-        subtitle="Update corporate entity details, registration numbers, and addresses."
-        size="xl"
-      >
-        <form onSubmit={handleSubmit(onEditSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormInput
-              label="Company Name"
-              name="name"
-              register={register}
-              error={errors.name}
-              required
-            />
-            <FormInput
-              label="Legal Entity Name"
-              name="legalName"
-              register={register}
-              error={errors.legalName}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormInput
-              label="Registration Number"
-              name="registrationNumber"
-              register={register}
-              error={errors.registrationNumber}
-              required
-            />
-            <FormInput
-              label="Tax ID / EIN"
-              name="taxId"
-              register={register}
-              error={errors.taxId}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <FormInput
-              label="Industry"
-              name="industry"
-              register={register}
-              error={errors.industry}
-              required
-            />
-            <FormInput
-              label="Employee Count"
-              name="employeeCount"
-              register={register}
-              error={errors.employeeCount}
-              required
-            />
-            <FormInput
-              label="Phone"
-              name="phone"
-              register={register}
-              error={errors.phone}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormInput
-              label="Contact Email"
-              name="email"
-              type="email"
-              register={register}
-              error={errors.email}
-              required
-            />
-            <FormInput
-              label="Website URL"
-              name="website"
-              register={register}
-              error={errors.website}
-              required
-            />
-          </div>
-
-          <FormInput
-            label="Headquarters Street Address"
-            name="address"
-            register={register}
-            error={errors.address}
-            required
-          />
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            <FormInput label="City" name="city" register={register} error={errors.city} required />
-            <FormInput label="State" name="state" register={register} error={errors.state} required />
-            <FormInput label="Postal Code" name="postalCode" register={register} error={errors.postalCode} required />
-            <FormInput label="Country" name="country" register={register} error={errors.country} required />
-          </div>
-
-          <FormInput
-            label="Company Mission & Overview"
-            name="overview"
-            type="textarea"
-            rows={3}
-            register={register}
-            error={errors.overview}
-            required
-          />
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-lg bg-[#2563eb] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#1d4ed8] active:scale-95 transition-all"
-            >
-              {isSubmitting ? 'Saving...' : 'Save Profile Changes'}
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };

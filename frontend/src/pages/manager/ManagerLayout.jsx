@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   FolderCheck,
@@ -25,9 +26,12 @@ import {
   LifeBuoy,
   HelpCircle,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Logo } from '../../components/common/Logo';
+import UserAvatar from '../../components/common/UserAvatar';
+import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 export const ManagerLayout = () => {
@@ -79,6 +83,7 @@ export const ManagerLayout = () => {
       badge: approvedProjects.length > 0 ? `${approvedProjects.length} Ready` : null,
       badgeColor: 'bg-emerald-100 text-emerald-800',
     },
+    { label: 'Project Progress', path: '/manager/project-progress', icon: TrendingUp },
     {
       label: 'Workforce Pool',
       path: '/manager/workforce',
@@ -112,23 +117,15 @@ export const ManagerLayout = () => {
   };
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-[#c3c6d7]/70 text-[#434655]">
+    <div className={`flex h-full flex-col justify-between border-r transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'
+    }`}>
       <div>
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-5 border-b border-slate-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
-          <Link to="/manager/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#004ac6] to-[#2563eb] text-white shadow-md shadow-[#2563eb]/20">
-              <Layers size={20} />
-            </div>
-            <div>
-              <span className="font-extrabold text-sm tracking-tight text-[#191b23] block leading-tight">
-                FlexiStaff<span className="text-[#2563eb]">AI</span>
-              </span>
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.2 rounded tracking-wide uppercase">
-                Manager Portal
-              </span>
-            </div>
-          </Link>
+        <div className={`flex h-16 items-center justify-between px-5 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10 bg-[#18172c]' : 'border-slate-100 bg-gradient-to-r from-blue-50/50 to-indigo-50/50'
+        }`}>
+          <Logo size="md" to="/manager/dashboard" />
           {isMobileMenuOpen && (
             <button
               type="button"
@@ -141,20 +138,25 @@ export const ManagerLayout = () => {
         </div>
 
         {/* Active Manager Identity Strip */}
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+        <div className={`px-4 py-3 border-b ${
+          effectiveTheme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50/60'
+        }`}>
           <Link
             to="/manager/profile"
             onClick={() => setIsMobileMenuOpen(false)}
             className="flex items-center gap-2.5 group"
           >
-            <img
-              src={managerProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80'}
-              alt={managerProfile?.name || 'Sarah Jenkins'}
-              className="h-8 w-8 rounded-lg object-cover ring-1 ring-slate-200"
+            <UserAvatar
+              src={managerProfile?.avatar}
+              name={managerProfile?.name || user?.name || 'Organization Manager'}
+              size="sm"
+              className="h-8 w-8 rounded-lg"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">
-                {managerProfile?.name || 'Sarah Jenkins'}
+              <p className={`text-xs font-bold group-hover:text-blue-700 truncate ${
+                effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'
+              }`}>
+                {managerProfile?.name || user?.name || 'Organization Manager'}
               </p>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700">
                 <Briefcase size={10} className="text-blue-600" />
@@ -186,6 +188,8 @@ export const ManagerLayout = () => {
                     ? 'bg-[#2563eb] text-white shadow-sm shadow-[#2563eb]/25 font-bold'
                     : item.highlight
                     ? 'bg-blue-50 text-[#004ac6] hover:bg-blue-100 font-bold border border-blue-200/60'
+                    : effectiveTheme === 'dark'
+                    ? 'text-slate-300 hover:bg-white/5 hover:text-white'
                     : 'text-[#434655] hover:bg-slate-100 hover:text-[#191b23]'
                 }`}
               >
@@ -218,7 +222,7 @@ export const ManagerLayout = () => {
       </div>
 
       {/* Sidebar Footer */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/40">
+      <div className={`p-3 border-t ${effectiveTheme === 'dark' ? 'border-white/10' : 'border-slate-100'}`}>
         <button
           type="button"
           onClick={handleLogout}
@@ -232,7 +236,9 @@ export const ManagerLayout = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#faf8ff] text-[#191b23] font-sans antialiased">
+    <div className={`flex min-h-screen font-sans antialiased transition-colors ${
+      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-30 shadow-xs">
         {sidebarContent}
@@ -254,7 +260,7 @@ export const ManagerLayout = () => {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="relative z-10 w-72 h-full bg-white shadow-2xl"
+              className="relative z-10 w-72 h-full shadow-2xl"
             >
               {sidebarContent}
             </motion.div>
@@ -265,7 +271,9 @@ export const ManagerLayout = () => {
       {/* Main Content */}
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
         {/* Top Navbar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#c3c6d7]/60 bg-white/90 px-4 sm:px-6 backdrop-blur-md">
+        <header className={`sticky top-0 z-20 flex h-16 items-center justify-between border-b px-4 sm:px-6 backdrop-blur-md transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324]/90 border-white/10 text-white' : 'bg-white/90 border-[#c3c6d7]/60 text-slate-900'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -276,13 +284,16 @@ export const ManagerLayout = () => {
             </button>
             <div className="hidden sm:block">
               <span className="text-xs font-semibold text-[#737686]">FlexiStaff Organization Manager Portal</span>
-              <h2 className="text-sm font-bold text-[#191b23] capitalize">
+              <h2 className={`text-sm font-bold capitalize ${
+                effectiveTheme === 'dark' ? 'text-white' : 'text-[#191b23]'
+              }`}>
                 {location.pathname.replace('/manager/', '').replace('/', ' / ') || 'Dashboard'}
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeDropdown />
             <Link
               to="/manager/matching"
               className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
@@ -361,13 +372,14 @@ export const ManagerLayout = () => {
                 }}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
               >
-                <img
-                  src={managerProfile?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80'}
-                  alt={managerProfile?.name || 'Sarah Jenkins'}
-                  className="h-7 w-7 rounded-lg object-cover"
+                <UserAvatar
+                  src={managerProfile?.avatar}
+                  name={managerProfile?.name || user?.name || 'Organization Manager'}
+                  size="xs"
+                  className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{managerProfile?.name || 'Sarah Jenkins'}</p>
+                  <p className="font-bold text-xs leading-none">{managerProfile?.name || user?.name || 'Organization Manager'}</p>
                   <p className="text-[10px] text-[#737686] leading-tight mt-0.5">Manager Portal</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
@@ -382,8 +394,8 @@ export const ManagerLayout = () => {
                     className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
                   >
                     <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{managerProfile?.name || 'Sarah Jenkins'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{managerProfile?.email || 'sarah.jenkins@flexistaff.ai'}</p>
+                      <p className="text-xs font-bold text-slate-900">{managerProfile?.name || user?.name || 'Organization Manager'}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{managerProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
                         {managerProfile?.department || 'Enterprise Workforce Operations'}
                       </span>

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
+import UserAvatar from '../../components/common/UserAvatar';
 
 export const WorkforceProfile = () => {
   const { workforceUserProfile, updateWorkforceUserProfile, updateProfessionalAvailability } = useData() || {};
@@ -36,22 +37,18 @@ export const WorkforceProfile = () => {
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [formData, setFormData] = useState({
-    name: workforceUserProfile?.name || 'David Miller',
-    email: workforceUserProfile?.email || 'david.miller@talent.flexistaff.ai',
-    phone: workforceUserProfile?.phone || '+1 (415) 555-0178',
-    location: workforceUserProfile?.location || 'San Francisco, CA',
-    role: workforceUserProfile?.role || 'Frontend React Developer',
-    title: workforceUserProfile?.title || workforceUserProfile?.role || 'Frontend React Developer',
-    experience: workforceUserProfile?.experience || '3+ Years',
-    availability: workforceUserProfile?.availability || 'Assigned',
+    name: workforceUserProfile?.name || user?.name || 'Workforce Specialist',
+    email: workforceUserProfile?.email || user?.email || '',
+    phone: workforceUserProfile?.phone || '',
+    location: workforceUserProfile?.location || 'Remote',
+    role: workforceUserProfile?.role || 'Software Engineer',
+    title: workforceUserProfile?.title || workforceUserProfile?.role || 'Software Engineer',
+    experience: workforceUserProfile?.experience || '',
+    availability: workforceUserProfile?.availability || 'Available',
     preferredWorkType: workforceUserProfile?.preferredWorkType || 'Remote',
-    portfolioUrl: workforceUserProfile?.portfolioUrl || 'https://github.com/davidmiller-react',
-    bio:
-      workforceUserProfile?.bio ||
-      'Frontend specialist with deep expertise in performance-optimized React component architectures, component design systems, and resilient REST/GraphQL integrations.',
-    avatar:
-      workforceUserProfile?.avatar ||
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
+    portfolioUrl: workforceUserProfile?.portfolioUrl || '',
+    bio: workforceUserProfile?.bio || '',
+    avatar: workforceUserProfile?.avatar || '',
     skills: workforceUserProfile?.skills || [
       'React.js',
       'JavaScript',
@@ -177,7 +174,7 @@ export const WorkforceProfile = () => {
               </h1>
               <p className="text-xs text-slate-500">
                 {isCompanyEmployee
-                  ? `Technical professional represented by ${workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}.`
+                  ? `Technical professional represented by ${workforceUserProfile?.partnerCompany || 'Partner Organization'}.`
                   : 'Manage your direct technical profile, verified skills, and project matching settings.'}
               </p>
             </div>
@@ -195,7 +192,7 @@ export const WorkforceProfile = () => {
             <span className={`w-2 h-2 rounded-full ${isCompanyEmployee ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
             <span>
               {isCompanyEmployee
-                ? `Partner Employee • ${workforceUserProfile?.partnerCompany || 'Apex Digital'}`
+                ? `Partner Employee • ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
                 : 'Independent Freelancer'}
             </span>
           </span>
@@ -204,11 +201,15 @@ export const WorkforceProfile = () => {
 
       {/* Profile Overview Header Card */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group">
-          <img
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UserAvatar
             src={formData.avatar}
-            alt={formData.name}
-            className="w-24 h-24 rounded-3xl object-cover ring-4 ring-purple-50 shadow-md"
+            name={formData.name}
+            size="xl"
+            className="w-24 h-24 rounded-3xl ring-4 ring-purple-50 shadow-md"
           />
           <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white p-1.5 rounded-xl shadow-xs">
             <Camera size={14} />
@@ -224,7 +225,7 @@ export const WorkforceProfile = () => {
               }`}
             >
               {isCompanyEmployee
-                ? `Partner: ${workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}`
+                ? `Partner: ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
                 : 'Direct Contractor'}
             </span>
           </div>
@@ -292,7 +293,7 @@ export const WorkforceProfile = () => {
                     Partner Company Affiliation & Governance
                   </h3>
                   <p className="text-xs text-indigo-900/80 mt-0.5">
-                    You are registered under <strong>{workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}</strong>. Your corporate employment terms, bench allocation, and billing rates are managed directly by your partner company.
+                    You are registered under <strong>{workforceUserProfile?.partnerCompany || 'Partner Organization'}</strong>. Your corporate employment terms, bench allocation, and billing rates are managed directly by your partner company.
                   </p>
                 </div>
               </div>
@@ -300,7 +301,7 @@ export const WorkforceProfile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
                 <div className="bg-white/80 p-3 rounded-xl border border-indigo-100">
                   <span className="text-[10px] text-slate-400 font-bold uppercase">Affiliated Company</span>
-                  <p className="font-extrabold text-slate-900">{workforceUserProfile?.partnerCompany || 'Apex Digital Enterprises'}</p>
+                  <p className="font-extrabold text-slate-900">{workforceUserProfile?.partnerCompany || 'Partner Organization'}</p>
                 </div>
                 <div className="bg-white/80 p-3 rounded-xl border border-indigo-100">
                   <span className="text-[10px] text-slate-400 font-bold uppercase">Employment Model</span>

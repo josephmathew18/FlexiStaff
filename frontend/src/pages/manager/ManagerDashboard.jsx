@@ -315,7 +315,7 @@ export const ManagerDashboard = () => {
           <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">Workforce Assignment</span>
             <p className="font-bold text-slate-900">React Developer assigned to E-Commerce Project</p>
-            <p className="text-[11px] text-slate-600">David Miller (95% match) allocated to frontend sprint</p>
+            <p className="text-[11px] text-slate-600">Workforce specialist matched and allocated to sprint</p>
             <span className="text-[10px] text-slate-400 block pt-1">1 hour ago</span>
           </div>
 

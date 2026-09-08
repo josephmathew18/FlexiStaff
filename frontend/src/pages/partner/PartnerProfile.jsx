@@ -21,31 +21,29 @@ import {
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
+import UserAvatar from '../../components/common/UserAvatar';
 
 export const PartnerProfile = () => {
   const { partnerProfile, updatePartnerProfile } = useData();
 
   const [activeTab, setActiveTab] = useState('company'); // 'company' | 'business' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: partnerProfile?.name || 'Apex Digital Enterprises Inc.',
-    email: partnerProfile?.email || 'partner@flexistaff.com',
-    contactPerson: partnerProfile?.contactPerson || 'Marcus Vance',
-    phone: partnerProfile?.phone || '+1 (415) 620-8800',
-    address: partnerProfile?.address || '500 Howard Street, Suite 400',
-    city: partnerProfile?.city || 'San Francisco',
-    country: partnerProfile?.country || 'United States',
-    website: partnerProfile?.website || 'https://apexdigital.io',
+    name: partnerProfile?.name || 'Partner Organization',
+    email: partnerProfile?.email || '',
+    contactPerson: partnerProfile?.contactPerson || '',
+    phone: partnerProfile?.phone || '',
+    address: partnerProfile?.address || '',
+    city: partnerProfile?.city || '',
+    country: partnerProfile?.country || '',
+    website: partnerProfile?.website || '',
     description:
       partnerProfile?.description ||
-      'Apex Digital Enterprises builds next-generation omnichannel commerce, financial technology ecosystems, and cloud SaaS platforms. We partner with FlexiStaff to fulfill specialized temporary engineering requirements with rapid scaling and guaranteed SLA execution.',
-    registrationId: partnerProfile?.registrationId || 'REG-2024-99214-US',
-    taxId: partnerProfile?.taxId || 'EIN-84-9920193',
-    businessType: partnerProfile?.businessType || 'Corporation (C-Corp)',
-    domain: partnerProfile?.domain || 'Technology Consulting & Staff Augmentation',
-    logoUrl:
-      partnerProfile?.logoUrl ||
-      partnerProfile?.avatar ||
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      'Registered IT Vendor & Talent Partner Organization on FlexiStaff.',
+    registrationId: partnerProfile?.registrationId || '',
+    taxId: partnerProfile?.taxId || '',
+    businessType: partnerProfile?.businessType || 'Corporation',
+    domain: partnerProfile?.domain || 'Software Engineering & IT Staffing',
+    logoUrl: partnerProfile?.logoUrl || partnerProfile?.avatar || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -163,11 +161,15 @@ export const PartnerProfile = () => {
 
       {/* Profile Overview Card */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-        <div className="relative group">
-          <img
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UserAvatar
             src={formData.logoUrl}
-            alt={formData.name}
-            className="w-24 h-24 rounded-3xl object-cover ring-4 ring-indigo-50 shadow-md"
+            name={formData.name}
+            size="xl"
+            className="w-24 h-24 rounded-3xl ring-4 ring-indigo-50 shadow-md"
           />
           <div className="absolute -bottom-1 -right-1 bg-indigo-600 text-white p-1.5 rounded-xl shadow-xs">
             <Camera size={14} />
@@ -378,7 +380,7 @@ export const PartnerProfile = () => {
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="San Francisco, CA"
+                placeholder="Bengaluru, Karnataka, India"
                 className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-indigo-600"
               />
             </div>
@@ -389,7 +391,7 @@ export const PartnerProfile = () => {
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="500 Howard Street, Suite 400"
+                placeholder="MG Road, Indiranagar"
                 className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-indigo-600"
               />
             </div>

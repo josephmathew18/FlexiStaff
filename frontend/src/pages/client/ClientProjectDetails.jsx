@@ -230,7 +230,7 @@ export const ClientProjectDetails = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
               <span className="text-slate-500 font-medium">Assigned Manager:</span>
-              <span className="font-bold text-slate-900">{project.manager || 'Alex Morgan'}</span>
+              <span className="font-bold text-slate-900">{project.manager || 'Assigned Manager'}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
               <span className="text-slate-500 font-medium">Project Duration:</span>

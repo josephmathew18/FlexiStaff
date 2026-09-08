@@ -35,26 +35,9 @@ export const ProjectProgress = ({
     { id: 'm-4', title: 'Production Zero-Downtime Deployment', completed: false, dueDate: '2027-01-31' },
   ];
 
-  const assignedResources = project.assignedResources || [
-    {
-      id: 'wf-01',
-      name: 'David Miller',
-      role: 'Frontend Developer',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      roleType: 'Freelancer',
-      hoursPerWeek: 40,
-    },
-    {
-      id: 'wf-02',
-      name: 'Elena Rostova',
-      role: 'Kubernetes SRE',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80',
-      roleType: 'Professional',
-      hoursPerWeek: 40,
-    },
-  ];
+  const assignedResources = project.assignedResources || [];
 
-  const progress = project.progress !== undefined ? project.progress : 50;
+  const progress = project.progress !== undefined ? project.progress : 0;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -72,7 +55,7 @@ export const ProjectProgress = ({
               {project.name || project.title}
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Client: <strong className="text-slate-800">{project.client || 'Enterprise Client'}</strong> | Manager: <strong className="text-slate-800">{project.manager || 'Alex Morgan'}</strong>
+              Client: <strong className="text-slate-800">{project.client || 'Client Organization'}</strong> | Manager: <strong className="text-slate-800">{project.manager || 'Assigned Manager'}</strong>
             </p>
           </div>
 
