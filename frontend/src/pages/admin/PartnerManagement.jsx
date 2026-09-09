@@ -682,7 +682,7 @@ export const PartnerManagement = () => {
           <FormInput
             label="Partner Company Name"
             name="name"
-            placeholder="e.g. Nexus Global Staffing"
+            placeholder="Enter partner company name"
             register={register}
             error={errors.name}
             required
@@ -692,7 +692,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Contact Representative"
               name="contactPerson"
-              placeholder="e.g. Jonathan Hayes"
+              placeholder="Enter contact person name"
               register={register}
               error={errors.contactPerson}
               required
@@ -717,7 +717,7 @@ export const PartnerManagement = () => {
               label="Corporate Email"
               name="email"
               type="email"
-              placeholder="jonathan@nexusstaff.com"
+              placeholder="Enter corporate email address"
               register={register}
               error={errors.email}
               required
@@ -725,7 +725,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Phone Number"
               name="phone"
-              placeholder="+91 98765 43210"
+              placeholder="Enter phone number"
               register={register}
               error={errors.phone}
               required
@@ -806,7 +806,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Candidate Full Name"
               name="name"
-              placeholder="e.g. Victor Hansen"
+              placeholder="Enter candidate full name"
               register={registerStaff}
               error={staffErrors.name}
               required
@@ -814,7 +814,7 @@ export const PartnerManagement = () => {
             <FormInput
               label="Job Title / Designation"
               name="title"
-              placeholder="e.g. Senior Kubernetes Specialist"
+              placeholder="Enter job title"
               register={registerStaff}
               error={staffErrors.title}
               required

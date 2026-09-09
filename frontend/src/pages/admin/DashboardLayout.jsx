@@ -820,7 +820,7 @@ export const DashboardLayout = () => {
             name="title"
             register={register}
             error={errors.title}
-            placeholder="e.g. NextGen Cloud Migration Sprint"
+            placeholder="Enter project title"
             required
           />
 

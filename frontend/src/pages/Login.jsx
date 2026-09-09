@@ -205,7 +205,7 @@ export const Login = () => {
                     setEmail(e.target.value);
                     setErrorMessage('');
                   }}
-                  placeholder="name@company.com or username"
+                  placeholder="Enter email or username"
                   className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/20 transition-all"
                   required
                 />
@@ -234,7 +234,7 @@ export const Login = () => {
                     setPassword(e.target.value);
                     setErrorMessage('');
                   }}
-                  placeholder="••••••••••••"
+                  placeholder="Enter password"
                   className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-xs sm:text-sm text-white placeholder:text-slate-500 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/20 transition-all"
                   required
                 />

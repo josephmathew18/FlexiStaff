@@ -108,7 +108,7 @@ export const PartnerSupport = () => {
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g. Request for additional QA resource on E-Commerce sprint"
+                placeholder="Enter support subject"
                 required
                 className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
               />

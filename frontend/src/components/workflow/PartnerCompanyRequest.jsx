@@ -124,7 +124,7 @@ export const PartnerCompanyRequest = ({ project, onClose, onRequestSent }) => {
           <input
             type="text"
             {...register('role')}
-            placeholder="e.g. Senior Java Backend Engineer"
+            placeholder="Enter requested role title"
             className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
           />
           {errors.role && <p className="text-rose-600 text-[10px] mt-1">{errors.role.message}</p>}
@@ -187,7 +187,7 @@ export const PartnerCompanyRequest = ({ project, onClose, onRequestSent }) => {
                 handleAddSkill();
               }
             }}
-            placeholder="Add required skill (e.g. Spring Boot, AWS, Docker)..."
+            placeholder="Add required skill..."
             className="flex-1 rounded-xl border border-slate-300 p-2 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
           />
           <button

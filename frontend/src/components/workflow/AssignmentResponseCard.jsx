@@ -168,7 +168,7 @@ export const AssignmentResponseCard = ({
         onClose={() => setIsDeclineModalOpen(false)}
         onSubmit={handleDeclineConfirm}
         title={`Decline Assignment Offer`}
-        subtitle="Please specify reason for declining (e.g. scheduling conflict, bandwidth)"
+        subtitle="Please specify reason for declining"
         submitText="Decline Offer"
       />
     </>

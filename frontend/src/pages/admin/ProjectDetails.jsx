@@ -525,7 +525,7 @@ export const ProjectDetails = () => {
               type="text"
               value={talentRole}
               onChange={(e) => setTalentRole(e.target.value)}
-              placeholder="e.g. Lead Cloud Architect"
+              placeholder="Enter role title"
               className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-[#191b23] dark:text-white focus:border-[#004ac6] focus:outline-none"
               required
             />

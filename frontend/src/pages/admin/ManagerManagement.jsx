@@ -526,7 +526,7 @@ export const ManagerManagement = () => {
                   name="name"
                   register={registerAdd}
                   error={errorsAdd.name}
-                  placeholder="e.g. Jane Doe"
+                  placeholder="Enter full name"
                   required
                 />
                 <FormInput
@@ -535,7 +535,7 @@ export const ManagerManagement = () => {
                   type="email"
                   register={registerAdd}
                   error={errorsAdd.email}
-                  placeholder="sarah.jenkins@flexistaff.ai"
+                  placeholder="Enter corporate email address"
                   required
                 />
                 <FormInput
@@ -543,7 +543,7 @@ export const ManagerManagement = () => {
                   name="phone"
                   register={registerAdd}
                   error={errorsAdd.phone}
-                  placeholder="+91 98765 43210"
+                  placeholder="Enter phone number"
                   required
                 />
                 <FormInput
@@ -607,7 +607,7 @@ export const ManagerManagement = () => {
                   name="experience"
                   register={registerAdd}
                   error={errorsAdd.experience}
-                  placeholder="e.g. 8+ Years"
+                  placeholder="Enter experience (years)"
                   required
                 />
                 <FormInput
@@ -986,7 +986,7 @@ export const ManagerManagement = () => {
                 name="name"
                 register={registerAdd}
                 error={errorsAdd.name}
-                placeholder="e.g. Jane Doe"
+                placeholder="Enter full name"
                 required
               />
               <FormInput
@@ -995,7 +995,7 @@ export const ManagerManagement = () => {
                 type="email"
                 register={registerAdd}
                 error={errorsAdd.email}
-                placeholder="sarah.jenkins@flexistaff.ai"
+                placeholder="Enter corporate email address"
                 required
               />
               <FormInput
@@ -1003,7 +1003,7 @@ export const ManagerManagement = () => {
                 name="phone"
                 register={registerAdd}
                 error={errorsAdd.phone}
-                placeholder="+91 98765 43210"
+                placeholder="Enter phone number"
                 required
               />
               <FormInput
@@ -1067,7 +1067,7 @@ export const ManagerManagement = () => {
                 name="experience"
                 register={registerAdd}
                 error={errorsAdd.experience}
-                placeholder="e.g. 8+ Years"
+                placeholder="Enter experience (years)"
                 required
               />
               <FormInput
@@ -1302,7 +1302,7 @@ export const ManagerManagement = () => {
                 setPendingStatusTarget((prev) => ({ ...prev, reason: e.target.value }))
               }
               rows={2}
-              placeholder="e.g. Schedule review / Account reactivation"
+              placeholder="Enter remarks or reason for status change"
               className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
             />
           </div>

@@ -37,6 +37,8 @@ import {
   BadgeAlert,
   Send,
   UserPlus,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
@@ -214,6 +216,7 @@ export const WorkforceManagement = () => {
 
   // Modals state
   const [selectedTalent, setSelectedTalent] = useState(null);
+  const [viewingAppModal, setViewingAppModal] = useState(null);
   const [rejectionModalTalent, setRejectionModalTalent] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('Skill set does not match current project requirements');
 
@@ -554,15 +557,6 @@ export const WorkforceManagement = () => {
             ]}
           />
 
-          <FilterDropdown
-            label="Skill"
-            value={selectedSkill}
-            onChange={setSelectedSkill}
-            options={allSkills.slice(0, 10).map((s) => ({
-              value: s,
-              label: s === 'all' ? 'All Skills' : s,
-            }))}
-          />
 
           {/* View Toggle */}
           <div className="flex items-center rounded-lg border border-[#c3c6d7]/80 dark:border-white/15 bg-slate-100 dark:bg-[#1c1a36] p-0.5">
@@ -632,29 +626,49 @@ export const WorkforceManagement = () => {
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-base font-extrabold text-slate-900">{app.fullName}</h4>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                isPending
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                  : isApproved
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : 'bg-rose-100 text-rose-800 border border-rose-200'
-                              }`}
-                            >
-                              {app.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <MapPin size={13} className="text-slate-400" /> {app.place || 'Location N/A'}
-                            </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <Briefcase size={13} className="text-slate-400" /> {app.experience || 'Experience N/A'}
-                            </span>
+                        <div className="flex items-start gap-3">
+                          {app.personalDetails?.avatarUrl || app.avatar ? (
+                            <img
+                              src={app.personalDetails?.avatarUrl || app.avatar}
+                              alt={app.fullName}
+                              className="w-12 h-12 rounded-2xl object-cover ring-2 ring-purple-200 shadow-xs shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-[#7c3aed] flex items-center justify-center font-bold text-lg shrink-0">
+                              {app.fullName ? app.fullName.charAt(0).toUpperCase() : 'F'}
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-base font-extrabold text-slate-900">{app.fullName}</h4>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  isPending
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    : isApproved
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                }`}
+                              >
+                                {app.status}
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-[#7c3aed] mt-0.5">
+                              {app.roleTitle || 'Freelancer Professional'}
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                              <span className="flex items-center gap-1">
+                                <MapPin size={13} className="text-slate-400" /> {app.personalDetails?.city || app.place || 'Remote'}
+                              </span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Briefcase size={13} className="text-slate-400" /> {app.experienceLevel || '3+ years'}
+                              </span>
+                              <span>•</span>
+                              <span className="font-extrabold text-emerald-600">
+                                ₹{typeof app.hourlyRate === 'number' ? app.hourlyRate.toFixed(2) : app.hourlyRate}/hr
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -666,7 +680,7 @@ export const WorkforceManagement = () => {
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] font-bold block">Phone Contact</span>
-                          <span className="font-semibold text-slate-800">{app.phone}</span>
+                          <span className="font-semibold text-slate-800">{app.phone || app.personalDetails?.phoneNumber || 'N/A'}</span>
                         </div>
                       </div>
 
@@ -685,6 +699,15 @@ export const WorkforceManagement = () => {
                           ))}
                         </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setViewingAppModal(app)}
+                        className="w-full text-center py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-[#7c3aed] border border-purple-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <ExternalLink size={13} />
+                        <span>View Full Application & Registration Details</span>
+                      </button>
                     </div>
 
                     {isPending ? (
@@ -1013,6 +1036,285 @@ export const WorkforceManagement = () => {
                     Reject Request
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* FREELANCER APPLICATION FULL DETAILS MODAL */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={Boolean(viewingAppModal)}
+        onClose={() => setViewingAppModal(null)}
+        title="Freelancer Registration Profile Details"
+        subtitle={viewingAppModal?.roleTitle || viewingAppModal?.fullName}
+        maxWidth="max-w-2xl"
+      >
+        {viewingAppModal && (
+          <div className="space-y-6 text-xs text-slate-700 dark:text-slate-200">
+            {/* Header Profile Summary */}
+            <div className="flex items-start justify-between p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40">
+              <div className="flex items-start gap-4">
+                {viewingAppModal.personalDetails?.avatarUrl || viewingAppModal.avatar ? (
+                  <img
+                    src={viewingAppModal.personalDetails?.avatarUrl || viewingAppModal.avatar}
+                    alt={viewingAppModal.fullName}
+                    className="w-16 h-16 rounded-2xl object-cover ring-2 ring-purple-300 shadow-sm shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-purple-200 text-[#7c3aed] flex items-center justify-center font-bold text-xl shrink-0">
+                    {viewingAppModal.fullName ? viewingAppModal.fullName.charAt(0).toUpperCase() : 'F'}
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingAppModal.fullName}</h4>
+                  <p className="text-xs font-bold text-[#7c3aed] dark:text-purple-300">{viewingAppModal.roleTitle || 'Full Stack Engineer'}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+                      {viewingAppModal.status}
+                    </span>
+                    <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                      Proposed Rate: ₹{typeof viewingAppModal.hourlyRate === 'number' ? viewingAppModal.hourlyRate.toFixed(2) : viewingAppModal.hourlyRate}/hr
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                <span>Submitted Date: </span>
+                <span className="font-bold text-slate-800 dark:text-white">{viewingAppModal.submittedAt}</span>
+              </div>
+            </div>
+
+            {/* Personal Overview / Bio */}
+            {viewingAppModal.bioOverview && (
+              <div className="space-y-1">
+                <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Personal Overview / Professional Bio</h5>
+                <p className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 italic leading-relaxed">
+                  "{viewingAppModal.bioOverview}"
+                </p>
+              </div>
+            )}
+
+            {/* Contact & Personal Address Details */}
+            <div className="space-y-2">
+              <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Contact, DOB & Location Information</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10">
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">Work / Personal Email</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingAppModal.email}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">Phone Contact</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingAppModal.phone || viewingAppModal.personalDetails?.phoneNumber || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">Date of Birth (DOB)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingAppModal.personalDetails?.dob || 'Not specified'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">Experience Level & Goal</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingAppModal.experienceLevel || 'Expert'} • {viewingAppModal.freelanceGoal || 'Freelance'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">Street Address</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {viewingAppModal.personalDetails?.streetAddress || ''} {viewingAppModal.personalDetails?.aptSuite || ''}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold text-[10px] block">City, State, Country & Zip</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {viewingAppModal.personalDetails?.city || viewingAppModal.place || 'Bengaluru'}, {viewingAppModal.personalDetails?.state || ''} {viewingAppModal.personalDetails?.country || 'India'} ({viewingAppModal.personalDetails?.zipCode || ''})
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Category & Technical Skills */}
+            <div className="space-y-2">
+              <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Category & Technical Skills</h5>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 font-bold text-xs">
+                    {viewingAppModal.category}
+                  </span>
+                  {(viewingAppModal.specialties || []).map((sp) => (
+                    <span key={sp} className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-semibold text-xs border border-indigo-200 dark:border-indigo-800">
+                      {sp}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(viewingAppModal.skills || []).map((s) => (
+                    <span key={s} className="px-2.5 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-bold text-xs border border-purple-200 dark:border-purple-800">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Imported Documents & Method */}
+            <div className="space-y-2">
+              <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Profile Import Method & Verification Documents</h5>
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-white/10">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Import Method Selected:</span>
+                  <span className="px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-extrabold text-xs border border-purple-200 dark:border-purple-800">
+                    {viewingAppModal.importMethod || 'Fill out manually'}
+                  </span>
+                </div>
+
+                {/* Resume Document Card */}
+                {(viewingAppModal.resumeFileName || viewingAppModal.importMethod === 'Upload your resume') && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#7c3aed] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900 dark:text-white">Candidate Resume Document</p>
+                        <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
+                          {viewingAppModal.resumeFileName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_Resume.pdf`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fileName = viewingAppModal.resumeFileName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_Resume.pdf`;
+                        toast.info(`Opening ${fileName} in document viewer...`);
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                    >
+                      <Download size={13} />
+                      <span>View / Download Resume</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* LinkedIn Document Card */}
+                {(viewingAppModal.linkedInPdfName || viewingAppModal.importMethod === 'Import from LinkedIn') && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900 dark:text-white">LinkedIn PDF Profile Export</p>
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                          {viewingAppModal.linkedInPdfName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_LinkedIn_Profile.pdf`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fileName = viewingAppModal.linkedInPdfName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_LinkedIn_Profile.pdf`;
+                        toast.info(`Opening ${fileName} in document viewer...`);
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#0a66c2] hover:bg-[#084e96] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                    >
+                      <Download size={13} />
+                      <span>View / Download LinkedIn PDF</span>
+                    </button>
+                  </div>
+                )}
+
+                {!viewingAppModal.resumeFileName && !viewingAppModal.linkedInPdfName && viewingAppModal.importMethod !== 'Upload your resume' && viewingAppModal.importMethod !== 'Import from LinkedIn' && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 italic p-1">
+                    Candidate chose to enter profile details manually.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Work Experiences */}
+            {viewingAppModal.experiences && viewingAppModal.experiences.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Work Experience History</h5>
+                <div className="space-y-2">
+                  {viewingAppModal.experiences.map((exp) => (
+                    <div key={exp.id || exp.title} className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <h6 className="font-bold text-slate-900 dark:text-white">{exp.title}</h6>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">{exp.period}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">{exp.company}</p>
+                      {exp.description && <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{exp.description}</p>}
+                      {exp.documentName && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-[11px]">
+                          <FileCheck size={13} className="text-emerald-600" />
+                          <span>Attached Document: {exp.documentName}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Education */}
+            {viewingAppModal.educations && viewingAppModal.educations.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Education & Academic Qualifications</h5>
+                <div className="space-y-2">
+                  {viewingAppModal.educations.map((edu) => (
+                    <div key={edu.id || edu.degree} className="p-3 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 flex justify-between items-center">
+                      <div>
+                        <h6 className="font-bold text-slate-900 dark:text-white">{edu.degree}</h6>
+                        <p className="text-xs text-slate-600 dark:text-slate-300">{edu.school}</p>
+                      </div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">{edu.dates}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Languages */}
+            {viewingAppModal.languages && viewingAppModal.languages.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Languages Spoken</h5>
+                <div className="flex flex-wrap gap-2">
+                  {viewingAppModal.languages.map((lang) => (
+                    <span key={lang.id || lang.name} className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-[#1c1a36] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 font-bold text-xs">
+                      {lang.name} • <span className="text-slate-500 dark:text-slate-400 font-medium">{lang.proficiency}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            {viewingAppModal.status === 'Pending Admin Approval' && (
+              <div className="flex items-center gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    approveFreelancerApplication(viewingAppModal.id);
+                    toast.success(`Approved ${viewingAppModal.fullName}! Added candidate to active workforce.`);
+                    setViewingAppModal(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Check size={16} />
+                  <span>Approve & Authorize Talent</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    rejectFreelancerApplication(viewingAppModal.id);
+                    toast.info(`Rejected application for ${viewingAppModal.fullName}.`);
+                    setViewingAppModal(null);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <X size={16} />
+                  <span>Reject Application</span>
+                </button>
               </div>
             )}
           </div>

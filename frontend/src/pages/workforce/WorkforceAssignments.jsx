@@ -672,7 +672,7 @@ export const WorkforceAssignments = () => {
                     rows={4}
                     value={declineReason}
                     onChange={(e) => setDeclineReason(e.target.value)}
-                    placeholder="e.g. Schedule conflicts with existing commitments, tech stack specialization difference..."
+                    placeholder="Specify reason for declining..."
                     required
                     className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-rose-500"
                   />
@@ -763,7 +763,7 @@ export const WorkforceAssignments = () => {
                     type="text"
                     value={commitFormData.commitMessage}
                     onChange={(e) => setCommitFormData({ ...commitFormData, commitMessage: e.target.value })}
-                    placeholder="e.g. feat(auth): Implement JWT token rotation & session refresh handler"
+                    placeholder="Deliverable title / summary"
                     className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#7c3aed] font-mono"
                     required
                   />

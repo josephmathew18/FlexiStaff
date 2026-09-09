@@ -30,13 +30,107 @@ const DataContext = createContext(null);
 export const DataProvider = ({ children }) => {
   const [companyProfile, setCompanyProfile] = useState(initialCompanyProfile);
   const [adminProfile, setAdminProfile] = useState(initialAdminProfile);
-  const [clients, setClients] = useState(initialClients);
+
+  const [clients, setClients] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_clients');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return initialClients || [];
+  });
+
   const [partners, setPartners] = useState(initialPartners);
   const [managers, setManagers] = useState(initialManagers);
-  const [workforce, setWorkforce] = useState(initialWorkforce);
-  const [projects, setProjects] = useState(initialProjects);
+
+  const [workforce, setWorkforce] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_workforce');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return initialWorkforce || [];
+  });
+
+  const [projects, setProjects] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_projects');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return initialProjects || [];
+  });
+
   const [activities, setActivities] = useState(initialActivities);
   const [notifications, setNotifications] = useState(initialNotifications);
+
+  // Sync state to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_clients', JSON.stringify(clients));
+    } catch {}
+  }, [clients]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_workforce', JSON.stringify(workforce));
+    } catch {}
+  }, [workforce]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_projects', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
+
+  // Client Registration helper
+  const addClient = (clientData) => {
+    const newClient = {
+      id: clientData.id || `cli-${Date.now()}`,
+      name: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
+      companyName: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
+      contactPerson: clientData.fullName || clientData.contactPerson || clientData.name || 'Contact Person',
+      email: clientData.email || '',
+      phone: clientData.phone || '',
+      logo: clientData.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+      industry: clientData.industry || 'Technology & Services',
+      tier: clientData.tier || 'Enterprise Client',
+      status: clientData.status || 'Active',
+      activeProjects: clientData.activeProjects || 0,
+      totalSpent: clientData.totalSpent || '₹0',
+      location: clientData.location || clientData.address || 'India',
+      joinedDate: clientData.joinedDate || new Date().toISOString().split('T')[0],
+      website: clientData.website || '',
+      taxId: clientData.taxId || '',
+      description: clientData.description || 'Enterprise client organization registered on FlexiStaff.',
+    };
+
+    setClients((prev) => {
+      const exists = prev.some((c) => c.email.toLowerCase() === newClient.email.toLowerCase());
+      if (exists) {
+        return prev.map((c) => (c.email.toLowerCase() === newClient.email.toLowerCase() ? { ...c, ...newClient } : c));
+      }
+      return [newClient, ...prev];
+    });
+
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'New Client Organization Registered',
+        message: `Client organization "${newClient.name}" (${newClient.contactPerson}) created an account.`,
+        type: 'request',
+        unread: true,
+        time: 'Just now',
+        link: '/admin/clients',
+      },
+      ...prev,
+    ]);
+
+    return newClient;
+  };
 
   // Sync projects and data with Spring Boot backend when available
   useEffect(() => {
@@ -126,7 +220,21 @@ export const DataProvider = ({ children }) => {
   const [workforceNotifications, setWorkforceNotifications] = useState(initialWorkforceNotifications);
 
   // Freelancer Applications State (Submitted via Form for Freelancer)
-  const [freelancerApplications, setFreelancerApplications] = useState([]);
+  const [freelancerApplications, setFreelancerApplications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_freelancer_applications');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_freelancer_applications', JSON.stringify(freelancerApplications));
+    } catch {}
+  }, [freelancerApplications]);
 
   const addFreelancerApplication = (appData) => {
     const newApp = {
@@ -136,6 +244,21 @@ export const DataProvider = ({ children }) => {
       ...appData,
     };
     setFreelancerApplications((prev) => [newApp, ...prev]);
+
+    // Send notification to Admin feed
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'New Freelancer Application Registered',
+        message: `${appData.fullName || 'Freelancer'} submitted profile registration details for verification.`,
+        type: 'request',
+        unread: true,
+        time: 'Just now',
+        link: '/admin/workforce',
+      },
+      ...prev,
+    ]);
+
     return newApp;
   };
 
@@ -149,16 +272,34 @@ export const DataProvider = ({ children }) => {
       const newWorkforceMember = {
         id: `wf-app-${Date.now()}`,
         name: app.fullName,
-        role: app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer',
-        category: 'Independent Freelancer',
-        location: app.place || 'Remote',
+        title: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
+        role: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
+        category: app.category || 'Independent Freelancer',
+        specialties: app.specialties || [],
+        location: app.personalDetails?.city
+          ? `${app.personalDetails.city}, ${app.personalDetails.country || 'India'}`
+          : app.place || 'Remote',
         email: app.email,
-        phone: app.phone,
-        experience: app.experience,
+        phone: app.phone || app.personalDetails?.phoneNumber,
+        experience: app.experienceLevel || '3+ years',
         skills: app.skills || ['React.js', 'Node.js'],
         status: 'Available',
-        hourlyRate: '$95/hr',
-        rating: 4.9,
+        approvalStatus: 'Approved',
+        verificationStatus: 'Approved',
+        accountStatus: 'Active',
+        source: 'Freelancer',
+        roleType: 'Freelancer',
+        hourlyRate: typeof app.hourlyRate === 'number' ? `$${app.hourlyRate.toFixed(2)}/hr` : (app.hourlyRate || '$75.00/hr'),
+        rating: 5.0,
+        avatar: app.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        bioOverview: app.bioOverview,
+        experiences: app.experiences,
+        educations: app.educations,
+        languages: app.languages,
+        personalDetails: app.personalDetails,
+        importMethod: app.importMethod,
+        resumeFileName: app.resumeFileName,
+        linkedInPdfName: app.linkedInPdfName,
       };
       setWorkforce((prev) => [newWorkforceMember, ...prev]);
     }
@@ -1463,30 +1604,7 @@ export const DataProvider = ({ children }) => {
     setCompanyProfile((prev) => ({ ...prev, ...updatedData }));
   };
 
-  // Client Actions
-  const addClient = (client) => {
-    const newClient = {
-      ...client,
-      id: `cli-${Date.now().toString().slice(-4)}`,
-      joinedDate: new Date().toISOString().split('T')[0],
-      activeProjects: 0,
-      totalSpent: '$0',
-      logo:
-        client.logo ||
-        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-    };
-    setClients((prev) => [newClient, ...prev]);
 
-    // Record Activity
-    addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
-      action: 'Onboarded new client',
-      target: newClient.name,
-      targetType: 'client',
-    });
-
-    return newClient;
-  };
 
   const updateClient = (id, updatedData) => {
     setClients((prev) =>
@@ -2087,6 +2205,7 @@ export const DataProvider = ({ children }) => {
         clientProfile,
         setClientProfile,
         updateClientProfile,
+        addClient,
         clientNotifications,
         setClientNotifications,
         submitClientProjectRequest,

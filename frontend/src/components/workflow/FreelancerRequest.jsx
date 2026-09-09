@@ -112,7 +112,7 @@ export const FreelancerRequest = ({ project, onDirectRequestSent, onSelectCandid
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search independent freelancers by name, skill (e.g. Python, React), or role..."
+            placeholder="Search independent freelancers by name, skill, or role..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
           />
         </div>

@@ -202,7 +202,7 @@ export const ClientWorkforce = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search specialist name, skill (e.g. React, Python), or role..."
+            placeholder="Search specialist name, skill, or role..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-emerald-600"
           />
         </div>

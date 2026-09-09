@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Download,
 } from 'lucide-react';
 import { FaLinkedin } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
@@ -163,11 +164,6 @@ const CATEGORY_MAP = {
     'Embedded Systems & IoT',
     'Solutions Architecture',
   ],
-  'Accounting & Consulting': ['Financial Analysis', 'Business Strategy', 'Tax & Compliance'],
-  'Admin Support': ['Virtual Assistant', 'Data Entry', 'Project Management Support'],
-  'Customer Service': ['Technical Support', 'Customer Success', 'Helpdesk Operations'],
-  'Sales & Marketing': ['SEO & Content Strategy', 'Digital Marketing', 'Lead Generation'],
-  'Writing': ['Technical Writing', 'Copywriting', 'Content Editing'],
 };
 
 // SUGGESTED SKILLS
@@ -232,16 +228,27 @@ export const FreelancerApply = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Questionnaire States
-  const [experienceLevel, setExperienceLevel] = useState('I have some experience');
-  const [freelanceGoal, setFreelanceGoal] = useState('To earn my main income');
-  const [workPreferences, setWorkPreferences] = useState(['I\'d like to find opportunities myself']);
-  const [openToContractToHire, setOpenToContractToHire] = useState(true);
+  // Questionnaire States (Unselected by default as requested)
+  const [experienceLevel, setExperienceLevel] = useState('');
+  const [freelanceGoal, setFreelanceGoal] = useState('');
+  const [workPreferences, setWorkPreferences] = useState([]);
+  const [openToContractToHire, setOpenToContractToHire] = useState(false);
 
-  // Profile Wizard States
-  const [importMethod, setImportMethod] = useState('Fill out manually (15 min)');
+  // Profile Wizard States (Unselected by default as requested)
+  const [importMethod, setImportMethod] = useState('');
+  const [isLinkedInModalOpen, setIsLinkedInModalOpen] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [linkedInPdfFile, setLinkedInPdfFile] = useState(null);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [isDraggingResume, setIsDraggingResume] = useState(false);
+
+  const linkedInFileInputRef = useRef(null);
+  const resumeFileInputRef = useRef(null);
+  const expPdfInputRef = useRef(null);
+  const avatarFileInputRef = useRef(null);
+
   const [selectedCategory, setSelectedCategory] = useState('Web, Mobile & Software Dev');
-  const [selectedSpecialties, setSelectedSpecialties] = useState(['Full Stack Development']);
+  const [selectedSpecialties, setSelectedSpecialties] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [customSkillInput, setCustomSkillInput] = useState('');
   const [professionalRoleTitle, setProfessionalRoleTitle] = useState('');
@@ -249,17 +256,10 @@ export const FreelancerApply = () => {
   // Work Experience Entries
   const [experiences, setExperiences] = useState([]);
   const [isAddingExperienceModal, setIsAddingExperienceModal] = useState(false);
-  const [newExp, setNewExp] = useState({ title: '', company: '', period: '', description: '' });
+  const [newExp, setNewExp] = useState({ title: '', company: '', period: '', description: '', documentName: '' });
 
   // Education Entries
-  const [educations, setEducations] = useState([
-    {
-      id: '1',
-      degree: 'Bachelor of Science in Computer Science',
-      school: 'University of Technology',
-      dates: '2018 - 2022',
-    },
-  ]);
+  const [educations, setEducations] = useState([]);
   const [isAddingEducationModal, setIsAddingEducationModal] = useState(false);
   const [newEdu, setNewEdu] = useState({ degree: '', school: '', dates: '' });
 
@@ -270,32 +270,30 @@ export const FreelancerApply = () => {
   const [availableLanguagesToAdd, setAvailableLanguagesToAdd] = useState(['Spanish', 'French', 'German', 'Hindi', 'Japanese', 'Mandarin']);
 
   // Bio / Overview
-  const [bioOverview, setBioOverview] = useState(
-    "I'm a full stack developer experienced in building scalable web applications for startups and enterprise clients. I specialize in React, Node.js, and cloud architecture with a strong focus on clean code and performance optimization."
-  );
+  const [bioOverview, setBioOverview] = useState('');
 
-  // Hourly Rate
-  const [hourlyRate, setHourlyRate] = useState(75.00);
+  // Hourly Rate (Indian Rupees ₹)
+  const [hourlyRate, setHourlyRate] = useState(1500.00);
 
   // Personal Info & Location
   const [personalDetails, setPersonalDetails] = useState({
-    dob: '1998-05-14',
+    dob: '',
     country: 'India',
-    streetAddress: '123 Tech Park Road',
-    aptSuite: 'Suite 404',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    zipCode: '560001',
+    streetAddress: '',
+    aptSuite: '',
+    city: '',
+    state: '',
+    zipCode: '',
     phoneCode: '+91',
-    phoneNumber: '9876543210',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    phoneNumber: '',
+    avatarUrl: '',
   });
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    place: 'Bengaluru, India',
+    place: '',
   });
 
   const [submitted, setSubmitted] = useState(false);
@@ -385,7 +383,7 @@ export const FreelancerApply = () => {
       return;
     }
     setExperiences((prev) => [...prev, { ...newExp, id: Date.now().toString() }]);
-    setNewExp({ title: '', company: '', period: '', description: '' });
+    setNewExp({ title: '', company: '', period: '', description: '', documentName: '' });
     setIsAddingExperienceModal(false);
     toast.success('Work experience added!');
   };
@@ -426,11 +424,17 @@ export const FreelancerApply = () => {
   const handleSubmitFinal = () => {
     setLoading(true);
 
+    const fullNameVal = formData.fullName || `${signUpForm.firstName} ${signUpForm.lastName}`.trim() || 'Freelancer Candidate';
+    const linkedInDocName = linkedInPdfFile?.name || (importMethod === 'Import from LinkedIn' ? `${fullNameVal.replace(/\s+/g, '_')}_LinkedIn_Profile.pdf` : null);
+    const resumeDocName = resumeFile?.name || (importMethod === 'Upload your resume' ? `${fullNameVal.replace(/\s+/g, '_')}_Resume.pdf` : null);
+
     setTimeout(() => {
       if (addFreelancerApplication) {
         addFreelancerApplication({
-          ...formData,
-          roleTitle: professionalRoleTitle,
+          fullName: fullNameVal,
+          email: formData.email || signUpForm.email,
+          phone: formData.phone || signUpForm.phone || personalDetails.phoneNumber,
+          roleTitle: professionalRoleTitle || 'Full Stack Software Engineer',
           category: selectedCategory,
           specialties: selectedSpecialties,
           skills: selectedSkills,
@@ -444,11 +448,14 @@ export const FreelancerApply = () => {
           freelanceGoal,
           workPreferences,
           openToContractToHire,
+          importMethod: importMethod || 'Fill out manually',
+          linkedInPdfName: linkedInDocName,
+          resumeFileName: resumeDocName,
         });
       }
       setLoading(false);
-      setSubmitted(true);
       toast.success('Profile created & submitted for verification!');
+      navigate('/login');
     }, 600);
   };
 
@@ -571,7 +578,7 @@ export const FreelancerApply = () => {
                             type="text"
                             value={signUpForm.firstName}
                             onChange={(e) => setSignUpForm({ ...signUpForm, firstName: e.target.value })}
-                            placeholder="e.g. Joseph"
+                            placeholder="First Name"
                             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                             required
                           />
@@ -588,7 +595,7 @@ export const FreelancerApply = () => {
                             type="text"
                             value={signUpForm.lastName}
                             onChange={(e) => setSignUpForm({ ...signUpForm, lastName: e.target.value })}
-                            placeholder="e.g. Mathew"
+                            placeholder="Last Name"
                             className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                             required
                           />
@@ -607,7 +614,7 @@ export const FreelancerApply = () => {
                           type="email"
                           value={signUpForm.email}
                           onChange={(e) => setSignUpForm({ ...signUpForm, email: e.target.value })}
-                          placeholder="e.g. joseph@example.com"
+                          placeholder="Enter email address"
                           className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                           required
                         />
@@ -625,7 +632,7 @@ export const FreelancerApply = () => {
                           type="tel"
                           value={signUpForm.phone}
                           onChange={(e) => setSignUpForm({ ...signUpForm, phone: e.target.value })}
-                          placeholder="+91 9876543210"
+                          placeholder="Enter phone number"
                           className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                         />
                       </div>
@@ -674,24 +681,6 @@ export const FreelancerApply = () => {
                       </div>
                     </div>
 
-                    {/* Country */}
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-slate-700">
-                        Country of Residence <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Globe size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <select
-                          value={signUpForm.country}
-                          onChange={(e) => setSignUpForm({ ...signUpForm, country: e.target.value })}
-                          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 appearance-none cursor-pointer"
-                        >
-                          <option value="India">India</option>
-                        </select>
-                        <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
@@ -704,8 +693,7 @@ export const FreelancerApply = () => {
                         type="submit"
                         className="flex-1 py-3 px-6 rounded-xl bg-[#6A54F4] hover:bg-[#5842E3] text-white font-bold text-xs sm:text-sm shadow-md shadow-purple-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                       >
-                        <span>Create Account & Start Wizard</span>
-                        <ArrowRight size={16} />
+                        <span>Create Account</span>
                       </button>
                     </div>
                   </motion.div>
@@ -735,7 +723,7 @@ export const FreelancerApply = () => {
         <header className="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
           <Logo size="md" to="/" />
           <Link to="/login" className="text-xs font-bold text-slate-400 hover:text-white">
-            Already registered? <span className="text-[#108a00] hover:underline">Log in</span>
+            Already registered? <span className="text-[#6A54F4] hover:underline">Log in</span>
           </Link>
         </header>
 
@@ -744,46 +732,14 @@ export const FreelancerApply = () => {
             Hey {signUpForm.firstName || 'there'}. Ready for your next big opportunity?
           </h1>
 
-          <div className="space-y-6">
-            <div className="flex items-center gap-5 py-4 border-b border-white/10">
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-[#16152B] flex items-center justify-center text-emerald-400 shrink-0">
-                <User size={20} />
-              </div>
-              <p className="text-base sm:text-lg font-medium text-slate-200">
-                Answer a few questions and start building your profile
-              </p>
-            </div>
-
-            <div className="flex items-center gap-5 py-4 border-b border-white/10">
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-[#16152B] flex items-center justify-center text-emerald-400 shrink-0">
-                <MailCheck size={20} />
-              </div>
-              <p className="text-base sm:text-lg font-medium text-slate-200">
-                Apply for open roles or list services for clients to buy
-              </p>
-            </div>
-
-            <div className="flex items-center gap-5 py-4 border-b border-white/10">
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-[#16152B] flex items-center justify-center text-emerald-400 shrink-0">
-                <ShieldCheck size={20} />
-              </div>
-              <p className="text-base sm:text-lg font-medium text-slate-200">
-                Get paid safely and know we're there to help
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="mt-8">
             <button
               type="button"
               onClick={() => setCurrentStep(2)}
-              className="px-8 py-3.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-sm shadow-md transition-all self-start"
+              className="px-8 py-3.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-sm shadow-md transition-all self-start"
             >
               Get started
             </button>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-md">
-              It only takes 5-10 minutes and you can edit it later. We'll save as you go.
-            </p>
           </div>
         </main>
 
@@ -802,7 +758,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-1/3 transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-1/3 transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400">1/3</span>
@@ -823,13 +779,13 @@ export const FreelancerApply = () => {
               onClick={() => setExperienceLevel('I am brand new to this')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[220px] bg-[#16152B] ${
                 experienceLevel === 'I am brand new to this'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  experienceLevel === 'I am brand new to this' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  experienceLevel === 'I am brand new to this' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {experienceLevel === 'I am brand new to this' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -842,13 +798,13 @@ export const FreelancerApply = () => {
               onClick={() => setExperienceLevel('I have some experience')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[220px] bg-[#16152B] ${
                 experienceLevel === 'I have some experience'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  experienceLevel === 'I have some experience' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  experienceLevel === 'I have some experience' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {experienceLevel === 'I have some experience' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -861,13 +817,13 @@ export const FreelancerApply = () => {
               onClick={() => setExperienceLevel('I am an expert')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[220px] bg-[#16152B] ${
                 experienceLevel === 'I am an expert'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  experienceLevel === 'I am an expert' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  experienceLevel === 'I am an expert' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {experienceLevel === 'I am an expert' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -890,14 +846,14 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(3)}
-              className="text-xs font-bold text-[#108a00] hover:underline"
+              className="text-xs font-bold text-[#6A54F4] hover:underline"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setCurrentStep(3)}
-              className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
             >
               Next
             </button>
@@ -915,7 +871,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-2/3 transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-2/3 transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400">2/3</span>
@@ -936,13 +892,13 @@ export const FreelancerApply = () => {
               onClick={() => setFreelanceGoal('To earn my main income')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[240px] bg-[#16152B] ${
                 freelanceGoal === 'To earn my main income'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  freelanceGoal === 'To earn my main income' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  freelanceGoal === 'To earn my main income' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {freelanceGoal === 'To earn my main income' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -955,13 +911,13 @@ export const FreelancerApply = () => {
               onClick={() => setFreelanceGoal('To make money on the side')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[240px] bg-[#16152B] ${
                 freelanceGoal === 'To make money on the side'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  freelanceGoal === 'To make money on the side' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  freelanceGoal === 'To make money on the side' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {freelanceGoal === 'To make money on the side' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -974,13 +930,13 @@ export const FreelancerApply = () => {
               onClick={() => setFreelanceGoal('To get experience, for a full-time job')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[240px] bg-[#16152B] ${
                 freelanceGoal === 'To get experience, for a full-time job'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  freelanceGoal === 'To get experience, for a full-time job' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  freelanceGoal === 'To get experience, for a full-time job' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {freelanceGoal === 'To get experience, for a full-time job' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -993,13 +949,13 @@ export const FreelancerApply = () => {
               onClick={() => setFreelanceGoal('I don\'t have a goal in mind yet')}
               className={`relative rounded-2xl p-6 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[240px] bg-[#16152B] ${
                 freelanceGoal === 'I don\'t have a goal in mind yet'
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  freelanceGoal === 'I don\'t have a goal in mind yet' ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  freelanceGoal === 'I don\'t have a goal in mind yet' ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {freelanceGoal === 'I don\'t have a goal in mind yet' && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -1022,14 +978,14 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(4)}
-              className="text-xs font-bold text-[#108a00] hover:underline"
+              className="text-xs font-bold text-[#6A54F4] hover:underline"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setCurrentStep(4)}
-              className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
             >
               Next
             </button>
@@ -1047,7 +1003,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-full transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-full transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400">3/3</span>
@@ -1068,13 +1024,13 @@ export const FreelancerApply = () => {
               onClick={() => toggleWorkPreference('I\'d like to find opportunities myself')}
               className={`relative rounded-2xl p-6 sm:p-8 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[260px] bg-[#16152B] ${
                 workPreferences.includes('I\'d like to find opportunities myself')
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
-                  workPreferences.includes('I\'d like to find opportunities myself') ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  workPreferences.includes('I\'d like to find opportunities myself') ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {workPreferences.includes('I\'d like to find opportunities myself') && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -1084,7 +1040,7 @@ export const FreelancerApply = () => {
                 <h3 className="text-lg font-bold text-white mb-2">
                   I'd like to find opportunities myself
                 </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#a0a5ba] leading-relaxed">
                   Clients post jobs on our Talent Marketplace™: you can browse and bid for them, or get invited by a client.
                 </p>
               </div>
@@ -1094,13 +1050,13 @@ export const FreelancerApply = () => {
               onClick={() => toggleWorkPreference('I\'d like to package up my work for clients to buy')}
               className={`relative rounded-2xl p-6 sm:p-8 border-2 cursor-pointer transition-all flex flex-col justify-between min-h-[260px] bg-[#16152B] ${
                 workPreferences.includes('I\'d like to package up my work for clients to buy')
-                  ? 'border-[#108a00] bg-[#1A1835] ring-2 ring-[#108a00]/40 shadow-xl'
+                  ? 'border-[#6A54F4] bg-[#1A1835] ring-2 ring-[#6A54F4]/50 shadow-xl'
                   : 'border-white/10 hover:border-white/30'
               }`}
             >
               <div className="flex justify-end">
                 <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${
-                  workPreferences.includes('I\'d like to package up my work for clients to buy') ? 'border-[#108a00] bg-[#108a00]' : 'border-slate-600'
+                  workPreferences.includes('I\'d like to package up my work for clients to buy') ? 'border-[#6A54F4] bg-[#6A54F4]' : 'border-slate-600'
                 }`}>
                   {workPreferences.includes('I\'d like to package up my work for clients to buy') && <Check size={12} className="text-white stroke-[3]" />}
                 </div>
@@ -1110,24 +1066,11 @@ export const FreelancerApply = () => {
                 <h3 className="text-lg font-bold text-white mb-2">
                   I'd like to package up my work for clients to buy
                 </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-[#a0a5ba] leading-relaxed">
                   Define your service with prices and timelines: we'll list it in our Project Catalog™ for clients to buy right away.
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="contractToHire"
-              checked={openToContractToHire}
-              onChange={(e) => setOpenToContractToHire(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-600 bg-[#16152B] text-[#108a00] focus:ring-[#108a00]"
-            />
-            <label htmlFor="contractToHire" className="text-xs sm:text-sm text-slate-300 font-medium cursor-pointer">
-              <strong className="text-white">I'm open to contract-to-hire opportunities</strong> - Start with a contract, and later explore a full-time option with the client
-            </label>
           </div>
         </main>
 
@@ -1143,14 +1086,14 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(5)}
-              className="text-xs font-bold text-[#108a00] hover:underline"
+              className="text-xs font-bold text-[#6A54F4] hover:underline"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setCurrentStep(5)}
-              className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
             >
               Next, create a profile
             </button>
@@ -1165,10 +1108,10 @@ export const FreelancerApply = () => {
   // ==========================================================================
   if (currentStep === 5) {
     return (
-      <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
+      <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between relative">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[10%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[10%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1194,25 +1137,19 @@ export const FreelancerApply = () => {
               <div className="space-y-4 pt-4 max-w-md">
                 <button
                   type="button"
-                  onClick={() => {
-                    setImportMethod('Import from LinkedIn');
-                    setCurrentStep(6);
-                  }}
-                  className="w-full py-3.5 px-6 rounded-full border-2 border-[#108a00] bg-[#16152B] hover:bg-[#108a00]/20 text-[#108a00] font-bold text-sm transition-all flex items-center justify-center gap-2"
+                  onClick={() => setIsLinkedInModalOpen(true)}
+                  className="w-full py-3.5 px-6 rounded-full border border-white/15 bg-[#16152B] hover:border-[#6A54F4] hover:bg-[#6A54F4]/20 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <FaLinkedin size={18} />
+                  <FaLinkedin size={18} className="text-[#0a66c2]" />
                   <span>Import from LinkedIn</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setImportMethod('Upload your resume');
-                    setCurrentStep(6);
-                  }}
-                  className="w-full py-3.5 px-6 rounded-full border-2 border-[#108a00] bg-[#16152B] hover:bg-[#108a00]/20 text-[#108a00] font-bold text-sm transition-all flex items-center justify-center gap-2"
+                  onClick={() => setIsResumeModalOpen(true)}
+                  className="w-full py-3.5 px-6 rounded-full border border-white/15 bg-[#16152B] hover:border-[#6A54F4] hover:bg-[#6A54F4]/20 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <Upload size={18} />
+                  <Upload size={18} className="text-[#6A54F4]" />
                   <span>Upload your resume</span>
                 </button>
 
@@ -1222,9 +1159,9 @@ export const FreelancerApply = () => {
                     setImportMethod('Fill out manually (15 min)');
                     setCurrentStep(6);
                   }}
-                  className="w-full py-3.5 px-6 rounded-full border-2 border-[#108a00] bg-[#16152B] hover:bg-[#108a00]/20 text-[#108a00] font-bold text-sm transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-6 rounded-full border border-white/15 bg-[#16152B] hover:border-[#6A54F4] hover:bg-[#6A54F4]/20 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
                 >
-                  <FileText size={18} />
+                  <FileText size={18} className="text-purple-400" />
                   <span>Fill out manually (15 min)</span>
                 </button>
               </div>
@@ -1259,6 +1196,286 @@ export const FreelancerApply = () => {
             Back
           </button>
         </footer>
+
+        {/* LINKEDIN UPLOAD MODAL (Matching Picture 2) */}
+        <AnimatePresence>
+          {isLinkedInModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white text-slate-900 rounded-[28px] max-w-xl w-full p-6 sm:p-8 shadow-2xl relative space-y-6"
+              >
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsLinkedInModalOpen(false)}
+                  className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+
+                {/* Modal Header */}
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Upload your LinkedIn profile
+                </h2>
+
+                {/* Step 1 */}
+                <div className="space-y-4">
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                    Step 1: if you haven't already, save your LinkedIn profile as a PDF. Here's how:
+                  </p>
+
+                  {/* LinkedIn Mockup Card */}
+                  <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 overflow-hidden relative max-w-md mx-auto">
+                    <div className="bg-slate-300 h-16 rounded-t-xl relative w-full overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-slate-300 to-slate-400" />
+                    </div>
+
+                    <div className="relative px-2 pb-2">
+                      <div className="w-14 h-14 rounded-full bg-white border-2 border-white flex items-center justify-center -mt-7 shadow-sm text-slate-400">
+                        <Camera size={20} />
+                      </div>
+
+                      <div className="mt-2">
+                        <h4 className="text-sm font-bold text-slate-800">Your Name</h4>
+
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <span className="px-3 py-1 rounded-full bg-[#0a66c2] text-white text-[11px] font-semibold">
+                            Open to
+                          </span>
+                          <span className="px-3 py-1 rounded-full border border-slate-300 text-slate-700 text-[11px] font-semibold">
+                            Add section
+                          </span>
+                          <span className="px-3 py-1 rounded-full border border-slate-300 text-slate-700 text-[11px] font-semibold bg-slate-200">
+                            More
+                          </span>
+                        </div>
+
+                        {/* Popover Menu */}
+                        <div className="mt-2 ml-12 bg-white rounded-xl shadow-lg border border-slate-200 p-2 space-y-1 text-xs max-w-[210px]">
+                          <div className="px-2 py-1 text-slate-500 text-[11px] flex items-center gap-1">
+                            <Send size={12} /> Share profile in a message
+                          </div>
+                          <div className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-900 font-bold flex items-center gap-1.5 border border-slate-300">
+                            <Download size={13} className="text-[#0a66c2]" /> Save to PDF
+                          </div>
+                          <div className="px-2 py-1 text-slate-500 text-[11px]">
+                            Build a resume
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="space-y-3 pt-2">
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                    Step 2: come back here to upload it.
+                  </p>
+
+                  <input
+                    type="file"
+                    ref={linkedInFileInputRef}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setLinkedInPdfFile(e.target.files[0]);
+                      }
+                    }}
+                    accept=".pdf"
+                    className="hidden"
+                  />
+
+                  {linkedInPdfFile ? (
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-purple-50 border border-[#6A54F4]/30 text-slate-900">
+                      <div className="flex items-center gap-3">
+                        <FileText className="text-[#6A54F4]" size={20} />
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">{linkedInPdfFile.name}</p>
+                          <p className="text-[10px] text-slate-500">{(linkedInPdfFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLinkedInPdfFile(null)}
+                        className="text-xs text-rose-600 hover:underline font-semibold"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => linkedInFileInputRef.current?.click()}
+                      className="w-full sm:w-auto px-6 py-2.5 rounded-full border-2 border-[#6A54F4] text-[#6A54F4] hover:bg-[#6A54F4]/10 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2"
+                    >
+                      <Upload size={16} />
+                      <span>Upload your saved LinkedIn PDF</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={!linkedInPdfFile}
+                    onClick={() => {
+                      setImportMethod('Import from LinkedIn');
+                      toast.success('LinkedIn PDF uploaded successfully!');
+                      setIsLinkedInModalOpen(false);
+                      setCurrentStep(6);
+                    }}
+                    className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
+                      linkedInPdfFile
+                        ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* RESUME UPLOAD MODAL (Matching Picture 3) */}
+        <AnimatePresence>
+          {isResumeModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white text-slate-900 rounded-[28px] max-w-xl w-full p-6 sm:p-8 shadow-2xl relative space-y-6"
+              >
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsResumeModalOpen(false)}
+                  className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+
+                {/* Modal Header */}
+                <div className="space-y-1">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Add your resume
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500">
+                    Use a PDF, Word doc, or rich text file – make sure it's 5MB or less.
+                  </p>
+                </div>
+
+                {/* Dropzone Container */}
+                <input
+                  type="file"
+                  ref={resumeFileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setResumeFile(e.target.files[0]);
+                    }
+                  }}
+                  accept=".pdf,.doc,.docx,.txt,.rtf"
+                  className="hidden"
+                />
+
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingResume(true);
+                  }}
+                  onDragLeave={() => setIsDraggingResume(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingResume(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      setResumeFile(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  onClick={() => {
+                    if (!resumeFile) resumeFileInputRef.current?.click();
+                  }}
+                  className={`border-2 border-dashed rounded-2xl p-8 sm:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                    isDraggingResume
+                      ? 'border-[#6A54F4] bg-purple-50'
+                      : resumeFile
+                      ? 'border-emerald-400 bg-emerald-50/40'
+                      : 'border-slate-300 hover:border-[#6A54F4] hover:bg-slate-50'
+                  }`}
+                >
+                  {resumeFile ? (
+                    <div className="space-y-3">
+                      <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{resumeFile.name}</p>
+                        <p className="text-xs text-slate-500">{(resumeFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setResumeFile(null);
+                        }}
+                        className="text-xs font-bold text-rose-600 hover:underline"
+                      >
+                        Remove file
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Document Illustration */}
+                      <div className="w-20 h-20 mx-auto relative flex items-center justify-center">
+                        <svg className="w-16 h-16" viewBox="0 0 64 64" fill="none">
+                          <rect x="12" y="8" width="36" height="48" rx="4" fill="#E2E8F0" stroke="#94A3B8" strokeWidth="2" />
+                          <rect x="20" y="16" width="20" height="3" rx="1.5" fill="#475569" />
+                          <rect x="20" y="24" width="20" height="3" rx="1.5" fill="#94A3B8" />
+                          <rect x="20" y="32" width="14" height="3" rx="1.5" fill="#94A3B8" />
+                          <circle cx="44" cy="40" r="10" fill="#34D399" />
+                          <path d="M40 40L43 43L48 37" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                        Drag and drop or{' '}
+                        <span className="text-[#6A54F4] underline font-bold hover:text-[#5844E5]">
+                          choose file
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={!resumeFile}
+                    onClick={() => {
+                      setImportMethod('Upload your resume');
+                      toast.success('Resume attached successfully!');
+                      setIsResumeModalOpen(false);
+                      setCurrentStep(6);
+                    }}
+                    className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
+                      resumeFile
+                        ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -1273,7 +1490,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[20%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[20%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1303,11 +1520,11 @@ export const FreelancerApply = () => {
                   type="button"
                   onClick={() => {
                     setSelectedCategory(cat);
-                    setSelectedSpecialties([CATEGORY_MAP[cat][0]]);
+                    setSelectedSpecialties([]);
                   }}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  className={`w-full text-left px-3.5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                     selectedCategory === cat
-                      ? 'bg-[#108a00] text-white shadow-md'
+                      ? 'bg-[#6A54F4] text-white shadow-md'
                       : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
@@ -1330,13 +1547,13 @@ export const FreelancerApply = () => {
                       onClick={() => toggleSpecialty(spec)}
                       className={`px-4 py-3 rounded-2xl text-xs font-bold border text-left transition-all flex items-center justify-between ${
                         isSelected
-                          ? 'border-[#108a00] bg-[#108a00]/15 text-white ring-1 ring-[#108a00]'
+                          ? 'border-[#6A54F4] bg-[#6A54F4]/20 text-white ring-1 ring-[#6A54F4]'
                           : 'border-white/10 text-slate-300 hover:border-white/30 bg-[#16152B]'
                       }`}
                     >
                       <span>{spec}</span>
                       <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                        isSelected ? 'border-[#108a00] bg-[#108a00] text-white' : 'border-slate-600'
+                        isSelected ? 'border-[#6A54F4] bg-[#6A54F4] text-white' : 'border-slate-600'
                       }`}>
                         {isSelected && <Check size={10} strokeWidth={3} />}
                       </div>
@@ -1358,8 +1575,14 @@ export const FreelancerApply = () => {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentStep(7)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            onClick={() => {
+              if (selectedSpecialties.length === 0) {
+                toast.error('Please select at least 1 specialty before proceeding.');
+                return;
+              }
+              setCurrentStep(7);
+            }}
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, add your skills
           </button>
@@ -1376,7 +1599,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[30%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[30%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1397,18 +1620,18 @@ export const FreelancerApply = () => {
                 <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                   Your skills show clients what you can offer, and help us choose which jobs to recommend to you. Add or remove the ones we've suggested, or start typing to pick more. It's up to you.
                 </p>
-                <button type="button" className="text-xs font-bold text-[#108a00] hover:underline mt-1 block">
+                <button type="button" className="text-xs font-bold text-[#6A54F4] hover:underline mt-1 block">
                   Why choosing carefully matters
                 </button>
               </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-300">Your skills</label>
-                <div className="p-3 rounded-2xl border border-white/15 bg-[#16152B] flex flex-wrap items-center gap-2 min-h-[56px] focus-within:border-[#108a00] transition-all">
+                <div className="p-3 rounded-2xl border border-white/15 bg-[#16152B] flex flex-wrap items-center gap-2 min-h-[56px] focus-within:border-[#6A54F4] transition-all">
                   {selectedSkills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#108a00]/20 border border-[#108a00]/40 text-emerald-300 text-xs font-bold"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#6A54F4]/20 border border-[#6A54F4]/40 text-emerald-300 text-xs font-bold"
                     >
                       <span>{skill}</span>
                       <button
@@ -1486,8 +1709,14 @@ export const FreelancerApply = () => {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentStep(8)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            onClick={() => {
+              if (selectedSkills.length === 0) {
+                toast.error('Please select or add at least 1 skill before proceeding (up to 15 skills).');
+                return;
+              }
+              setCurrentStep(8);
+            }}
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, add your title
           </button>
@@ -1504,7 +1733,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[40%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[40%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1531,8 +1760,8 @@ export const FreelancerApply = () => {
               type="text"
               value={professionalRoleTitle}
               onChange={(e) => setProfessionalRoleTitle(e.target.value)}
-              placeholder="Example: Full Stack Software Engineer & React Specialist"
-              className="w-full rounded-2xl border border-white/15 bg-[#16152B] py-3.5 px-4 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-[#108a00] transition-all"
+              placeholder="Full Stack Software Engineer & React Specialist"
+              className="w-full rounded-2xl border border-white/15 bg-[#16152B] py-3.5 px-4 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-[#6A54F4] transition-all"
             />
           </div>
         </main>
@@ -1547,8 +1776,14 @@ export const FreelancerApply = () => {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentStep(9)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            onClick={() => {
+              if (!professionalRoleTitle.trim()) {
+                toast.error('Please enter your professional role title before proceeding.');
+                return;
+              }
+              setCurrentStep(9);
+            }}
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, add your experience
           </button>
@@ -1565,7 +1800,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[50%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[50%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1590,9 +1825,9 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setIsAddingExperienceModal(true)}
-              className="rounded-3xl border-2 border-dashed border-white/20 hover:border-[#108a00] p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[180px] bg-[#16152B]/60 hover:bg-[#16152B] transition-all group cursor-pointer"
+              className="rounded-3xl border-2 border-dashed border-white/20 hover:border-[#6A54F4] p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[180px] bg-[#16152B]/60 hover:bg-[#16152B] transition-all group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-full bg-[#108a00] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-[#6A54F4] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
                 <Plus size={20} strokeWidth={3} />
               </div>
               <span className="text-base font-bold text-white">Add experience</span>
@@ -1623,6 +1858,12 @@ export const FreelancerApply = () => {
                   </div>
                   {exp.description && (
                     <p className="text-xs text-slate-400 mt-3 line-clamp-2">{exp.description}</p>
+                  )}
+                  {exp.documentName && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-purple-300 bg-purple-500/10 px-3 py-1.5 rounded-xl border border-purple-500/20 w-fit">
+                      <FileText size={14} className="text-[#6A54F4]" />
+                      <span className="font-semibold">{exp.documentName}</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1655,10 +1896,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">Title *</label>
                     <input
                       type="text"
-                      placeholder="Ex: Senior Software Engineer"
+                      placeholder="Senior Software Engineer"
                       value={newExp.title}
                       onChange={(e) => setNewExp({ ...newExp, title: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                       required
                     />
                   </div>
@@ -1666,10 +1907,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">Company *</label>
                     <input
                       type="text"
-                      placeholder="Ex: Acme Inc"
+                      placeholder="Company Name"
                       value={newExp.company}
                       onChange={(e) => setNewExp({ ...newExp, company: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                       required
                     />
                   </div>
@@ -1677,10 +1918,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">Dates / Period</label>
                     <input
                       type="text"
-                      placeholder="Ex: Jan 2022 - Present"
+                      placeholder="Period (Jan 2022 - Present)"
                       value={newExp.period}
                       onChange={(e) => setNewExp({ ...newExp, period: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                     />
                   </div>
                   <div>
@@ -1690,8 +1931,51 @@ export const FreelancerApply = () => {
                       placeholder="Describe your responsibilities..."
                       value={newExp.description}
                       onChange={(e) => setNewExp({ ...newExp, description: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                     />
+                  </div>
+
+                  {/* Upload PDF Section */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Attach Proof / Document (PDF)
+                    </label>
+                    <input
+                      type="file"
+                      ref={expPdfInputRef}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setNewExp({ ...newExp, documentName: e.target.files[0].name });
+                        }
+                      }}
+                      accept=".pdf"
+                      className="hidden"
+                    />
+
+                    {newExp.documentName ? (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-white text-xs">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <FileText size={16} className="text-[#6A54F4] flex-shrink-0" />
+                          <span className="truncate font-medium">{newExp.documentName}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setNewExp({ ...newExp, documentName: '' })}
+                          className="text-rose-400 hover:underline text-[11px] font-bold ml-2 flex-shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => expPdfInputRef.current?.click()}
+                        className="w-full py-2.5 px-4 rounded-xl border border-white/15 bg-black hover:border-[#6A54F4] hover:bg-black/60 text-slate-300 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+                      >
+                        <Upload size={14} className="text-[#6A54F4]" />
+                        <span>Upload Experience PDF</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-3 pt-2">
@@ -1704,7 +1988,7 @@ export const FreelancerApply = () => {
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white text-xs font-bold shadow-xs"
+                      className="px-6 py-2 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white text-xs font-bold shadow-xs"
                     >
                       Save Experience
                     </button>
@@ -1727,14 +2011,14 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(10)}
-              className="text-xs font-bold text-[#108a00] hover:underline"
+              className="text-xs font-bold text-[#6A54F4] hover:underline"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setCurrentStep(10)}
-              className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
             >
               Next, add your education
             </button>
@@ -1752,7 +2036,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[60%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[60%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1777,9 +2061,9 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setIsAddingEducationModal(true)}
-              className="rounded-3xl border-2 border-dashed border-white/20 hover:border-[#108a00] p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[180px] bg-[#16152B]/60 hover:bg-[#16152B] transition-all group cursor-pointer"
+              className="rounded-3xl border-2 border-dashed border-white/20 hover:border-[#6A54F4] p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[180px] bg-[#16152B]/60 hover:bg-[#16152B] transition-all group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-full bg-[#108a00] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-full bg-[#6A54F4] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
                 <Plus size={20} strokeWidth={3} />
               </div>
               <span className="text-base font-bold text-white">Add education</span>
@@ -1839,10 +2123,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">Degree / Certificate *</label>
                     <input
                       type="text"
-                      placeholder="Ex: Bachelor of Science in Computer Science"
+                      placeholder="Degree or Certificate Title"
                       value={newEdu.degree}
                       onChange={(e) => setNewEdu({ ...newEdu, degree: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                       required
                     />
                   </div>
@@ -1850,10 +2134,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">School / University *</label>
                     <input
                       type="text"
-                      placeholder="Ex: University of Technology"
+                      placeholder="School / University Name"
                       value={newEdu.school}
                       onChange={(e) => setNewEdu({ ...newEdu, school: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                       required
                     />
                   </div>
@@ -1861,10 +2145,10 @@ export const FreelancerApply = () => {
                     <label className="block text-xs font-bold text-slate-300 mb-1">Dates Attended</label>
                     <input
                       type="text"
-                      placeholder="Ex: 2018 - 2022"
+                      placeholder="Dates Attended"
                       value={newEdu.dates}
                       onChange={(e) => setNewEdu({ ...newEdu, dates: e.target.value })}
-                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#108a00]"
+                      className="w-full rounded-xl border border-white/15 bg-black px-3.5 py-2 text-xs text-white outline-none focus:border-[#6A54F4]"
                     />
                   </div>
 
@@ -1878,7 +2162,7 @@ export const FreelancerApply = () => {
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white text-xs font-bold shadow-xs"
+                      className="px-6 py-2 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white text-xs font-bold shadow-xs"
                     >
                       Save Education
                     </button>
@@ -1901,14 +2185,14 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(11)}
-              className="text-xs font-bold text-[#108a00] hover:underline"
+              className="text-xs font-bold text-[#6A54F4] hover:underline"
             >
               Skip for now
             </button>
             <button
               type="button"
               onClick={() => setCurrentStep(11)}
-              className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
             >
               Next, add languages
             </button>
@@ -1926,7 +2210,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[70%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[70%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -1962,7 +2246,7 @@ export const FreelancerApply = () => {
                   <select
                     value={lang.proficiency}
                     onChange={(e) => updateLanguageProficiency(lang.id, e.target.value)}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs sm:text-sm text-white outline-none focus:border-[#108a00] transition-all cursor-pointer"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs sm:text-sm text-white outline-none focus:border-[#6A54F4] transition-all cursor-pointer"
                   >
                     <option value="Native or Bilingual">Native or Bilingual</option>
                     <option value="Fluent">Fluent</option>
@@ -1987,7 +2271,7 @@ export const FreelancerApply = () => {
                 type="button"
                 onClick={addLanguageRow}
                 disabled={availableLanguagesToAdd.length === 0}
-                className="px-5 py-2.5 rounded-full border-2 border-[#108a00] text-[#108a00] font-bold text-xs hover:bg-[#108a00]/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 rounded-full border-2 border-[#6A54F4] text-[#6A54F4] font-bold text-xs hover:bg-[#6A54F4]/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
                 <Plus size={14} strokeWidth={3} />
                 <span>Add a language</span>
@@ -2007,7 +2291,7 @@ export const FreelancerApply = () => {
           <button
             type="button"
             onClick={() => setCurrentStep(12)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, write an overview
           </button>
@@ -2024,7 +2308,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[80%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[80%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -2035,64 +2319,25 @@ export const FreelancerApply = () => {
           </header>
         </div>
 
-        <main className="max-w-6xl mx-auto w-full px-6 py-8 my-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-            <div className="lg:col-span-7 space-y-6">
-              <div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white mb-3">
-                  Great. Now write a bio to tell the world about yourself.
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                  Help people get to know you at a glance. What work do you do best? Tell them clearly, using paragraphs or bullet points. You can always edit later; just make sure you proofread now.
-                </p>
-              </div>
+        <main className="max-w-4xl mx-auto w-full px-6 py-8 my-auto space-y-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white mb-3">
+              Great. Now write a bio to tell the world about yourself.
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Help people get to know you at a glance. What work do you do best? Tell them clearly, using paragraphs or bullet points. You can always edit later; just make sure you proofread now.
+            </p>
+          </div>
 
-              <div className="space-y-2">
-                <textarea
-                  rows={7}
-                  value={bioOverview}
-                  onChange={(e) => setBioOverview(e.target.value)}
-                  placeholder="Enter your top skills, experiences, and interests. This is one of the first things clients will see on your profile."
-                  className="w-full rounded-2xl border border-white/15 bg-[#16152B] p-4 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-[#108a00] transition-all leading-relaxed"
-                />
-                <div className="text-right text-[11px] text-slate-400">At least 100 characters</div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5">
-              <div className="rounded-3xl border border-white/10 bg-[#16152B] p-6 shadow-xl space-y-4 text-white relative">
-                <div className="flex flex-col items-center text-center">
-                  <div className="relative mb-3">
-                    <img
-                      src={personalDetails.avatarUrl}
-                      alt="Profile Avatar"
-                      className="w-20 h-20 rounded-full object-cover shadow-md border-2 border-white/20"
-                    />
-                    <span className="w-3.5 h-3.5 bg-emerald-500 border-2 border-[#16152B] rounded-full absolute top-1 right-1" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">
-                    {signUpForm.firstName || 'Joseph'} {signUpForm.lastName ? `${signUpForm.lastName[0]}.` : 'M.'}
-                  </h3>
-                  <div className="flex items-center gap-3 text-xs font-semibold text-slate-300 mt-1">
-                    <span className="flex items-center gap-1 text-amber-400">
-                      <Star size={14} className="fill-amber-400" />
-                      <span>5.0</span>
-                    </span>
-                    <span>${hourlyRate.toFixed(2)}/hr</span>
-                    <span>💼 14 jobs</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-4 text-xs text-slate-300 space-y-2 leading-relaxed">
-                  <p className="line-clamp-4 italic">{bioOverview || 'Your bio preview will appear here as you type...'}</p>
-                  <ul className="space-y-1 list-disc list-inside text-slate-400 pt-1 text-[11px]">
-                    <li>Knows {selectedSkills.slice(0, 4).join(', ')}</li>
-                    <li>Full project management from start to finish</li>
-                    <li>Regular communication & clean code architecture</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-2">
+            <textarea
+              rows={8}
+              value={bioOverview}
+              onChange={(e) => setBioOverview(e.target.value)}
+              placeholder="Enter your top skills, experiences, and interests. This is one of the first things clients will see on your profile."
+              className="w-full rounded-2xl border border-white/15 bg-[#16152B] p-5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-[#6A54F4] transition-all leading-relaxed"
+            />
+            <div className="text-right text-[11px] text-slate-400">At least 100 characters</div>
           </div>
         </main>
 
@@ -2107,7 +2352,7 @@ export const FreelancerApply = () => {
           <button
             type="button"
             onClick={() => setCurrentStep(13)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, set your rate
           </button>
@@ -2124,7 +2369,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-[90%] transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-[90%] transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -2152,13 +2397,13 @@ export const FreelancerApply = () => {
                 <p className="text-xs text-slate-400">Total amount the client will see.</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-400">$</span>
+                <span className="text-base font-bold text-slate-300">₹</span>
                 <input
                   type="number"
-                  step="0.50"
+                  step="10"
                   value={hourlyRate}
                   onChange={(e) => setHourlyRate(parseFloat(e.target.value) || 0)}
-                  className="w-32 rounded-2xl border border-white/15 bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-white outline-none focus:border-[#108a00]"
+                  className="w-36 rounded-2xl border border-white/15 bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-white outline-none focus:border-[#6A54F4]"
                 />
                 <span className="text-xs font-semibold text-slate-400">/hr</span>
               </div>
@@ -2168,7 +2413,7 @@ export const FreelancerApply = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-white">Service fee</h3>
-                  <button type="button" className="text-xs font-bold text-[#108a00] hover:underline">
+                  <button type="button" className="text-xs font-bold text-[#6A54F4] hover:underline">
                     Learn more
                   </button>
                 </div>
@@ -2177,8 +2422,8 @@ export const FreelancerApply = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-32 rounded-2xl bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-slate-400 border border-white/10">
-                  ${serviceFee}
+                <div className="w-36 rounded-2xl bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-slate-400 border border-white/10">
+                  ₹{serviceFee}
                 </div>
                 <span className="text-xs font-semibold text-slate-400">/hr</span>
               </div>
@@ -2190,8 +2435,8 @@ export const FreelancerApply = () => {
                 <p className="text-xs text-slate-400">The estimated amount you'll receive after service fees</p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-32 rounded-2xl border border-emerald-500/40 bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-emerald-400">
-                  ${netEarnings}
+                <div className="w-36 rounded-2xl border border-emerald-500/40 bg-[#16152B] py-2.5 px-4 text-right text-sm font-bold text-emerald-400">
+                  ₹{netEarnings}
                 </div>
                 <span className="text-xs font-semibold text-slate-400">/hr</span>
               </div>
@@ -2210,7 +2455,7 @@ export const FreelancerApply = () => {
           <button
             type="button"
             onClick={() => setCurrentStep(14)}
-            className="px-7 py-2.5 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
+            className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, add your photo and location
           </button>
@@ -2227,7 +2472,7 @@ export const FreelancerApply = () => {
       <div className="min-h-screen w-full bg-black text-white font-sans antialiased flex flex-col justify-between">
         <div>
           <div className="w-full bg-slate-900 h-1.5">
-            <div className="bg-[#108a00] h-1.5 w-full transition-all duration-300" />
+            <div className="bg-[#6A54F4] h-1.5 w-full transition-all duration-300" />
           </div>
           <header className="w-full max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-baseline gap-2">
@@ -2250,17 +2495,43 @@ export const FreelancerApply = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start border-t border-white/10 pt-6">
             <div className="md:col-span-4 flex flex-col items-center text-center space-y-4">
-              <div className="relative">
-                <div className="w-28 h-28 rounded-full overflow-hidden bg-purple-950/40 border-2 border-white/20 flex items-center justify-center">
-                  <img
-                    src={personalDetails.avatarUrl}
-                    alt="Uploaded Avatar"
-                    className="w-full h-full object-cover"
-                  />
+              <input
+                type="file"
+                ref={avatarFileInputRef}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    const imageUrl = URL.createObjectURL(file);
+                    setPersonalDetails((prev) => ({ ...prev, avatarUrl: imageUrl }));
+                    toast.success('Profile photo uploaded successfully!');
+                  }
+                }}
+                accept="image/*"
+                className="hidden"
+              />
+
+              <div
+                className="relative cursor-pointer group"
+                onClick={() => avatarFileInputRef.current?.click()}
+              >
+                <div className="w-28 h-28 rounded-full overflow-hidden bg-[#16152B] border-2 border-white/20 group-hover:border-[#6A54F4] transition-all flex items-center justify-center shadow-lg">
+                  {personalDetails.avatarUrl ? (
+                    <img
+                      src={personalDetails.avatarUrl}
+                      alt="Uploaded Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={48} className="text-slate-400 group-hover:text-white transition-colors" />
+                  )}
                 </div>
                 <button
                   type="button"
-                  className="w-7 h-7 rounded-full bg-[#108a00] text-white flex items-center justify-center absolute bottom-0 right-0 shadow-md border-2 border-[#0B0B12]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    avatarFileInputRef.current?.click();
+                  }}
+                  className="w-8 h-8 rounded-full bg-[#6A54F4] text-white flex items-center justify-center absolute bottom-0 right-0 shadow-md border-2 border-black hover:bg-[#5842E3] transition-all"
                 >
                   <Plus size={16} strokeWidth={3} />
                 </button>
@@ -2268,10 +2539,11 @@ export const FreelancerApply = () => {
 
               <button
                 type="button"
-                className="px-5 py-2 rounded-full border-2 border-[#108a00] text-[#108a00] font-bold text-xs hover:bg-[#108a00]/10 transition-all flex items-center gap-1.5"
+                onClick={() => avatarFileInputRef.current?.click()}
+                className="px-5 py-2 rounded-full border-2 border-[#6A54F4] text-[#6A54F4] font-bold text-xs hover:bg-[#6A54F4]/10 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Camera size={14} />
-                <span>Upload photo</span>
+                <span>{personalDetails.avatarUrl ? 'Change photo' : 'Upload photo'}</span>
               </button>
             </div>
 
@@ -2283,7 +2555,7 @@ export const FreelancerApply = () => {
                     type="date"
                     value={personalDetails.dob}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, dob: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                     required
                   />
                 </div>
@@ -2295,7 +2567,7 @@ export const FreelancerApply = () => {
                   <select
                     value={personalDetails.country}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, country: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00] appearance-none cursor-pointer"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4] appearance-none cursor-pointer"
                   >
                     <option value="India">India</option>
                   </select>
@@ -2311,7 +2583,7 @@ export const FreelancerApply = () => {
                     placeholder="Enter street address"
                     value={personalDetails.streetAddress}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, streetAddress: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                     required
                   />
                 </div>
@@ -2322,7 +2594,7 @@ export const FreelancerApply = () => {
                     placeholder="Apt/Suite (Optional)"
                     value={personalDetails.aptSuite}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, aptSuite: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                   />
                 </div>
               </div>
@@ -2335,7 +2607,7 @@ export const FreelancerApply = () => {
                     placeholder="Enter city"
                     value={personalDetails.city}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, city: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                     required
                   />
                 </div>
@@ -2346,7 +2618,7 @@ export const FreelancerApply = () => {
                     placeholder="Enter state/province"
                     value={personalDetails.state}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, state: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -2356,7 +2628,7 @@ export const FreelancerApply = () => {
                     placeholder="Enter ZIP/Postal code"
                     value={personalDetails.zipCode}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, zipCode: e.target.value })}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                   />
                 </div>
               </div>
@@ -2367,7 +2639,7 @@ export const FreelancerApply = () => {
                   <select
                     value={personalDetails.phoneCode}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, phoneCode: e.target.value })}
-                    className="rounded-2xl border border-white/15 bg-[#16152B] px-3 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="rounded-2xl border border-white/15 bg-[#16152B] px-3 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                   >
                     <option value="+91">🇮🇳 +91</option>
                   </select>
@@ -2376,7 +2648,7 @@ export const FreelancerApply = () => {
                     placeholder="Enter number"
                     value={personalDetails.phoneNumber}
                     onChange={(e) => setPersonalDetails({ ...personalDetails, phoneNumber: e.target.value })}
-                    className="flex-1 rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#108a00]"
+                    className="flex-1 rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                     required
                   />
                 </div>
@@ -2397,7 +2669,7 @@ export const FreelancerApply = () => {
             type="button"
             onClick={handleSubmitFinal}
             disabled={loading}
-            className="px-8 py-3 rounded-full bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-sm shadow-md transition-all disabled:opacity-75"
+            className="px-8 py-3 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-sm shadow-md transition-all disabled:opacity-75"
           >
             {loading ? 'Publishing Profile...' : 'Review your profile'}
           </button>
@@ -2444,7 +2716,7 @@ export const FreelancerApply = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Hourly Rate:</span>
-              <span className="font-bold text-emerald-400">${hourlyRate.toFixed(2)}/hr</span>
+              <span className="font-bold text-emerald-400">₹{hourlyRate.toFixed(2)}/hr</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Category:</span>
@@ -2466,7 +2738,7 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="px-6 py-3 rounded-xl bg-[#108a00] hover:bg-[#14a800] text-white font-bold text-xs sm:text-sm shadow-md transition-colors"
+              className="px-6 py-3 rounded-xl bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs sm:text-sm shadow-md transition-colors"
             >
               Return to Login Portal
             </button>

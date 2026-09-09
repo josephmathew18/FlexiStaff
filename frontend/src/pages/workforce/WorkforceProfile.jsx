@@ -566,7 +566,7 @@ export const WorkforceProfile = () => {
                   type="text"
                   value={newSkillInput}
                   onChange={(e) => setNewSkillInput(e.target.value)}
-                  placeholder="Add skill (e.g. Docker, GraphQL, Kubernetes)"
+                  placeholder="Add skill"
                   className="flex-1 rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-purple-600"
                 />
                 <button

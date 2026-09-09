@@ -496,7 +496,7 @@ export default function ClientDashboard() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. AI Smart Credit Scoring Engine"
+                  placeholder="Enter project name"
                   value={requestForm.title}
                   onChange={(e) => setRequestForm({ ...requestForm, title: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600"
@@ -530,7 +530,7 @@ export default function ClientDashboard() {
                 <label className="block font-bold text-slate-700 mb-1">Required Tech Stack / Skills</label>
                 <input
                   type="text"
-                  placeholder="e.g. React.js, Python, PyTorch, AWS"
+                  placeholder="Enter required tech stack / skills"
                   value={requestForm.requiredSkills}
                   onChange={(e) => setRequestForm({ ...requestForm, requiredSkills: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600"

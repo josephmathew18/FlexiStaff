@@ -88,9 +88,8 @@ const FilterDropdown = ({ label = 'Filter', options = [], value, onChange }) => 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
-          isFiltered ? 'border-[#2563eb] bg-blue-50/50 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-400' : 'border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] text-[#434655] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
-        }`}
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all ${isFiltered ? 'border-[#2563eb] bg-blue-50/50 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-400' : 'border-[#c3c6d7]/80 dark:border-white/15 bg-white dark:bg-[#1c1a36] text-[#434655] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
+          }`}
       >
         <Filter size={13} className={isFiltered ? 'text-[#004ac6] dark:text-blue-400' : 'text-slate-400'} />
         <span>{label}: <strong>{selectedOption?.label || 'All'}</strong></span>
@@ -104,9 +103,8 @@ const FilterDropdown = ({ label = 'Filter', options = [], value, onChange }) => 
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange?.(opt.value); setIsOpen(false); }}
-                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs ${
-                  opt.value === value ? 'bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-300 font-bold' : 'text-[#434655] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
-                }`}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs ${opt.value === value ? 'bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-300 font-bold' : 'text-[#434655] dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
               >
                 <span>{opt.label}</span>
                 {opt.value === value && <Check size={13} />}
@@ -229,9 +227,8 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
 
 const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], className = '', disabled = false, ...rest }) => {
   const isError = Boolean(error);
-  const inputBaseClasses = `w-full rounded-lg border text-xs text-[#191b23] dark:text-white placeholder-slate-400 transition-all outline-none ${
-    isError ? 'border-rose-400 bg-rose-50/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
-  } ${disabled ? 'bg-slate-100 dark:bg-white/5 text-slate-500' : ''}`;
+  const inputBaseClasses = `w-full rounded-lg border text-xs text-[#191b23] dark:text-white placeholder-slate-400 transition-all outline-none ${isError ? 'border-rose-400 bg-rose-50/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
+    } ${disabled ? 'bg-slate-100 dark:bg-white/5 text-slate-500' : ''}`;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
@@ -309,12 +306,6 @@ export const ProjectManagement = () => {
     },
   });
 
-  const managerOptions = useMemo(() => {
-    return [
-      { value: 'all', label: 'All Managers' },
-      ...managers.map((m) => ({ value: m.name, label: m.name })),
-    ];
-  }, [managers]);
 
   const pendingApprovalCount = useMemo(() => {
     return projects.filter(
@@ -495,13 +486,12 @@ export const ProjectManagement = () => {
           </div>
           <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700">
             <div
-              className={`h-full rounded-full ${
-                row.progress === 100
+              className={`h-full rounded-full ${row.progress === 100
                   ? 'bg-emerald-500'
                   : row.progress > 40
-                  ? 'bg-[#2563eb]'
-                  : 'bg-amber-500'
-              }`}
+                    ? 'bg-[#2563eb]'
+                    : 'bg-amber-500'
+                }`}
               style={{ width: `${row.progress}%` }}
             />
           </div>
@@ -591,11 +581,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('all')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'all'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'all'
               ? 'bg-[#2563eb] text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <FolderKanban size={15} />
           <span>All ({projects.length})</span>
@@ -604,11 +593,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('Pending Admin Approval')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'Pending Admin Approval'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'Pending Admin Approval'
               ? 'bg-amber-600 text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <Clock size={15} />
           <span>
@@ -619,11 +607,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('Approved')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'Approved'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'Approved'
               ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <CheckCircle2 size={15} />
           <span>
@@ -634,11 +621,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('In Progress')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'In Progress'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'In Progress'
               ? 'bg-[#2563eb] text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <PlayCircle size={15} />
           <span>
@@ -649,11 +635,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('Rejected')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'Rejected'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'Rejected'
               ? 'bg-rose-600 text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <X size={15} />
           <span>
@@ -664,11 +649,10 @@ export const ProjectManagement = () => {
         <button
           type="button"
           onClick={() => setStageTab('Completed')}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-            stageTab === 'Completed'
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${stageTab === 'Completed'
               ? 'bg-emerald-600 text-white shadow-xs'
               : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
-          }`}
+            }`}
         >
           <CheckCircle2 size={15} />
           <span>
@@ -713,11 +697,10 @@ export const ProjectManagement = () => {
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`rounded-md p-1.5 transition-colors ${
-                viewMode === 'grid'
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'grid'
                   ? 'bg-white dark:bg-[#2563eb] shadow-xs text-[#004ac6] dark:text-white'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
               title="Grid View"
             >
               <LayoutGrid size={16} />
@@ -725,11 +708,10 @@ export const ProjectManagement = () => {
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`rounded-md p-1.5 transition-colors ${
-                viewMode === 'table'
+              className={`rounded-md p-1.5 transition-colors ${viewMode === 'table'
                   ? 'bg-white dark:bg-[#2563eb] shadow-xs text-[#004ac6] dark:text-white'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
               title="Table View"
             >
               <List size={16} />
@@ -773,7 +755,7 @@ export const ProjectManagement = () => {
           <FormInput
             label="Project Title"
             name="title"
-            placeholder="e.g. Real-Time Fraud Detection Engine"
+            placeholder="Enter project title"
             register={register}
             error={errors.title}
             required
@@ -853,7 +835,7 @@ export const ProjectManagement = () => {
           <FormInput
             label="Required Skills (Comma separated)"
             name="skills"
-            placeholder="e.g. Python, PyTorch, React, Docker"
+            placeholder="Enter tech stack / skills"
             register={register}
             error={errors.skills}
             helperText="Specify the technical stack required"

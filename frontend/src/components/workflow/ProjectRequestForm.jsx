@@ -80,7 +80,7 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
             <input
               type="text"
               {...register('name')}
-              placeholder="e.g. AI Smart Credit Scoring Engine"
+              placeholder="Enter project name"
               className={`w-full rounded-xl border p-2.5 text-xs text-slate-900 outline-none transition-all ${
                 errors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-300 focus:border-[#004ac6]'
               }`}
@@ -153,7 +153,7 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
             <input
               type="text"
               {...register('duration')}
-              placeholder="e.g. 6 Months"
+              placeholder="Enter project duration"
               className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
             />
             {errors.duration && <p className="text-rose-600 text-[10px] mt-1">{errors.duration.message}</p>}

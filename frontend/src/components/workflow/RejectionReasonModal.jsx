@@ -9,7 +9,7 @@ export const RejectionReasonModal = ({
   onSubmit,
   title = 'Reject Project Requirement',
   subtitle = 'Provide rejection feedback and instructions',
-  placeholder = 'Specify the reason for rejection (e.g. scope budget, timeline adjustment, or resource availability)...',
+  placeholder = 'Specify the reason for rejection...',
   submitText = 'Confirm Rejection',
 }) => {
   const [reason, setReason] = useState('');

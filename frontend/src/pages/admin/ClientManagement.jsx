@@ -489,10 +489,11 @@ export const ClientManagement = () => {
                 className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
               />
               <div>
-                <h4 className="text-sm font-bold text-[#191b23] dark:text-white">{selectedClient.name}</h4>
-                <p className="text-[#737686] dark:text-slate-400">{selectedClient.industry}</p>
-                <div className="mt-1">
+                <h4 className="text-sm font-bold text-[#191b23] dark:text-white">{selectedClient.name || selectedClient.companyName}</h4>
+                <p className="text-[#737686] dark:text-slate-400">{selectedClient.industry || 'Technology & Enterprise Services'}</p>
+                <div className="mt-1 flex items-center gap-2">
                   <StatusBadge status={selectedClient.status} size="sm" />
+                  <span className="text-[11px] font-bold text-[#004ac6] dark:text-blue-400">{selectedClient.tier || 'Enterprise Client'}</span>
                 </div>
               </div>
             </div>
@@ -500,36 +501,57 @@ export const ClientManagement = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-50 dark:bg-[#1c1a36] p-3 rounded-lg border border-slate-100 dark:border-white/10">
                 <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Active Projects</span>
-                <p className="text-base font-bold text-[#191b23] dark:text-white">{selectedClient.activeProjects}</p>
+                <p className="text-base font-bold text-[#191b23] dark:text-white">{selectedClient.activeProjects || 0}</p>
               </div>
               <div className="bg-slate-50 dark:bg-[#1c1a36] p-3 rounded-lg border border-slate-100 dark:border-white/10">
                 <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Total Invoiced</span>
-                <p className="text-base font-bold text-[#004ac6] dark:text-blue-400">{selectedClient.totalSpent}</p>
+                <p className="text-base font-bold text-[#004ac6] dark:text-blue-400">{selectedClient.totalSpent || '₹0'}</p>
               </div>
             </div>
 
             <div className="space-y-2 border-t border-slate-100 dark:border-white/10 pt-3 text-[#434655] dark:text-slate-300">
               <div className="flex items-center justify-between">
-                <span className="text-[#737686] dark:text-slate-400">Contact Person:</span>
+                <span className="text-[#737686] dark:text-slate-400">Primary Contact Person:</span>
                 <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.contactPerson}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#737686] dark:text-slate-400">Email:</span>
+                <span className="text-[#737686] dark:text-slate-400">Work Email Address:</span>
                 <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.email}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#737686] dark:text-slate-400">Phone:</span>
-                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.phone}</span>
+                <span className="text-[#737686] dark:text-slate-400">Phone Contact:</span>
+                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.phone || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#737686] dark:text-slate-400">Location:</span>
-                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.location}</span>
+                <span className="text-[#737686] dark:text-slate-400">Headquarters / Location:</span>
+                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.location || 'India'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#737686] dark:text-slate-400">Onboarding Date:</span>
-                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.joinedDate}</span>
+                <span className="text-[#737686] dark:text-slate-400">Registration Date:</span>
+                <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.joinedDate || selectedClient.registrationDate || 'Just now'}</span>
               </div>
+              {selectedClient.taxId && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#737686] dark:text-slate-400">Tax / Business ID:</span>
+                  <span className="font-semibold text-[#191b23] dark:text-white">{selectedClient.taxId}</span>
+                </div>
+              )}
+              {selectedClient.website && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#737686] dark:text-slate-400">Company Website:</span>
+                  <a href={selectedClient.website} target="_blank" rel="noreferrer" className="font-semibold text-blue-500 hover:underline">
+                    {selectedClient.website}
+                  </a>
+                </div>
+              )}
             </div>
+
+            {selectedClient.description && (
+              <div className="border-t border-slate-100 dark:border-white/10 pt-3">
+                <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold block mb-1">Company Description</span>
+                <p className="text-xs text-slate-700 dark:text-slate-300 italic">{selectedClient.description}</p>
+              </div>
+            )}
           </div>
         </Modal>
       )}

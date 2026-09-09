@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { Logo } from '../components/common/Logo';
 import {
   User,
@@ -24,6 +25,7 @@ import { MdHub } from 'react-icons/md';
 export const Register = ({ onNavigateToLogin }) => {
   const navigate = useNavigate();
   const { login, register } = useAuth();
+  const { addClient } = useData();
 
   // Current active step (0 = Account Selector, 1 = Details, 2 = Security)
   const [currentStep, setCurrentStep] = useState(0);
@@ -165,6 +167,16 @@ export const Register = ({ onNavigateToLogin }) => {
       setLoading(false);
 
       if (authRes.success) {
+        addClient({
+          companyName: formData.companyName,
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          location: 'India',
+          industry: 'Enterprise Software & Services',
+          tier: 'Enterprise Client',
+          status: 'Active',
+        });
         showToastNotification('Client organization account registered successfully!', 'success');
         setTimeout(() => {
           navigate('/client/dashboard');
@@ -421,7 +433,7 @@ export const Register = ({ onNavigateToLogin }) => {
                         value={formData.fullName}
                         onChange={handleInputChange}
                         onBlur={() => handleBlur('fullName')}
-                        placeholder="e.g. Jane Doe"
+                        placeholder="Enter full name"
                         className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                         required
                       />
@@ -446,7 +458,7 @@ export const Register = ({ onNavigateToLogin }) => {
                         value={formData.companyName}
                         onChange={handleInputChange}
                         onBlur={() => handleBlur('companyName')}
-                        placeholder="e.g. Apex Global Tech Solutions"
+                        placeholder="Enter company name"
                         className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                         required
                       />
@@ -471,7 +483,7 @@ export const Register = ({ onNavigateToLogin }) => {
                         value={formData.email}
                         onChange={handleInputChange}
                         onBlur={() => handleBlur('email')}
-                        placeholder="s.jenkins@company.com"
+                        placeholder="Enter work email address"
                         className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                         required
                       />
@@ -496,7 +508,7 @@ export const Register = ({ onNavigateToLogin }) => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         onBlur={() => handleBlur('phone')}
-                        placeholder="+91 98765 43210"
+                        placeholder="Enter phone number"
                         className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-900 outline-none focus:border-[#6A54F4] focus:ring-2 focus:ring-[#6A54F4]/15 transition-all"
                         required
                       />

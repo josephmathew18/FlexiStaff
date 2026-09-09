@@ -82,7 +82,7 @@ export const ManagerWorkforce = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search professional by name, role, or skill (e.g., React, Java)..."
+            placeholder="Search professional by name, role, or skill..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
           />
         </div>

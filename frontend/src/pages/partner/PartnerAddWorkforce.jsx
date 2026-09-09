@@ -140,7 +140,7 @@ export const PartnerAddWorkforce = () => {
     }
 
     if (!formData.title.trim()) {
-      toast.error('Please enter the primary job title (e.g. Senior Frontend Engineer).');
+      toast.error('Please enter the primary job title.');
       return;
     }
 
@@ -352,7 +352,7 @@ export const PartnerAddWorkforce = () => {
                       pseudonym: prev.pseudonym ? prev.pseudonym : val,
                     }));
                   }}
-                  placeholder="e.g. Jessica Sterling"
+                  placeholder="Enter full name"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6] focus:ring-1 focus:ring-[#004ac6]"
                 />
               </div>
@@ -366,7 +366,7 @@ export const PartnerAddWorkforce = () => {
                   type="text"
                   value={formData.pseudonym}
                   onChange={(e) => setFormData((prev) => ({ ...prev, pseudonym: e.target.value }))}
-                  placeholder="e.g. Jessica S. (Sr. Fullstack)"
+                  placeholder="Enter display title / name"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6] focus:ring-1 focus:ring-[#004ac6]"
                 />
               </div>
@@ -470,7 +470,7 @@ export const PartnerAddWorkforce = () => {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g. Lead Full-Stack Architect"
+                  placeholder="Enter primary job title"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6] focus:ring-1 focus:ring-[#004ac6]"
                 />
               </div>
@@ -664,7 +664,7 @@ export const PartnerAddWorkforce = () => {
                     type="text"
                     value={formData.certifications}
                     onChange={(e) => setFormData((prev) => ({ ...prev, certifications: e.target.value }))}
-                    placeholder="e.g. AWS Solutions Architect, GCP Professional, CKA"
+                    placeholder="Enter AWS, GCP, Azure, or other certifications"
                     className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 outline-none focus:border-[#004ac6]"
                   />
                 </div>
@@ -814,7 +814,7 @@ export const PartnerAddWorkforce = () => {
                     <ShieldCheck size={16} className="text-blue-600 shrink-0" title="Verified Partner Talent" />
                   </div>
                   <p className="text-xs font-bold text-[#004ac6] truncate mt-0.5">
-                    {formData.title || 'Job Title (e.g. Lead Engineer)'}
+                    {formData.title || 'Job Title'}
                   </p>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
                     <Building2 size={12} className="text-slate-400" />

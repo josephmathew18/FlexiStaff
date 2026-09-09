@@ -113,7 +113,7 @@ export const ClientSupport = () => {
                   type="text"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g. Additional React Engineer Request for Sprint 3"
+                  placeholder="Enter ticket subject"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600 focus:bg-white transition-all"
                   required
                 />
