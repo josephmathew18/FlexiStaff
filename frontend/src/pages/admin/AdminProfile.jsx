@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
+import { compressImage } from '../../utils/imageCompressor';
 import UserAvatar from '../../components/common/UserAvatar';
 
 export const AdminProfile = () => {
@@ -55,24 +56,21 @@ export const AdminProfile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = React.useRef(null);
 
-  const handleMediaUpload = (e) => {
+  const handleMediaUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload a valid image file (PNG, JPG, WEBP).');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB.');
-      return;
-    }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setFormData((prev) => ({ ...prev, avatar: event.target.result }));
+    try {
+      const compressedDataUrl = await compressImage(file, 300, 300, 0.85);
+      setFormData((prev) => ({ ...prev, avatar: compressedDataUrl }));
       toast.success('Media photo uploaded successfully!');
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      toast.error('Could not process photo file.');
+    }
   };
 
   const handleGeneralSubmit = (e) => {
@@ -241,7 +239,7 @@ export const AdminProfile = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Admin Profile Photo</label>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500">JPG, PNG, WEBP (Max 5MB)</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">JPG, PNG, WEBP</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -278,7 +276,7 @@ export const AdminProfile = () => {
                     <span>Upload Photo from Media / Device</span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Click to browse or drag and drop image file (PNG, JPG, WEBP up to 5MB)
+                    Click to browse or drag and drop image file (PNG, JPG, WEBP)
                   </p>
                 </div>
               </div>

@@ -18,7 +18,7 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
     allowedRoles.some(
       (r) =>
         r.toLowerCase() === (currentRole || '').toLowerCase() ||
-        (r === 'Admin' && (currentRole?.toLowerCase().includes('admin') || user?.email?.toLowerCase().includes('admin') || user?.name?.toLowerCase().includes('admin'))) ||
+        (r === 'Admin' && currentRole?.toLowerCase() === 'admin') ||
         (r === 'Client' && currentRole?.toLowerCase().includes('client')) ||
         (r === 'Partner Company' && currentRole?.toLowerCase().includes('partner')) ||
         (r === 'Manager' && currentRole?.toLowerCase().includes('manager')) ||

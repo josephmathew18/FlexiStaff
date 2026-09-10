@@ -194,7 +194,7 @@ export const ManagerMatching = () => {
               Workforce Matching & Squad Staging
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#004ac6] border border-blue-200 text-xs font-bold">
-              Organization Manager
+              HR Manager
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">

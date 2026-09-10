@@ -105,7 +105,7 @@ export const ProjectDetails = () => {
           The project ID <code className="font-mono">{id}</code> does not exist.
         </p>
         <Link
-          to="/projects"
+          to="/admin/projects"
           className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-4 py-2 text-xs font-semibold text-white"
         >
           <ArrowLeft size={14} />
@@ -157,7 +157,7 @@ export const ProjectDetails = () => {
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <Link
-          to="/projects"
+          to="/admin/projects"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:underline"
         >
           <ArrowLeft size={14} />

@@ -47,7 +47,7 @@ export const ManagerSupport = () => {
       if (submitSupportTicket) {
         submitSupportTicket({
           senderRole: 'Manager',
-          senderName: `${managerProfile?.name || 'Manager'} (Organization Manager)`,
+          senderName: `${managerProfile?.name || 'Manager'} (HR Manager)`,
           senderEmail: managerProfile?.email || 'manager@flexistaff.com',
           ...formData,
         });

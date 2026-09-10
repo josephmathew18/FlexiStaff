@@ -213,7 +213,7 @@ export const Dashboard = () => {
             {pendingTalentApprovals > 0 && (
               <button
                 type="button"
-                onClick={() => navigate('/workforce')}
+                onClick={() => navigate('/admin/workforce')}
                 className="rounded-xl bg-amber-400 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-900 shadow-md hover:bg-amber-300 active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <span>Review Talent ({pendingTalentApprovals})</span>
@@ -221,7 +221,7 @@ export const Dashboard = () => {
             )}
             <button
               type="button"
-              onClick={() => navigate('/workforce')}
+              onClick={() => navigate('/admin/workforce')}
               className="rounded-xl bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-[#004ac6] shadow-md hover:bg-blue-50 active:scale-95 transition-all"
             >
               Active Talent Pool
@@ -242,7 +242,7 @@ export const Dashboard = () => {
           color="blue"
           trend="+14%"
           trendLabel="vs last month"
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/admin/projects')}
         />
 
         <DashboardCard
@@ -252,7 +252,7 @@ export const Dashboard = () => {
           color="indigo"
           trend="+8%"
           trendLabel="on track"
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/admin/projects')}
         />
 
         <DashboardCard
@@ -262,7 +262,7 @@ export const Dashboard = () => {
           color="emerald"
           trend="+2"
           trendLabel="this quarter"
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/admin/projects')}
         />
 
         <DashboardCard
@@ -271,7 +271,7 @@ export const Dashboard = () => {
           icon={Users}
           color="blue"
           subtitle="Full-time staff"
-          onClick={() => navigate('/workforce')}
+          onClick={() => navigate('/admin/workforce')}
         />
 
         <DashboardCard
@@ -280,7 +280,7 @@ export const Dashboard = () => {
           icon={Code2}
           color="purple"
           subtitle="Contract network"
-          onClick={() => navigate('/workforce')}
+          onClick={() => navigate('/admin/workforce')}
         />
 
         <DashboardCard
@@ -290,17 +290,17 @@ export const Dashboard = () => {
           color="amber"
           trend={pendingRequests > 0 ? 'Requires Action' : 'All clear'}
           trendLabel=""
-          onClick={() => navigate('/projects')}
+          onClick={() => navigate('/admin/projects')}
         />
       </div>
 
-      {/* Organization Manager Lead Overview Strip */}
+      {/* HR Manager Lead Overview Strip */}
       <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-white/10">
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-blue-100 dark:bg-blue-950/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                Organization Manager
+                HR Manager
               </span>
               <span className="text-xs text-slate-400">•</span>
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -313,17 +313,17 @@ export const Dashboard = () => {
             </h3>
           </div>
           <Link
-            to="/managers"
+            to="/admin/managers"
             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-bold text-[#004ac6] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-white/10 transition-colors self-start sm:self-auto"
           >
-            <span>Manage Organization Manager</span>
+            <span>Manage HR Manager</span>
             <ArrowRight size={13} />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3.5 text-xs">
           <div
-            onClick={() => navigate('/managers')}
+            onClick={() => navigate('/admin/managers')}
             className="rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-all flex items-center gap-3"
           >
             <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-[#004ac6] dark:text-blue-300 flex items-center justify-center font-bold">
@@ -336,7 +336,7 @@ export const Dashboard = () => {
           </div>
 
           <div
-            onClick={() => navigate('/managers')}
+            onClick={() => navigate('/admin/managers')}
             className="rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-all"
           >
             <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
@@ -348,7 +348,7 @@ export const Dashboard = () => {
           </div>
 
           <div
-            onClick={() => navigate('/projects')}
+            onClick={() => navigate('/admin/projects')}
             className="rounded-xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 p-3.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
           >
             <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
@@ -360,7 +360,7 @@ export const Dashboard = () => {
           </div>
 
           <div
-            onClick={() => navigate('/workforce')}
+            onClick={() => navigate('/admin/workforce')}
             className="rounded-xl bg-purple-50/60 dark:bg-purple-950/40 border border-purple-200/70 dark:border-white/10 p-3.5 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/60 transition-all"
           >
             <div className="flex items-center justify-between text-purple-700 dark:text-purple-400">
@@ -387,7 +387,7 @@ export const Dashboard = () => {
               </p>
             </div>
             <Link
-              to="/projects"
+              to="/admin/projects"
               className="inline-flex items-center gap-1 text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:underline"
             >
               <span>View All Projects</span>

@@ -137,105 +137,113 @@ export const PartnerProjects = () => {
       </div>
 
       {/* Projects List Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredProjects.map((prj) => (
-          <motion.div
-            key={prj.id}
-            layout
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
-          >
-            <div>
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#004ac6] bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
-                    {prj.id}
-                  </span>
-                  <h3
-                    onClick={() => navigate(`/partner/projects/${prj.id}`)}
-                    className="text-base font-bold text-slate-900 mt-2 hover:text-[#004ac6] transition-colors cursor-pointer"
-                  >
-                    {prj.name}
-                  </h3>
-                  <p className="text-xs text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Client Organization'}</p>
-                  <p className="text-xs text-slate-500 font-medium">{prj.category}</p>
+      {filteredProjects.length === 0 ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center space-y-3">
+          <FolderKanban size={36} className="mx-auto text-slate-300" />
+          <h3 className="font-bold text-slate-800 text-sm">No projects found</h3>
+          <p className="text-xs text-slate-500">There are no project requirements matching your current filter selection.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredProjects.map((prj) => (
+            <motion.div
+              key={prj.id}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+            >
+              <div>
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#004ac6] bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
+                      {prj.id}
+                    </span>
+                    <h3
+                      onClick={() => navigate(`/partner/projects/${prj.id}`)}
+                      className="text-base font-bold text-slate-900 mt-2 hover:text-[#004ac6] transition-colors cursor-pointer"
+                    >
+                      {prj.name}
+                    </h3>
+                    <p className="text-xs text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Client Organization'}</p>
+                    <p className="text-xs text-slate-500 font-medium">{prj.category}</p>
+                  </div>
+                  <StatusBadge status={prj.status} />
                 </div>
-                <StatusBadge status={prj.status} />
+
+                {/* Description */}
+                <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
+                  {prj.description}
+                </p>
+
+                {/* Tech Stack Tags */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(prj.techStack || 'React.js, Node.js, Cloud').split(',').slice(0, 4).map((tech, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700"
+                    >
+                      {tech.trim()}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Workforce</span>
+                    <span className="block font-extrabold text-slate-900 mt-0.5">
+                      {prj.workforceAssigned} / {prj.workforceRequired}
+                    </span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Stage</span>
+                    <span className="block font-bold text-blue-600 truncate mt-0.5">{prj.stage}</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Duration</span>
+                    <span className="block font-bold text-slate-800 mt-0.5">{prj.duration}</span>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mt-4 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-slate-600">Overall Progress</span>
+                    <span className="text-blue-600">{prj.progress}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        prj.progress === 100 ? 'bg-emerald-500' : 'bg-[#2563eb]'
+                      }`}
+                      style={{ width: `${prj.progress}%` }}
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Description */}
-              <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
-                {prj.description}
-              </p>
+              {/* Bottom Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Calendar size={12} />
+                  <span>Starts {prj.startDate}</span>
+                </span>
 
-              {/* Tech Stack Tags */}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {(prj.techStack || 'React.js, Node.js, Cloud').split(',').slice(0, 4).map((tech, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-semibold text-slate-700"
-                  >
-                    {tech.trim()}
-                  </span>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => navigate(`/partner/projects/${prj.id}`)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-[#2563eb] text-[#004ac6] hover:text-white text-xs font-bold transition-all"
+                >
+                  <span>View Details & Workflow</span>
+                  <ChevronRight size={14} />
+                </button>
               </div>
-
-              {/* Metrics Grid */}
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Workforce</span>
-                  <span className="block font-extrabold text-slate-900 mt-0.5">
-                    {prj.workforceAssigned} / {prj.workforceRequired}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Stage</span>
-                  <span className="block font-bold text-blue-600 truncate mt-0.5">{prj.stage}</span>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Duration</span>
-                  <span className="block font-bold text-slate-800 mt-0.5">{prj.duration}</span>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mt-4 space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-bold">
-                  <span className="text-slate-600">Overall Progress</span>
-                  <span className="text-blue-600">{prj.progress}%</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      prj.progress === 100 ? 'bg-emerald-500' : 'bg-[#2563eb]'
-                    }`}
-                    style={{ width: `${prj.progress}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Calendar size={12} />
-                <span>Starts {prj.startDate}</span>
-              </span>
-
-              <button
-                type="button"
-                onClick={() => navigate(`/partner/projects/${prj.id}`)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-[#2563eb] text-[#004ac6] hover:text-white text-xs font-bold transition-all"
-              >
-                <span>View Details & Workflow</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

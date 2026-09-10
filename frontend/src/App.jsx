@@ -79,10 +79,13 @@ import WorkforceSupport from './pages/workforce/WorkforceSupport';
 // Authentication & Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 // Smart Role-Based Dashboard Redirect
 const DashboardRedirect = () => {
   const { user, role, isAuthenticated } = useAuth() || {};
+  const location = useLocation();
+
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
@@ -95,6 +98,16 @@ const DashboardRedirect = () => {
   if (currentRole.includes('workforce') || currentRole.includes('freelancer') || currentRole.includes('professional')) {
     return <Navigate to="/workforce/dashboard" replace />;
   }
+
+  // Admin Role Smart Redirects
+  const path = location.pathname;
+  if (path === '/company') return <Navigate to="/admin/company" replace />;
+  if (path === '/clients') return <Navigate to="/admin/clients" replace />;
+  if (path === '/partners') return <Navigate to="/admin/partners" replace />;
+  if (path === '/managers') return <Navigate to="/admin/managers" replace />;
+  if (path === '/workforce') return <Navigate to="/admin/workforce" replace />;
+  if (path === '/projects') return <Navigate to="/admin/projects" replace />;
+
   return <Navigate to="/admin/dashboard" replace />;
 };
 
@@ -114,8 +127,14 @@ function App() {
             <Route path="/freelancer/apply" element={<FreelancerApply />} />
             <Route path="/forgot-password" element={<Login />} />
 
-            {/* Smart /dashboard Router */}
+            {/* Smart /dashboard Router & Legacy Route Handlers */}
             <Route path="/dashboard" element={<DashboardRedirect />} />
+            <Route path="/company" element={<DashboardRedirect />} />
+            <Route path="/clients" element={<DashboardRedirect />} />
+            <Route path="/partners" element={<DashboardRedirect />} />
+            <Route path="/managers" element={<DashboardRedirect />} />
+            <Route path="/workforce" element={<DashboardRedirect />} />
+            <Route path="/projects" element={<DashboardRedirect />} />
 
             {/* ========================================================================= */}
             {/* DEDICATED ADMIN PORTAL SUITE (/admin/*) */}
@@ -131,13 +150,6 @@ function App() {
             >
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<Dashboard />} />
-              <Route path="/company" element={<CompanyManagement />} />
-              <Route path="/clients" element={<ClientManagement />} />
-              <Route path="/partners" element={<PartnerManagement />} />
-              <Route path="/managers" element={<ManagerManagement />} />
-              <Route path="/workforce" element={<WorkforceManagement />} />
-              <Route path="/projects" element={<ProjectManagement />} />
-              <Route path="/projects/:id" element={<ProjectDetails />} />
               <Route path="/admin/company" element={<CompanyManagement />} />
               <Route path="/admin/clients" element={<ClientManagement />} />
               <Route path="/admin/partners" element={<PartnerManagement />} />
@@ -147,7 +159,7 @@ function App() {
               <Route path="/admin/projects/:id" element={<ProjectDetails />} />
               <Route path="/admin/assignment-approvals" element={<AdminAssignmentApprovals />} />
               <Route path="/admin/support-tickets" element={<AdminSupportTickets />} />
-              <Route path="/admin/profile" element={<Navigate to="/company" replace />} />
+              <Route path="/admin/profile" element={<Navigate to="/admin/company" replace />} />
             </Route>
 
             {/* ========================================================================= */}

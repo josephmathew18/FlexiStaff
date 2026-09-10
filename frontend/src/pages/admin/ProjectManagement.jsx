@@ -269,7 +269,15 @@ const projectFormSchema = yup.object().shape({
 });
 
 export const ProjectManagement = () => {
-  const { projects, clients, managers, addProject, updateProjectStage, approveProject, rejectProject } = useData();
+  const {
+    projects = [],
+    clients = [],
+    managers = [],
+    addProject,
+    updateProjectStage,
+    approveProject,
+    rejectProject,
+  } = useData() || {};
   const navigate = useNavigate();
 
   const [stageTab, setStageTab] = useState('all'); // 'all' | 'Pending Admin Approval' | 'Approved' | 'In Progress' | 'Rejected' | 'Completed'
@@ -298,23 +306,24 @@ export const ProjectManagement = () => {
       client: clients[0]?.name || '',
       stage: 'Pending Admin Approval',
       priority: 'High',
-      manager: managers[0]?.name || 'Assigned Manager',
-      budget: '$150,000',
-      deadline: '2026-11-30',
+      manager: managers[0]?.name || '',
+      budget: '',
+      deadline: '',
       description: '',
-      skills: 'Python, React, AWS, Docker',
+      skills: '',
     },
   });
 
 
   const pendingApprovalCount = useMemo(() => {
-    return projects.filter(
-      (p) => p.status === 'Pending Admin Approval' || p.stage === 'Pending Admin Approval' || p.stage === 'Request'
+    return (projects || []).filter(
+      (p) => p?.status === 'Pending Admin Approval' || p?.stage === 'Pending Admin Approval' || p?.stage === 'Request'
     ).length;
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((prj) => {
+    return (projects || []).filter((prj) => {
+      if (!prj) return false;
       let matchesTab = true;
       if (stageTab === 'all') matchesTab = true;
       else if (stageTab === 'Pending Admin Approval') {
@@ -328,7 +337,7 @@ export const ProjectManagement = () => {
         prj.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prj.client?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         prj.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prj.requiredSkills?.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+        prj.requiredSkills?.some((s) => s?.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesPriority =
         priorityFilter === 'all' || prj.priority?.toLowerCase() === priorityFilter.toLowerCase();
@@ -340,9 +349,17 @@ export const ProjectManagement = () => {
     });
   }, [projects, stageTab, searchQuery, priorityFilter, managerFilter]);
 
+  const managerOptions = useMemo(() => {
+    const list = (managers || []).map((m) => ({
+      value: m.name,
+      label: m.name,
+    }));
+    return [{ value: 'all', label: 'All Managers' }, ...list];
+  }, [managers]);
+
   const handleApproveConfirm = () => {
     if (!selectedProjectForApproval) return;
-    approveProject(selectedProjectForApproval.id, assignedManagerSelect);
+    approveProject?.(selectedProjectForApproval.id, assignedManagerSelect);
     toast.success(`Approved "${selectedProjectForApproval.title || selectedProjectForApproval.name}" and assigned to ${assignedManagerSelect}!`);
     setIsApproveModalOpen(false);
     setSelectedProjectForApproval(null);
@@ -355,7 +372,7 @@ export const ProjectManagement = () => {
       toast.error('Please enter a rejection reason.');
       return;
     }
-    rejectProject(selectedProjectForApproval.id, rejectionReason);
+    rejectProject?.(selectedProjectForApproval.id, rejectionReason);
     toast.info(`Rejected "${selectedProjectForApproval.title || selectedProjectForApproval.name}". Feedback sent to client.`);
     setIsRejectModalOpen(false);
     setSelectedProjectForApproval(null);
@@ -363,15 +380,16 @@ export const ProjectManagement = () => {
   };
 
   const onAddSubmit = (data) => {
-    const skillsArray = data.skills
+    const skillsArray = (data.skills || '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const clientObj = clients.find((c) => c.name === data.client);
-    const managerObj = managers.find((m) => m.name === data.manager);
+    const clientObj = (clients || []).find((c) => c.name === data.client);
+    const managerObj = (managers || []).find((m) => m.name === data.manager);
+    const budgetVal = data.budget || '';
 
-    const newPrj = addProject({
+    const newPrj = addProject?.({
       title: data.title,
       client: data.client,
       clientId: clientObj?.id || 'cli-01',
@@ -379,17 +397,19 @@ export const ProjectManagement = () => {
       priority: data.priority,
       manager: data.manager,
       managerAvatar: managerObj?.avatar,
-      budget: data.budget.startsWith('$') ? data.budget : `$${data.budget}`,
+      budget: budgetVal.startsWith('$') ? budgetVal : `$${budgetVal}`,
       deadline: data.deadline,
       description: data.description,
       requiredSkills: skillsArray,
       assignedResources: [],
     });
 
-    toast.success(`Project "${newPrj.title}" created in stage "${data.stage}"!`);
+    toast.success(`Project "${newPrj?.title || data.title}" created in stage "${data.stage}"!`);
     reset();
     setIsAddModalOpen(false);
-    navigate(`/projects/${newPrj.id}`);
+    if (newPrj?.id) {
+      navigate(`/projects/${newPrj.id}`);
+    }
   };
 
   const handleStageChange = (e, projectId) => {
@@ -562,7 +582,7 @@ export const ProjectManagement = () => {
             Central Project & Requirements Approval
           </h2>
           <p className="text-xs sm:text-sm text-[#737686] dark:text-slate-400">
-            Review client project requirement requests, authorize project approval, and assign Organization Managers.
+            Review client project requirement requests, authorize project approval, and assign HR Managers.
           </p>
         </div>
 
@@ -587,7 +607,7 @@ export const ProjectManagement = () => {
             }`}
         >
           <FolderKanban size={15} />
-          <span>All ({projects.length})</span>
+          <span>All ({(projects || []).length})</span>
         </button>
 
         <button
@@ -614,7 +634,7 @@ export const ProjectManagement = () => {
         >
           <CheckCircle2 size={15} />
           <span>
-            Approved ({projects.filter((p) => p.status === 'Approved' || p.stage === 'Approved').length})
+            Approved ({(projects || []).filter((p) => p?.status === 'Approved' || p?.stage === 'Approved').length})
           </span>
         </button>
 
@@ -628,7 +648,7 @@ export const ProjectManagement = () => {
         >
           <PlayCircle size={15} />
           <span>
-            In Progress ({projects.filter((p) => p.status === 'In Progress' || p.stage === 'In Progress').length})
+            In Progress ({(projects || []).filter((p) => p?.status === 'In Progress' || p?.stage === 'In Progress').length})
           </span>
         </button>
 
@@ -642,7 +662,7 @@ export const ProjectManagement = () => {
         >
           <X size={15} />
           <span>
-            Rejected ({projects.filter((p) => p.status === 'Rejected' || p.stage === 'Rejected').length})
+            Rejected ({(projects || []).filter((p) => p?.status === 'Rejected' || p?.stage === 'Rejected').length})
           </span>
         </button>
 
@@ -656,7 +676,7 @@ export const ProjectManagement = () => {
         >
           <CheckCircle2 size={15} />
           <span>
-            Completed ({projects.filter((p) => p.status === 'Completed' || p.stage === 'Completed').length})
+            Completed ({(projects || []).filter((p) => p?.status === 'Completed' || p?.stage === 'Completed').length})
           </span>
         </button>
       </div>
@@ -895,7 +915,7 @@ export const ProjectManagement = () => {
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">Approve Project Requirement</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Authorize project and route to Organization Manager for workforce matching.
+                    Authorize project and route to HR Manager for workforce matching.
                   </p>
                 </div>
                 <button
@@ -918,7 +938,7 @@ export const ProjectManagement = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Assign Organization Manager *
+                    Assign HR Manager *
                   </label>
                   <select
                     value={assignedManagerSelect}

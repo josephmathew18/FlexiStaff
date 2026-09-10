@@ -193,7 +193,14 @@ export const PartnerSupport = () => {
             </div>
 
             <div className="space-y-2.5 max-h-60 overflow-y-auto">
-              {partnerSupportTickets.map((ticket) => (
+              {partnerSupportTickets.length === 0 ? (
+                <div className="py-6 text-center text-slate-500 text-xs">
+                  <MessageSquare size={24} className="mx-auto text-slate-300 mb-1.5" />
+                  <p className="font-semibold text-slate-700">No support tickets submitted yet.</p>
+                  <p className="text-[10px] text-slate-400">Use the form on the left to submit a ticket.</p>
+                </div>
+              ) : (
+                partnerSupportTickets.map((ticket) => (
                 <div key={ticket.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="font-mono font-bold text-[10px] text-indigo-700">{ticket.id}</span>
@@ -206,7 +213,8 @@ export const PartnerSupport = () => {
                   <h4 className="font-bold text-slate-900">{ticket.subject}</h4>
                   <p className="text-[10px] text-slate-400">{ticket.lastReply}</p>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
 

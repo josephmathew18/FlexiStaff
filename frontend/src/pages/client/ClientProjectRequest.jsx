@@ -39,7 +39,7 @@ export const ClientProjectRequest = () => {
         </div>
         <p className="text-xs text-slate-500 mt-0.5">
           Submit your enterprise staffing requirement. Upon submission, the project status will be{' '}
-          <strong className="text-amber-800">Pending Admin Approval</strong>. Once approved by Company Admin, the Organization Manager will request suitable talent.
+          <strong className="text-amber-800">Pending Admin Approval</strong>. Once approved by Company Admin, the HR Manager will request suitable talent.
         </p>
       </div>
 

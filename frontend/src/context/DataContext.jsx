@@ -41,8 +41,24 @@ export const DataProvider = ({ children }) => {
     return initialClients || [];
   });
 
-  const [partners, setPartners] = useState(initialPartners);
-  const [managers, setManagers] = useState(initialManagers);
+  const [partners, setPartners] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_partners');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return initialPartners || [];
+  });
+  const [managers, setManagers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_managers');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignore
+    }
+    return initialManagers || [];
+  });
 
   const [workforce, setWorkforce] = useState(() => {
     try {
@@ -85,6 +101,18 @@ export const DataProvider = ({ children }) => {
       localStorage.setItem('flexistaff_projects', JSON.stringify(projects));
     } catch {}
   }, [projects]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_partners', JSON.stringify(partners));
+    } catch {}
+  }, [partners]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_managers', JSON.stringify(managers));
+    } catch {}
+  }, [managers]);
 
   // Client Registration helper
   const addClient = (clientData) => {
@@ -131,6 +159,65 @@ export const DataProvider = ({ children }) => {
 
     return newClient;
   };
+
+  const deleteClient = (idOrEmail) => {
+    setClients((prev) => prev.filter((c) => c.id !== idOrEmail && c.email !== idOrEmail));
+    try {
+      const savedStr = localStorage.getItem('flexistaff_clients');
+      if (savedStr) {
+        const list = JSON.parse(savedStr);
+        const updated = list.filter((c) => c && c.id !== idOrEmail && c.email !== idOrEmail);
+        localStorage.setItem('flexistaff_clients', JSON.stringify(updated));
+      }
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        const updatedReg = regList.filter((u) => u && u.id !== idOrEmail && u.email !== idOrEmail);
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+      }
+    } catch {}
+  };
+
+  const clearClients = () => {
+    setClients([]);
+    try {
+      localStorage.removeItem('flexistaff_clients');
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        const updatedReg = regList.filter((u) => u && u.role !== 'Client' && u.role !== 'ROLE_CLIENT');
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+      }
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u && (u.role === 'Client' || u.role === 'ROLE_CLIENT')) {
+          localStorage.removeItem('flexistaff_user');
+          localStorage.removeItem('flexistaff_role');
+        }
+      }
+    } catch {}
+  };
+
+  // Clear any existing self-registered client entries on initial load as requested by user
+  useEffect(() => {
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        const hasClients = regList.some((u) => u && (u.role === 'Client' || u.role === 'ROLE_CLIENT'));
+        if (hasClients) {
+          const updatedReg = regList.filter((u) => u && u.role !== 'Client' && u.role !== 'ROLE_CLIENT');
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+        }
+      }
+      const savedClientsStr = localStorage.getItem('flexistaff_clients');
+      if (savedClientsStr) {
+        localStorage.removeItem('flexistaff_clients');
+        setClients([]);
+      }
+    } catch {}
+  }, []);
 
   // Sync projects and data with Spring Boot backend when available
   useEffect(() => {
@@ -201,7 +288,109 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   // Partner Portal State
-  const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);
+  const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);  // Sync partner profile whenever flexistaff_user or flexistaff_partners updates
+  useEffect(() => {
+    const syncPartnerProfileData = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+        let currentPartnersList = partners;
+        if (savedPartnersStr) {
+          try {
+            currentPartnersList = JSON.parse(savedPartnersStr);
+          } catch {}
+        }
+
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Partner Company' || savedUser.role === 'Partner' || savedUser.role === 'ROLE_PARTNER')) {
+            const userEmail = (savedUser.email || '').toLowerCase().trim();
+            const userName = (savedUser.companyName || savedUser.company || (savedUser.name !== 'System Administrator' ? savedUser.name : '') || '').toLowerCase().trim();
+
+            let matchedPrt = (currentPartnersList || []).find((p) => {
+              if (!p) return false;
+              const pEmail = (p.email || '').toLowerCase().trim();
+              const pName = (p.name || p.companyName || '').toLowerCase().trim();
+              const pId = p.id ? String(p.id) : '';
+              const uId = savedUser.id ? String(savedUser.id) : '';
+
+              if (pEmail && userEmail && pEmail === userEmail) return true;
+              if (pName && userName && (pName === userName || userName.includes(pName) || pName.includes(userName))) return true;
+              if (pId && uId && pId === uId) return true;
+              return false;
+            });
+
+            const companyDisplayName = matchedPrt?.name || matchedPrt?.companyName || savedUser.companyName || savedUser.company || (savedUser.name !== 'System Administrator' ? savedUser.name : 'Infosys Technologies');
+            const contactDisplayName = matchedPrt?.contactPerson || savedUser.contactPerson || (savedUser.name !== 'System Administrator' ? savedUser.name : 'Joseph Mathew');
+            const emailAddr = matchedPrt?.email || savedUser.email || 'partner@infosys.com';
+            const phoneNo = matchedPrt?.phone || savedUser.phone || '+91 98765 43210';
+            const tierVal = matchedPrt?.tier || 'Tier-1 Strategic Partner';
+            const locationVal = matchedPrt?.location || matchedPrt?.city || 'Bengaluru, India';
+            const specsVal = Array.isArray(matchedPrt?.specialties) ? matchedPrt.specialties.join(', ') : (matchedPrt?.specialties || 'Software Engineering & IT Staffing');
+            const webVal = matchedPrt?.website || 'https://infosys.com';
+            const descVal = matchedPrt?.description || 'Enterprise IT Services & Strategic Talent Partner on FlexiStaff.';
+            const logoVal = matchedPrt?.logo || matchedPrt?.avatar || matchedPrt?.logoUrl || '';
+
+            // If not found in central list, seed it so Admin & Partner are in sync
+            if (!matchedPrt && (userEmail || userName)) {
+              const seededObj = {
+                id: savedUser.id || `prt-${Date.now().toString().slice(-4)}`,
+                name: companyDisplayName,
+                companyName: companyDisplayName,
+                contactPerson: contactDisplayName,
+                email: emailAddr,
+                phone: phoneNo,
+                tier: tierVal,
+                location: locationVal,
+                city: locationVal,
+                specialties: Array.isArray(matchedPrt?.specialties) ? matchedPrt.specialties : ['Cloud Computing', 'Enterprise IT', 'Full Stack Development'],
+                website: webVal,
+                description: descVal,
+                logo: logoVal,
+                status: 'Active',
+                joinedDate: new Date().toISOString().split('T')[0],
+                suppliedProfessionals: 0,
+                activePlacements: 0,
+                availabilityRate: '100%',
+                rating: 4.9,
+              };
+
+              setPartners((prev) => {
+                if (prev.some((p) => (p.email && p.email.toLowerCase() === emailAddr.toLowerCase()) || (p.name && p.name.toLowerCase() === companyDisplayName.toLowerCase()))) {
+                  return prev;
+                }
+                return [seededObj, ...prev];
+              });
+            }
+
+            setPartnerProfile({
+              id: matchedPrt?.id || savedUser.id || 'prt-101',
+              name: companyDisplayName,
+              contactPerson: contactDisplayName,
+              email: emailAddr,
+              phone: phoneNo,
+              tier: tierVal,
+              location: locationVal,
+              city: locationVal,
+              specialties: specsVal,
+              domain: specsVal,
+              website: webVal,
+              description: descVal,
+              logoUrl: logoVal,
+              status: matchedPrt?.status || 'Active',
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error in syncPartnerProfileData:', err);
+      }
+    };
+
+    syncPartnerProfileData();
+    window.addEventListener('storage', syncPartnerProfileData);
+    return () => window.removeEventListener('storage', syncPartnerProfileData);
+  }, [partners]);
+
   const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
   const [partnerWorkforce, setPartnerWorkforce] = useState(initialPartnerWorkforce);
   const [partnerWorkforceRequests, setPartnerWorkforceRequests] = useState(initialPartnerWorkforceRequests);
@@ -215,9 +404,167 @@ export const DataProvider = ({ children }) => {
   const [managerNotifications, setManagerNotifications] = useState(initialManagerNotifications);
   const [freelancerRequests, setFreelancerRequests] = useState([]);
 
+  // Sync Manager Profile with registered user data
+  useEffect(() => {
+    const syncManagerProfileData = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        const savedManagersStr = localStorage.getItem('flexistaff_managers');
+        let currentManagersList = managers;
+        if (savedManagersStr) {
+          try { currentManagersList = JSON.parse(savedManagersStr); } catch {}
+        }
+
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Manager' || savedUser.role === 'ROLE_MANAGER')) {
+            const userEmail = (savedUser.email || '').toLowerCase().trim();
+            const userName = (savedUser.name || savedUser.fullName || '').toLowerCase().trim();
+
+            let matchedMng = (currentManagersList || []).find((m) => {
+              if (!m) return false;
+              const mEmail = (m.email || '').toLowerCase().trim();
+              const mName = (m.name || '').toLowerCase().trim();
+              return (mEmail && userEmail && mEmail === userEmail) || (mName && userName && mName === userName);
+            });
+
+            const managerName = matchedMng?.name || savedUser.name || savedUser.fullName || 'Organization Manager';
+            const emailAddr = matchedMng?.email || savedUser.email || '';
+            const phoneNo = matchedMng?.phone || savedUser.phone || '+91 98765 43210';
+            const jobTitle = matchedMng?.role || matchedMng?.jobTitle || 'Organization Manager';
+
+            setManagerProfile({
+              id: matchedMng?.id || savedUser.id || 'mng-101',
+              name: managerName,
+              email: emailAddr,
+              phone: phoneNo,
+              role: jobTitle,
+              jobTitle: jobTitle,
+              department: matchedMng?.department || 'Enterprise Resource Allocation',
+              location: matchedMng?.location || 'Bengaluru, India',
+              bio: matchedMng?.bio || 'Oversees technical resource allocation and sprint milestone execution.',
+              avatar: matchedMng?.avatar || savedUser.avatar || '',
+            });
+          }
+        }
+      } catch {}
+    };
+
+    syncManagerProfileData();
+    window.addEventListener('storage', syncManagerProfileData);
+    return () => window.removeEventListener('storage', syncManagerProfileData);
+  }, [managers]);
+
   // Workforce Portal State
   const [workforceUserProfile, setWorkforceUserProfile] = useState(initialWorkforceUserProfile);
   const [workforceNotifications, setWorkforceNotifications] = useState(initialWorkforceNotifications);
+
+  // Sync Workforce User Profile with registered user data
+  useEffect(() => {
+    const syncWorkforceProfileData = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        const savedWorkforceStr = localStorage.getItem('flexistaff_workforce');
+        let currentWorkforceList = workforce;
+        if (savedWorkforceStr) {
+          try { currentWorkforceList = JSON.parse(savedWorkforceStr); } catch {}
+        }
+
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Workforce' || savedUser.role === 'ROLE_PROFESSIONAL' || savedUser.role === 'ROLE_WORKFORCE' || savedUser.role === 'Freelancer')) {
+            const userEmail = (savedUser.email || '').toLowerCase().trim();
+            const userName = (savedUser.name || savedUser.fullName || '').toLowerCase().trim();
+
+            let matchedWf = (currentWorkforceList || []).find((w) => {
+              if (!w) return false;
+              const wEmail = (w.email || '').toLowerCase().trim();
+              const wName = (w.name || '').toLowerCase().trim();
+              return (wEmail && userEmail && wEmail === userEmail) || (wName && userName && wName === userName);
+            });
+
+            const wfName = matchedWf?.name || savedUser.name || savedUser.fullName || 'Workforce Specialist';
+            const emailAddr = matchedWf?.email || savedUser.email || '';
+            const phoneNo = matchedWf?.phone || savedUser.phone || '+91 98765 00000';
+            const title = matchedWf?.title || matchedWf?.role || 'Senior Full-Stack Engineer';
+
+            setWorkforceUserProfile({
+              id: matchedWf?.id || savedUser.id || 'wf-101',
+              name: wfName,
+              email: emailAddr,
+              phone: phoneNo,
+              title: title,
+              role: title,
+              experience: matchedWf?.experience || '4+ Years',
+              location: matchedWf?.location || 'Bengaluru, India',
+              skills: matchedWf?.skills || ['React.js', 'Node.js', 'TypeScript', 'Tailwind CSS'],
+              availability: matchedWf?.availability || 'Available',
+              preferredWorkType: matchedWf?.preferredWorkType || 'Remote',
+              bio: matchedWf?.bio || 'Specialized engineering professional experienced in building enterprise cloud architectures.',
+              avatar: matchedWf?.avatar || savedUser.avatar || '',
+            });
+          }
+        }
+      } catch {}
+    };
+
+    syncWorkforceProfileData();
+    window.addEventListener('storage', syncWorkforceProfileData);
+    return () => window.removeEventListener('storage', syncWorkforceProfileData);
+  }, [workforce]);
+
+  // Sync Client Profile with registered user data
+  useEffect(() => {
+    const syncClientProfileData = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        const savedClientsStr = localStorage.getItem('flexistaff_clients');
+        let currentClientsList = clients;
+        if (savedClientsStr) {
+          try { currentClientsList = JSON.parse(savedClientsStr); } catch {}
+        }
+
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
+            const userEmail = (savedUser.email || '').toLowerCase().trim();
+            const userName = (savedUser.companyName || savedUser.company || savedUser.name || '').toLowerCase().trim();
+
+            let matchedCli = (currentClientsList || []).find((c) => {
+              if (!c) return false;
+              const cEmail = (c.email || '').toLowerCase().trim();
+              const cName = (c.name || c.companyName || '').toLowerCase().trim();
+              return (cEmail && userEmail && cEmail === userEmail) || (cName && userName && cName === userName);
+            });
+
+            const companyName = matchedCli?.name || matchedCli?.companyName || savedUser.companyName || savedUser.company || 'Enterprise Client Organization';
+            const contactPerson = matchedCli?.contactPerson || savedUser.name || savedUser.contactPerson || 'Client Contact';
+
+            setClientProfile({
+              id: matchedCli?.id || savedUser.id || 'cli-101',
+              name: contactPerson,
+              contactPerson: contactPerson,
+              company: companyName,
+              companyName: companyName,
+              email: matchedCli?.email || savedUser.email || '',
+              phone: matchedCli?.phone || savedUser.phone || '',
+              location: matchedCli?.location || 'Bengaluru, India',
+              address: matchedCli?.address || matchedCli?.location || 'Bengaluru, India',
+              city: matchedCli?.city || 'Bengaluru',
+              country: matchedCli?.country || 'India',
+              tier: matchedCli?.tier || 'Enterprise Premium',
+              industry: matchedCli?.industry || 'Technology & Innovation',
+              avatar: matchedCli?.avatar || savedUser.avatar || '',
+            });
+          }
+        }
+      } catch {}
+    };
+
+    syncClientProfileData();
+    window.addEventListener('storage', syncClientProfileData);
+    return () => window.removeEventListener('storage', syncClientProfileData);
+  }, [clients]);
 
   // Freelancer Applications State (Submitted via Form for Freelancer)
   const [freelancerApplications, setFreelancerApplications] = useState(() => {
@@ -477,7 +824,100 @@ export const DataProvider = ({ children }) => {
   };
 
   const updatePartnerProfile = (data) => {
-    setPartnerProfile((prev) => ({ ...prev, ...data }));
+    const updatedSpecialtiesStr = Array.isArray(data.specialties)
+      ? data.specialties.join(', ')
+      : data.specialties;
+    const updatedSpecialtiesArr = Array.isArray(data.specialties)
+      ? data.specialties
+      : String(data.specialties || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+    setPartnerProfile((prev) => ({
+      ...prev,
+      ...data,
+      name: data.name || prev.name,
+      contactPerson: data.contactPerson || prev.contactPerson,
+      email: data.email || prev.email,
+      phone: data.phone || prev.phone,
+      location: data.location || prev.location,
+      specialties: updatedSpecialtiesStr || prev.specialties,
+      logoUrl: data.logoUrl || data.avatar || prev.logoUrl,
+    }));
+
+    // Sync to partners list in DataContext and localStorage
+    setPartners((prevPartners) => {
+      const emailToMatch = (data.email || partnerProfile.email || '').toLowerCase().trim();
+      const nameToMatch = (data.name || partnerProfile.name || '').toLowerCase().trim();
+
+      const existsIdx = prevPartners.findIndex((p) => {
+        if (!p) return false;
+        const pEmail = (p.email || '').toLowerCase().trim();
+        const pName = (p.name || p.companyName || '').toLowerCase().trim();
+        if (pEmail && emailToMatch && pEmail === emailToMatch) return true;
+        if (pName && nameToMatch && (pName === nameToMatch || nameToMatch.includes(pName) || pName.includes(nameToMatch))) return true;
+        return false;
+      });
+
+      const updatedPartnerObj = {
+        name: data.name || partnerProfile.name,
+        companyName: data.name || partnerProfile.name,
+        contactPerson: data.contactPerson || partnerProfile.contactPerson,
+        email: data.email || partnerProfile.email,
+        phone: data.phone || partnerProfile.phone,
+        tier: data.tier || partnerProfile.tier,
+        location: data.location || data.city || partnerProfile.location,
+        city: data.location || data.city || partnerProfile.location,
+        specialties: updatedSpecialtiesArr,
+        website: data.website !== undefined ? data.website : partnerProfile.website,
+        description: data.description !== undefined ? data.description : partnerProfile.description,
+        logo: data.logoUrl || data.avatar || partnerProfile.logoUrl,
+        avatar: data.logoUrl || data.avatar || partnerProfile.logoUrl,
+      };
+
+      let nextPartners;
+      if (existsIdx >= 0) {
+        nextPartners = [...prevPartners];
+        nextPartners[existsIdx] = { ...nextPartners[existsIdx], ...updatedPartnerObj };
+      } else {
+        nextPartners = [
+          {
+            id: data.id || partnerProfile.id || `prt-${Date.now()}`,
+            status: data.status || 'Active',
+            joinedDate: new Date().toISOString().split('T')[0],
+            suppliedProfessionals: 0,
+            activePlacements: 0,
+            availabilityRate: '100%',
+            rating: 4.9,
+            ...updatedPartnerObj,
+          },
+          ...prevPartners,
+        ];
+      }
+
+      try {
+        localStorage.setItem('flexistaff_partners', JSON.stringify(nextPartners));
+      } catch {}
+      return nextPartners;
+    });
+
+    // Update flexistaff_user if logged-in user is partner
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && (savedUser.role === 'Partner Company' || savedUser.role === 'Partner' || savedUser.role === 'ROLE_PARTNER')) {
+          const updatedUser = {
+            ...savedUser,
+            name: data.contactPerson || data.name || savedUser.name,
+            contactPerson: data.contactPerson || savedUser.contactPerson,
+            companyName: data.name || savedUser.companyName,
+            company: data.name || savedUser.company,
+            email: data.email || savedUser.email,
+            phone: data.phone || savedUser.phone,
+          };
+          localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+        }
+      }
+    } catch {}
   };
 
   const updateManagerProfile = (data) => {
@@ -1641,6 +2081,17 @@ export const DataProvider = ({ children }) => {
     );
   };
 
+  const deletePartner = (id) => {
+    setPartners((prev) => prev.filter((prt) => prt.id !== id));
+  };
+
+  const clearPartners = () => {
+    setPartners([]);
+    try {
+      localStorage.removeItem('flexistaff_partners');
+    } catch {}
+  };
+
   // Manager Lifecycle & Project Reassignment Actions
   const addManager = (managerData) => {
     const nextNum = managers.length + 1;
@@ -1659,6 +2110,7 @@ export const DataProvider = ({ children }) => {
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
     };
     setManagers((prev) => [newManager, ...prev]);
+    setManagerProfile(newManager);
 
     addActivity({
       user: userProfile?.name || user?.name || 'System Admin',
@@ -1671,9 +2123,19 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateManager = (id, updatedData) => {
-    setManagers((prev) =>
-      prev.map((mng) => (mng.id === id ? { ...mng, ...updatedData } : mng))
-    );
+    setManagers((prev) => {
+      const exists = prev.some((m) => m.id === id);
+      if (!exists && prev.length === 0) {
+        const newMng = {
+          id: id || `mng-${Date.now().toString().slice(-4)}`,
+          role: 'Organization Manager',
+          status: 'Active',
+          ...updatedData,
+        };
+        return [newMng];
+      }
+      return prev.map((mng) => (mng.id === id ? { ...mng, ...updatedData } : mng));
+    });
   };
 
   const updateManagerStatus = (id, newStatus, reason = '') => {
@@ -2048,6 +2510,11 @@ export const DataProvider = ({ children }) => {
     );
   };
 
+  const deleteWorkforceMember = (id) => {
+    setWorkforce((prev) => prev.filter((w) => w.id !== id));
+    setPartnerWorkforce((prev) => prev.filter((w) => w.id !== id));
+  };
+
   // Project Actions
   const addProject = (project) => {
     const newProject = {
@@ -2145,9 +2612,13 @@ export const DataProvider = ({ children }) => {
         clients,
         addClient,
         updateClient,
+        deleteClient,
+        clearClients,
         partners,
         addPartner,
         updatePartner,
+        deletePartner,
+        clearPartners,
         managers,
         addManager,
         updateManager,
@@ -2160,6 +2631,7 @@ export const DataProvider = ({ children }) => {
         submitPartnerCandidate,
         submitFreelancerRequest,
         updateWorkforceMember,
+        deleteWorkforceMember,
         projects,
         addProject,
         updateProject,

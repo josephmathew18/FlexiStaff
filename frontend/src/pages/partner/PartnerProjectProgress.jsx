@@ -34,37 +34,40 @@ export const PartnerProjectProgress = () => {
   const { partnerProjects = [], partnerActivities = [] } = useData() || {};
   const navigate = useNavigate();
 
-  const activeProject =
-    partnerProjects.find((p) => p && p.id) ||
-    partnerProjects[0] || {
-      id: 'PRJ-PARTNER-101',
-      name: 'E-Commerce Platform Development',
-      category: 'Full-Stack Web',
-      startDate: '2026-08-01',
-      expectedEndDate: '2027-01-31',
-      progress: 75,
-      status: 'In Progress',
-      workforceAssigned: 6,
-      workforceRequired: 6,
-      milestones: [
-        { id: 'm1', name: 'Sprint 1: Architecture & DB Design', date: 'Aug 15, 2026', completed: true },
-        { id: 'm2', name: 'Sprint 2: Auth & Role ACL Modules', date: 'Sep 01, 2026', completed: true },
-        { id: 'm3', name: 'Sprint 3: Payment Gateway & Cart', date: 'Oct 15, 2026', completed: false },
-      ],
-    };
-
-  const [selectedProjectId, setSelectedProjectId] = useState(activeProject.id);
+  const [selectedProjectId, setSelectedProjectId] = useState(partnerProjects[0]?.id || '');
 
   const selectedProject =
-    partnerProjects.find((p) => p && p.id === selectedProjectId) || activeProject;
+    partnerProjects.find((p) => p && p.id === selectedProjectId) || partnerProjects[0];
 
-  // Velocity data for charts
+  if (!partnerProjects || partnerProjects.length === 0 || !selectedProject) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Project & Sprint Progress Analytics
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Monitor sprint velocity, milestone completions, vertical activity timelines, and live engineering progress.
+          </p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center space-y-4 max-w-2xl mx-auto my-8">
+          <FolderKanban size={40} className="mx-auto text-slate-300" />
+          <h2 className="text-xl font-bold text-slate-800">No Projects Assigned Yet</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Your organization has no active project requirements assigned to track sprint progress and milestones.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Velocity data for charts based on actual or 0
   const sprintVelocityData = [
-    { sprint: 'Sprint 1', planned: 20, completed: 18 },
-    { sprint: 'Sprint 2', planned: 40, completed: 38 },
-    { sprint: 'Sprint 3', planned: 60, completed: 55 },
-    { sprint: 'Sprint 4', planned: 80, completed: 72 },
-    { sprint: 'Sprint 5', planned: 100, completed: 85 },
+    { sprint: 'Sprint 1', planned: 20, completed: Math.round((selectedProject.progress || 0) * 0.2) },
+    { sprint: 'Sprint 2', planned: 40, completed: Math.round((selectedProject.progress || 0) * 0.4) },
+    { sprint: 'Sprint 3', planned: 60, completed: Math.round((selectedProject.progress || 0) * 0.6) },
+    { sprint: 'Sprint 4', planned: 80, completed: Math.round((selectedProject.progress || 0) * 0.8) },
+    { sprint: 'Sprint 5', planned: 100, completed: selectedProject.progress || 0 },
   ];
 
   return (
@@ -133,49 +136,27 @@ export const PartnerProjectProgress = () => {
           </span>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900">Frontend Developer</span>
-                <span className="font-extrabold text-blue-600">80%</span>
+            {(!selectedProject.assignedWorkforce || selectedProject.assignedWorkforce.length === 0) ? (
+              <div className="col-span-full py-4 text-center text-slate-500 text-xs font-medium">
+                No individual engineer role progress logs available for this project.
               </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                <div className="h-full rounded-full bg-[#2563eb]" style={{ width: '80%' }} />
-              </div>
-              <p className="text-[10px] text-slate-500">Frontend Specialist • Active</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900">Backend Developer</span>
-                <span className="font-extrabold text-blue-600">70%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                <div className="h-full rounded-full bg-[#2563eb]" style={{ width: '70%' }} />
-              </div>
-              <p className="text-[10px] text-slate-500">Backend Specialist • Active</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900">UI/UX Designer</span>
-                <span className="font-extrabold text-emerald-600">100%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
-              </div>
-              <p className="text-[10px] text-slate-500">Carlos Rivera • Completed</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900">QA Automation</span>
-                <span className="font-extrabold text-amber-600">50%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-                <div className="h-full rounded-full bg-amber-500" style={{ width: '50%' }} />
-              </div>
-              <p className="text-[10px] text-slate-500">Maya Lin • Working</p>
-            </div>
+            ) : (
+              selectedProject.assignedWorkforce.map((member, idx) => (
+                <div key={idx} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900">{member.role || member.name || 'Engineer'}</span>
+                    <span className="font-extrabold text-blue-600">{member.progress || selectedProject.progress || 0}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#2563eb]"
+                      style={{ width: `${member.progress || selectedProject.progress || 0}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500">{member.name || member.pseudonym || 'Assigned Staff'} • Active</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

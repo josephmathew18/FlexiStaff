@@ -219,7 +219,7 @@ export const WorkforceDashboard = () => {
                 You have {pendingOffers.length} Company-Approved Project Invitation(s)
               </h3>
               <p className="text-xs text-slate-600 mt-0.5">
-                The Organization Manager matched your skills and the Company has authorized the assignment offer.
+                The HR Manager matched your skills and the Company has authorized the assignment offer.
               </p>
             </div>
           </div>

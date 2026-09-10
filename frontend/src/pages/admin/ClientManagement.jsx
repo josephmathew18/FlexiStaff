@@ -26,6 +26,7 @@ import {
   PlayCircle,
   Star,
   Award,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -146,7 +147,7 @@ const DataTable = ({ columns = [], data = [], keyField = 'id', onRowClick, empty
   );
 };
 
-const ProfileCard = ({ avatar, name, subtitle, status, location, metrics = [], onAction, actionLabel = 'View Profile' }) => (
+const ProfileCard = ({ avatar, name, subtitle, status, location, metrics = [], onAction, actionLabel = 'View Profile', onDelete }) => (
   <div className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all">
     <div>
       <div className="flex items-start justify-between gap-3">
@@ -176,13 +177,18 @@ const ProfileCard = ({ avatar, name, subtitle, status, location, metrics = [], o
         </div>
       )}
     </div>
-    {onAction && (
-      <div className="mt-4 border-t border-slate-100 dark:border-white/10 pt-3">
-        <button type="button" onClick={onAction} className="w-full rounded-lg bg-slate-100 dark:bg-white/10 py-2 text-xs font-semibold text-[#191b23] dark:text-white hover:bg-[#2563eb] hover:text-white transition-colors">
+    <div className="mt-4 border-t border-slate-100 dark:border-white/10 pt-3 flex items-center gap-2">
+      {onAction && (
+        <button type="button" onClick={onAction} className="flex-1 rounded-lg bg-slate-100 dark:bg-white/10 py-2 text-xs font-semibold text-[#191b23] dark:text-white hover:bg-[#2563eb] hover:text-white transition-colors">
           {actionLabel}
         </button>
-      </div>
-    )}
+      )}
+      {onDelete && (
+        <button type="button" onClick={onDelete} className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors" title="Delete Client Account">
+          <Trash2 size={14} />
+        </button>
+      )}
+    </div>
   </div>
 );
 
@@ -247,7 +253,7 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
 
 
 export const ClientManagement = () => {
-  const { clients } = useData();
+  const { clients = [], deleteClient, clearClients } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -255,9 +261,22 @@ export const ClientManagement = () => {
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
   const [selectedClient, setSelectedClient] = useState(null);
 
+  const handleDeleteClient = (client) => {
+    if (!client) return;
+    if (deleteClient) deleteClient(client.id || client.email);
+    toast.success(`Client account "${client.name || client.contactPerson}" cleared successfully.`);
+    if (selectedClient && selectedClient.id === client.id) setSelectedClient(null);
+  };
+
+  const handleClearAllClients = () => {
+    if (clearClients) clearClients();
+    toast.success('All self-registered client accounts cleared successfully.');
+    setSelectedClient(null);
+  };
+
   // Extract unique industries for filter
   const industryOptions = useMemo(() => {
-    const unique = Array.from(new Set(clients.map((c) => c.industry)));
+    const unique = Array.from(new Set(clients.map((c) => c.industry).filter(Boolean)));
     return [
       { value: 'all', label: 'All Industries' },
       ...unique.map((ind) => ({ value: ind, label: ind })),
@@ -268,12 +287,12 @@ export const ClientManagement = () => {
   const filteredClients = useMemo(() => {
     return clients.filter((client) => {
       const matchesSearch =
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchQuery.toLowerCase());
+        (client.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (client.contactPerson || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (client.email || '').toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
-        statusFilter === 'all' || client.status.toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === 'all' || (client.status || '').toLowerCase() === statusFilter.toLowerCase();
 
       const matchesIndustry =
         industryFilter === 'all' || client.industry === industryFilter;
@@ -290,7 +309,7 @@ export const ClientManagement = () => {
       render: (row) => (
         <div className="flex items-center gap-3">
           <img
-            src={row.logo}
+            src={row.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80'}
             alt={row.name}
             className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
           />
@@ -298,7 +317,7 @@ export const ClientManagement = () => {
             <h4 className="font-bold text-[#191b23] dark:text-white hover:text-[#004ac6] dark:hover:text-blue-400 transition-colors">
               {row.name}
             </h4>
-            <p className="text-xs text-[#737686] dark:text-slate-400">{row.industry}</p>
+            <p className="text-xs text-[#737686] dark:text-slate-400">{row.industry || 'Enterprise Services'}</p>
           </div>
         </div>
       ),
@@ -320,8 +339,8 @@ export const ClientManagement = () => {
       sortable: true,
       render: (row) => (
         <div className="space-y-1">
-          <StatusBadge status={row.status} size="sm" />
-          <span className="block text-[11px] font-medium text-[#565e74] dark:text-slate-300">{row.tier}</span>
+          <StatusBadge status={row.status || 'Active'} size="sm" />
+          <span className="block text-[11px] font-medium text-[#565e74] dark:text-slate-300">{row.tier || 'Enterprise Client'}</span>
         </div>
       ),
     },
@@ -331,7 +350,7 @@ export const ClientManagement = () => {
       sortable: true,
       render: (row) => (
         <span className="font-semibold text-[#191b23] dark:text-white">
-          {row.activeProjects} {row.activeProjects === 1 ? 'Project' : 'Projects'}
+          {row.activeProjects || 0} {row.activeProjects === 1 ? 'Project' : 'Projects'}
         </span>
       ),
     },
@@ -340,29 +359,42 @@ export const ClientManagement = () => {
       accessor: 'totalSpent',
       sortable: true,
       render: (row) => (
-        <span className="font-mono font-bold text-[#004ac6] dark:text-blue-400">{row.totalSpent}</span>
+        <span className="font-mono font-bold text-[#004ac6] dark:text-blue-400">{row.totalSpent || '₹0'}</span>
       ),
     },
     {
       header: 'Location',
       accessor: 'location',
       sortable: true,
-      render: (row) => <span className="text-xs text-[#737686] dark:text-slate-400">{row.location}</span>,
+      render: (row) => <span className="text-xs text-[#737686] dark:text-slate-400">{row.location || 'India'}</span>,
     },
     {
       header: 'Actions',
       accessor: 'id',
       render: (row) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedClient(row);
-          }}
-          className="rounded-lg bg-slate-100 dark:bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:bg-[#2563eb] dark:hover:bg-blue-600 hover:text-white transition-colors"
-        >
-          Details
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedClient(row);
+            }}
+            className="rounded-lg bg-slate-100 dark:bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:bg-[#2563eb] dark:hover:bg-blue-600 hover:text-white transition-colors"
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteClient(row);
+            }}
+            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors"
+            title="Delete Client"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       ),
     },
   ];
@@ -379,6 +411,17 @@ export const ClientManagement = () => {
             Manage enterprise clients, staffing agreements, active contracts, and billing tiers.
           </p>
         </div>
+
+        {clients.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearAllClients}
+            className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 px-4 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-600 hover:text-white transition-all shadow-xs"
+          >
+            <Trash2 size={15} />
+            <span>Clear Self-Registered Clients</span>
+          </button>
+        )}
       </div>
 
       {/* Filter & View Controls */}

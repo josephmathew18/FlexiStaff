@@ -1367,7 +1367,7 @@ export const FreelancerApply = () => {
                     Add your resume
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500">
-                    Use a PDF, Word doc, or rich text file – make sure it's 5MB or less.
+                    Use a PDF, Word doc, or rich text file.
                   </p>
                 </div>
 

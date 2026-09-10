@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
+  User,
   UserPlus,
   UserCheck,
   Users,
@@ -28,6 +29,7 @@ import {
   Upload,
   Camera,
   Image as ImageIcon,
+  History,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -36,6 +38,7 @@ import { useForm } from 'react-hook-form';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { toast } from 'react-toastify';
+import { compressImage } from '../../utils/imageCompressor';
 
 // --- INLINE REUSABLE COMPONENTS ---
 
@@ -118,23 +121,20 @@ const MediaPhotoUpload = ({ value, onChange, label = 'Profile Photo' }) => {
     'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&q=80',
   ];
 
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload a valid image file (PNG, JPG, JPEG, WEBP).');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB.');
-      return;
-    }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onChange(e.target.result);
+    try {
+      const compressedDataUrl = await compressImage(file, 300, 300, 0.85);
+      onChange(compressedDataUrl);
       toast.success('Media photo uploaded successfully!');
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      toast.error('Could not process photo file.');
+    }
   };
 
   const handleDrop = (e) => {
@@ -150,25 +150,35 @@ const MediaPhotoUpload = ({ value, onChange, label = 'Profile Photo' }) => {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-xs font-bold text-slate-700">{label}</label>
-        <span className="text-[11px] text-slate-400">JPG, PNG, WEBP (Max 5MB)</span>
+        <span className="text-[11px] text-slate-400">JPG, PNG, WEBP</span>
       </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        {/* Photo Preview */}
+        {/* Photo Preview / Upload Slot */}
         <div className="relative group shrink-0">
-          <img
-            src={value || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80'}
-            alt="Manager avatar"
-            className="h-20 w-20 rounded-2xl object-cover ring-2 ring-slate-200 shadow-xs"
-          />
+          {value ? (
+            <img
+              src={value}
+              alt="Manager avatar"
+              className="h-20 w-20 rounded-2xl object-cover ring-2 ring-slate-200 dark:ring-white/10 shadow-xs"
+            />
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="h-20 w-20 rounded-2xl bg-slate-100 dark:bg-[#1c1a36] border-2 border-dashed border-slate-300 dark:border-white/10 flex flex-col items-center justify-center text-slate-400 hover:text-[#004ac6] hover:border-[#004ac6] cursor-pointer transition-all gap-1"
+            >
+              <User size={24} />
+              <span className="text-[9px] font-bold uppercase tracking-wider">No Photo</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="absolute inset-0 bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] font-bold gap-1"
+            className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] font-bold gap-1"
             title="Change photo"
           >
             <Camera size={18} />
-            <span>Change</span>
+            <span>{value ? 'Change' : 'Upload'}</span>
           </button>
         </div>
 
@@ -305,12 +315,21 @@ export const ManagerManagement = () => {
     managerAssignments = [],
   } = useData();
 
-  // Single Organization Manager
-  const manager = managers[0] || null;
+  // Separate Active Manager vs Previous Managers (Resigned, Terminated, Inactive)
+  const activeManager = useMemo(() => {
+    return managers.find((m) => m.status === 'Active' || m.status === 'Suspended') || null;
+  }, [managers]);
+
+  const previousManagers = useMemo(() => {
+    return managers.filter((m) => m.status === 'Resigned' || m.status === 'Terminated' || m.status === 'Inactive');
+  }, [managers]);
+
+  const manager = activeManager;
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPreviousModalOpen, setIsPreviousModalOpen] = useState(false);
   const [isStatusConfirmModalOpen, setIsStatusConfirmModalOpen] = useState(false);
   const [pendingStatusTarget, setPendingStatusTarget] = useState({ newStatus: '', reason: '' });
 
@@ -377,21 +396,21 @@ export const ManagerManagement = () => {
   }, [projects]);
 
   // Performance metrics
-  const activeProjectsCount = managerProjects.filter((p) => p.stage === 'In Progress' || p.status === 'In Progress').length || 6;
-  const assignedWorkforceCount = workforce.filter((w) => w.status === 'Assigned' || w.availability === 'Busy').length || 19;
-  const pendingAssignmentsCount = (managerAssignments || []).filter((a) => a.status === 'Pending Assignment Approval' || a.status === 'Pending').length || 4;
-  const completedProjectsCount = managerProjects.filter((p) => p.stage === 'Completed' || p.status === 'Completed').length || 12;
+  const activeProjectsCount = managerProjects.filter((p) => p.stage === 'In Progress' || p.status === 'In Progress').length;
+  const assignedWorkforceCount = workforce.filter((w) => w.status === 'Assigned' || w.availability === 'Busy').length;
+  const pendingAssignmentsCount = (managerAssignments || []).filter((a) => a.status === 'Pending Assignment Approval' || a.status === 'Pending').length;
+  const completedProjectsCount = managerProjects.filter((p) => p.stage === 'Completed' || p.status === 'Completed').length;
 
   // Form Submissions
   const onAddManagerSubmit = (data) => {
-    updateManager(manager?.id || 'mng-01', {
+    const managerPayload = {
       employeeId: data.employeeId,
       name: data.name,
       email: data.email,
       phone: data.phone,
       dob: data.dob,
       address: data.address,
-      avatar: addAvatar,
+      avatar: addAvatar || '',
       jobTitle: data.jobTitle,
       department: data.department,
       experience: data.experience,
@@ -399,9 +418,15 @@ export const ManagerManagement = () => {
       bio: data.bio,
       status: data.accountStatus || 'Active',
       loginEmail: data.loginEmail,
-    });
+    };
 
-    toast.success(`Organization Manager profile for ${data.name} successfully registered!`);
+    if (activeManager) {
+      updateManagerStatus(activeManager.id, 'Resigned', 'Replaced by new manager appointment');
+    }
+
+    addManager(managerPayload);
+
+    toast.success(`HR Manager profile for ${data.name} successfully registered!`);
     resetAdd();
     setIsAddModalOpen(false);
   };
@@ -420,7 +445,11 @@ export const ManagerManagement = () => {
       avatar: editAvatar,
     });
 
-    toast.success('Organization Manager profile updated successfully!');
+    if (data.status === 'Resigned' || data.status === 'Terminated') {
+      toast.info(`Manager moved to Previous Managers history list as ${data.status}`);
+    } else {
+      toast.success('HR Manager profile updated successfully!');
+    }
     setIsEditModalOpen(false);
   };
 
@@ -448,7 +477,7 @@ export const ManagerManagement = () => {
   const confirmStatusChange = () => {
     if (!pendingStatusTarget.newStatus || !manager) return;
     updateManagerStatus(manager.id, pendingStatusTarget.newStatus, pendingStatusTarget.reason);
-    toast.success(`Organization Manager status updated to ${pendingStatusTarget.newStatus}`);
+    toast.success(`HR Manager status updated to ${pendingStatusTarget.newStatus}`);
     setIsStatusConfirmModalOpen(false);
   };
 
@@ -457,48 +486,148 @@ export const ManagerManagement = () => {
       <div className="space-y-6 sm:space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-5">
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#191b23] dark:text-white tracking-tight">Organization Manager</h1>
-            <p className="text-xs sm:text-sm text-[#737686] dark:text-slate-400">Manage dedicated organization manager profile and assignments.</p>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#191b23] dark:text-white tracking-tight">HR Manager</h1>
+            <p className="text-xs sm:text-sm text-[#737686] dark:text-slate-400">Manage dedicated HR manager profile and assignments.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setAddAvatar('');
-              setIsAddModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] transition-all"
-          >
-            <UserPlus size={16} />
-            <span>+ Register Manager</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            {previousManagers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsPreviousModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-white shadow-2xs hover:bg-slate-50 dark:hover:bg-white/10 transition-all"
+              >
+                <Clock size={15} className="text-amber-500" />
+                <span>Previous Managers ({previousManagers.length})</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setAddAvatar('');
+                setIsAddModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] transition-all"
+            >
+              <UserPlus size={16} />
+              <span>+ Register Manager</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white dark:bg-[#14132b] p-12 text-center shadow-xs">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400 flex items-center justify-center mb-4">
             <UserCheck size={32} />
           </div>
-          <h3 className="text-lg font-bold text-[#191b23] dark:text-white">No Organization Manager Registered</h3>
+          <h3 className="text-lg font-bold text-[#191b23] dark:text-white">No Active HR Manager Assigned</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1 mb-6">
-            Register an Organization Manager to oversee technical resource allocation, candidate matching, and sprint milestone deliveries.
+            Register or assign an active HR Manager to oversee technical resource allocation, candidate matching, and sprint milestone deliveries.
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setAddAvatar('');
-              setIsAddModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#004ac6] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#003da6] transition-all"
-          >
-            <UserPlus size={16} />
-            <span>Register Manager Now</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setAddAvatar('');
+                setIsAddModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#004ac6] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#003da6] transition-all"
+            >
+              <UserPlus size={16} />
+              <span>Register Manager Now</span>
+            </button>
+            {previousManagers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsPreviousModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1c1a36] px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white shadow-xs hover:bg-slate-50 transition-all"
+              >
+                <Clock size={16} className="text-amber-500" />
+                <span>View Previous Managers ({previousManagers.length})</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Previous Managers History Modal */}
+        <Modal
+          isOpen={isPreviousModalOpen}
+          onClose={() => setIsPreviousModalOpen(false)}
+          title={`Previous HR Managers (${previousManagers.length})`}
+          subtitle="History of resigned, terminated, and inactive HR managers"
+          maxWidth="max-w-3xl"
+        >
+          <div className="space-y-4 pt-1">
+            {previousManagers.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                No previous manager records found.
+              </div>
+            ) : (
+              previousManagers.map((pm) => (
+                <div
+                  key={pm.id}
+                  className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-4">
+                    {pm.avatar ? (
+                      <img
+                        src={pm.avatar}
+                        alt={pm.name}
+                        className="h-14 w-14 rounded-xl object-cover ring-2 ring-slate-200 dark:ring-white/10 shrink-0"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-white flex items-center justify-center font-bold text-lg ring-2 ring-slate-200 dark:ring-white/10 shrink-0">
+                        {pm.name ? pm.name.charAt(0).toUpperCase() : 'H'}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-bold text-[#191b23] dark:text-white">{pm.name}</h4>
+                        <StatusBadge status={pm.status} size="xs" />
+                      </div>
+                      <p className="text-xs text-[#004ac6] dark:text-blue-400 font-semibold mt-0.5">
+                        {pm.jobTitle || pm.role}
+                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                        <span className="font-mono font-semibold">{pm.employeeId || 'MNG'}</span>
+                        <span>•</span>
+                        <span>{pm.email}</span>
+                        <span>•</span>
+                        <span>{pm.phone}</span>
+                        {pm.resignedDate && <span>• Resigned: {pm.resignedDate}</span>}
+                        {pm.terminatedDate && <span>• Terminated: {pm.terminatedDate}</span>}
+                      </div>
+                      {pm.statusReason && (
+                        <p className="text-[11px] italic text-slate-500 mt-1 bg-white/60 dark:bg-black/20 p-2 rounded-lg border border-slate-100 dark:border-white/5">
+                          Remark: "{pm.statusReason}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateManagerStatus(pm.id, 'Active', 'Reinstated by Admin');
+                        toast.success(`${pm.name} reactivated as active HR Manager!`);
+                        setIsPreviousModalOpen(false);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 active:scale-95 transition-all shadow-xs"
+                    >
+                      <UserCheck size={14} />
+                      <span>Reactivate Manager</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Modal>
 
         <Modal
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
-          title="Register / Replace Organization Manager"
-          subtitle="Update or appoint the enterprise Organization Manager with media upload"
+          title="Register HR Manager"
+          subtitle="Update or appoint the enterprise HR Manager with media upload"
           maxWidth="max-w-3xl"
         >
           <form onSubmit={handleSubmitAdd(onAddManagerSubmit)} className="space-y-6 pt-1">
@@ -561,7 +690,7 @@ export const ManagerManagement = () => {
                 name="address"
                 register={registerAdd}
                 error={errorsAdd.address}
-                placeholder="MG Road, Indiranagar, Bengaluru, India"
+                placeholder="Enter address"
                 required
               />
             </div>
@@ -622,7 +751,7 @@ export const ManagerManagement = () => {
                   <label className="text-xs font-semibold text-slate-700">Role</label>
                   <input
                     type="text"
-                    value="Organization Manager"
+                    value="HR Manager"
                     disabled
                     className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 cursor-not-allowed"
                   />
@@ -719,18 +848,28 @@ export const ManagerManagement = () => {
             <span className="text-xs text-slate-400">•</span>
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Single Dedicated Org Manager
+              Single Dedicated HR Manager
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-[#191b23] dark:text-white tracking-tight">
-            Organization Manager
+            HR Manager
           </h1>
           <p className="text-xs sm:text-sm text-[#737686] dark:text-slate-400">
-            Dedicated organization manager overseeing sprint deliveries, project matching, and workforce assignment requests.
+            Dedicated HR manager overseeing sprint deliveries, project matching, and workforce assignment requests.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {previousManagers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsPreviousModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-white shadow-2xs hover:bg-slate-50 dark:hover:bg-white/10 transition-all"
+            >
+              <Clock size={15} className="text-amber-500" />
+              <span>Previous Managers ({previousManagers.length})</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleOpenEdit}
@@ -742,13 +881,14 @@ export const ManagerManagement = () => {
           <button
             type="button"
             onClick={() => {
-              setAddAvatar(manager.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80');
+              resetAdd();
+              setAddAvatar('');
               setIsAddModalOpen(true);
             }}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
           >
             <UserPlus size={15} />
-            <span>+ Register / Replace Manager</span>
+            <span>+ Register Manager</span>
           </button>
         </div>
       </div>
@@ -758,11 +898,17 @@ export const ManagerManagement = () => {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-white/10">
           <div className="flex items-center gap-5">
             <div className="relative">
-              <img
-                src={manager.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80'}
-                alt={manager.name}
-                className="h-20 w-20 rounded-2xl object-cover ring-4 ring-blue-50 dark:ring-white/10 shadow-md"
-              />
+              {manager.avatar ? (
+                <img
+                  src={manager.avatar}
+                  alt={manager.name}
+                  className="h-20 w-20 rounded-2xl object-cover ring-4 ring-blue-50 dark:ring-white/10 shadow-md"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#004ac6] to-[#2563eb] text-white flex items-center justify-center font-bold text-2xl ring-4 ring-blue-50 dark:ring-white/10 shadow-md">
+                  {manager.name ? manager.name.charAt(0).toUpperCase() : 'H'}
+                </div>
+              )}
               <div
                 className={`absolute -bottom-1 -right-1 rounded-full p-1 text-white ring-2 ring-white ${
                   manager.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'
@@ -793,7 +939,7 @@ export const ManagerManagement = () => {
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Calendar size={13} className="text-slate-400" />
-                  Tenure since {manager.joinDate || '2022-04-12'}
+                  JOINED: {manager.joinDate || '2022-04-12'}
                 </span>
               </p>
             </div>
@@ -863,7 +1009,6 @@ export const ManagerManagement = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider">Active Projects</span>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-[#191b23] dark:text-white">{activeProjectsCount}</p>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">In sprint execution</span>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-950/40 dark:to-teal-950/40 p-4 border border-emerald-100 dark:border-white/10">
@@ -872,7 +1017,6 @@ export const ManagerManagement = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider">Assigned Workforce</span>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-emerald-950 dark:text-white">{assignedWorkforceCount}</p>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Allocated to squads</span>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-amber-50/60 to-yellow-50/60 dark:from-amber-950/40 dark:to-yellow-950/40 p-4 border border-amber-100 dark:border-white/10">
@@ -881,7 +1025,6 @@ export const ManagerManagement = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider">Pending Assignments</span>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-white">{pendingAssignmentsCount}</p>
-            <span className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">Awaiting Admin sign-off</span>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-purple-50/60 to-indigo-50/60 dark:from-purple-950/40 dark:to-indigo-950/40 p-4 border border-purple-100 dark:border-white/10">
@@ -890,7 +1033,6 @@ export const ManagerManagement = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider">Completed Projects</span>
             </div>
             <p className="text-2xl sm:text-3xl font-black text-purple-950 dark:text-white">{completedProjectsCount}</p>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Delivered to SLA</span>
           </div>
         </div>
       </div>
@@ -907,7 +1049,7 @@ export const ManagerManagement = () => {
             </p>
           </div>
           <Link
-            to="/projects"
+            to="/admin/projects"
             className="text-xs font-bold text-[#004ac6] dark:text-blue-400 hover:underline flex items-center gap-1"
           >
             <span>View All Projects</span>
@@ -957,8 +1099,8 @@ export const ManagerManagement = () => {
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Register / Replace Organization Manager"
-        subtitle="Update or appoint the enterprise Organization Manager with media upload"
+        title="Register HR Manager"
+        subtitle="Update or appoint the enterprise HR Manager with media upload"
         maxWidth="max-w-3xl"
       >
         <form onSubmit={handleSubmitAdd(onAddManagerSubmit)} className="space-y-6 pt-1">
@@ -1082,7 +1224,7 @@ export const ManagerManagement = () => {
                 <label className="text-xs font-semibold text-slate-700">Role</label>
                 <input
                   type="text"
-                  value="Organization Manager"
+                  value="HR Manager"
                   disabled
                   className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 cursor-not-allowed"
                 />
@@ -1170,8 +1312,8 @@ export const ManagerManagement = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Edit Organization Manager: ${manager.name}`}
-        subtitle="Update the enterprise organization manager details and photo"
+        title={`Edit HR Manager: ${manager.name}`}
+        subtitle="Update the enterprise HR manager details and photo"
         maxWidth="max-w-2xl"
       >
         <form onSubmit={handleSubmitEdit(onEditManagerSubmit)} className="space-y-4 pt-1">
@@ -1279,7 +1421,7 @@ export const ManagerManagement = () => {
         isOpen={isStatusConfirmModalOpen}
         onClose={() => setIsStatusConfirmModalOpen(false)}
         title={`Confirm Status Change: ${pendingStatusTarget.newStatus}`}
-        subtitle={`Organization Manager: ${manager.name}`}
+        subtitle={`HR Manager: ${manager.name}`}
         maxWidth="max-w-md"
       >
         <div className="space-y-4">
@@ -1323,6 +1465,84 @@ export const ManagerManagement = () => {
               Confirm Status
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: PREVIOUS MANAGERS HISTORY MODAL */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={isPreviousModalOpen}
+        onClose={() => setIsPreviousModalOpen(false)}
+        title={`Previous HR Managers (${previousManagers.length})`}
+        subtitle="History of resigned, terminated, and inactive HR managers"
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-4 pt-1">
+          {previousManagers.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs">
+              No previous manager records found.
+            </div>
+          ) : (
+            previousManagers.map((pm) => (
+              <div
+                key={pm.id}
+                className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-4">
+                  {pm.avatar ? (
+                    <img
+                      src={pm.avatar}
+                      alt={pm.name}
+                      className="h-14 w-14 rounded-xl object-cover ring-2 ring-slate-200 dark:ring-white/10 shrink-0"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-white flex items-center justify-center font-bold text-lg ring-2 ring-slate-200 dark:ring-white/10 shrink-0">
+                      {pm.name ? pm.name.charAt(0).toUpperCase() : 'H'}
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-bold text-[#191b23] dark:text-white">{pm.name}</h4>
+                      <StatusBadge status={pm.status} size="xs" />
+                    </div>
+                    <p className="text-xs text-[#004ac6] dark:text-blue-400 font-semibold mt-0.5">
+                      {pm.jobTitle || pm.role}
+                    </p>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                      <span className="font-mono font-semibold">{pm.employeeId || 'MNG'}</span>
+                      <span>•</span>
+                      <span>{pm.email}</span>
+                      <span>•</span>
+                      <span>{pm.phone}</span>
+                      {pm.resignedDate && <span>• Resigned: {pm.resignedDate}</span>}
+                      {pm.terminatedDate && <span>• Terminated: {pm.terminatedDate}</span>}
+                    </div>
+                    {pm.statusReason && (
+                      <p className="text-[11px] italic text-slate-500 mt-1 bg-white/60 dark:bg-black/20 p-2 rounded-lg border border-slate-100 dark:border-white/5">
+                        Remark: "{pm.statusReason}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateManagerStatus(pm.id, 'Active', 'Reinstated by Admin');
+                      toast.success(`${pm.name} reactivated as active HR Manager!`);
+                      setIsPreviousModalOpen(false);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 active:scale-95 transition-all shadow-xs"
+                  >
+                    <UserCheck size={14} />
+                    <span>Reactivate Manager</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Modal>
     </div>

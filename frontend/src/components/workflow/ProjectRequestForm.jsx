@@ -40,8 +40,8 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
       category: initialValues.category || 'Enterprise Software Engineering',
       priority: initialValues.priority || 'High',
       duration: initialValues.duration || '6 Months',
-      startDate: initialValues.startDate || '2026-09-01',
-      endDate: initialValues.endDate || '2027-02-28',
+      startDate: initialValues.startDate || '',
+      endDate: initialValues.endDate || '',
       additionalRequirements: initialValues.additionalRequirements || '',
     },
   });

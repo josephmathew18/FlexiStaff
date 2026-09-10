@@ -92,8 +92,8 @@ export const PartnerWorkforceRequests = () => {
           <span className="text-xs font-semibold text-slate-500">Allocated & Assigned</span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-emerald-600">{totalAssigned}</span>
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-              {Math.round((totalAssigned / totalRequired) * 100)}% Fulfilled
+            <span className="text-[#3b82f6] text-xs font-bold bg-[#eff6ff] px-2 py-0.5 rounded-md">
+              {totalRequired > 0 ? Math.round((totalAssigned / totalRequired) * 100) : 0}% Fulfilled
             </span>
           </div>
         </div>
@@ -151,7 +151,16 @@ export const PartnerWorkforceRequests = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((req) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 px-4 text-center text-slate-500">
+                    <GitPullRequest size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-slate-700">No workforce requests found.</p>
+                    <p className="text-[11px] text-slate-400">Client workforce requests allocated to your partner portal will appear here.</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((req) => (
                 <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <div>
@@ -176,7 +185,8 @@ export const PartnerWorkforceRequests = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

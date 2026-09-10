@@ -104,33 +104,69 @@ const DashboardCard = ({ title, value, icon: Icon, color = 'blue', subtitle, onC
 };
 
 export const PartnerDashboard = () => {
-  const { partnerProfile, partnerProjects, partnerWorkforce, partnerWorkforceRequests } = useData();
+  const { partnerProfile, partnerProjects, partnerWorkforce, partnerWorkforceRequests } = useData() || {};
   const navigate = useNavigate();
 
-  // 6 Metric Summaries (per Section 5)
-  const totalProjectsCount = 24; // aggregate partner historical + active
-  const activeProjectsCount = 8;
-  const pendingApprovalCount = 3;
-  const completedProjectsCount = 13;
-  const assignedWorkforceCount = 26;
-  const availableWorkforceCount = 8;
+  // Dynamic Metric Summaries calculated from real partner data
+  const totalProjectsCount = (partnerProjects || []).length;
+  const activeProjectsCount = (partnerProjects || []).filter(
+    (p) => p.status === 'Active' || p.status === 'In Progress' || p.stage === 'In Progress'
+  ).length;
+  const pendingApprovalCount = (partnerProjects || []).filter(
+    (p) => p.status === 'Pending' || p.status === 'Pending Approval' || p.stage === 'Request'
+  ).length;
+  const completedProjectsCount = (partnerProjects || []).filter(
+    (p) => p.status === 'Completed' || p.stage === 'Completed'
+  ).length;
+  const assignedWorkforceCount = (partnerWorkforce || []).filter(
+    (w) => w.workingStatus === 'Working' || w.availability === 'Assigned'
+  ).length;
+  const availableWorkforceCount = (partnerWorkforce || []).filter(
+    (w) => w.availability === 'Available' || w.workingStatus === 'Available'
+  ).length;
 
-  // Workforce Availability Breakdown (per Section 6)
-  const availabilityBreakdown = [
-    { name: 'Available', value: 8, color: '#10b981', label: '8 Ready for Allocation' },
-    { name: 'Currently Working', value: 14, color: '#2563eb', label: '14 Active on Tasks' },
-    { name: 'Assigned / Sprinted', value: 26, color: '#f59e0b', label: '26 Allocated' },
-    { name: 'Unavailable', value: 4, color: '#ef4444', label: '4 On Leave / Bench' },
-  ];
+  const workingCount = (partnerWorkforce || []).filter((w) => w.workingStatus === 'Working').length;
+  const unavailableCount = (partnerWorkforce || []).filter((w) => w.availability === 'Unavailable' || w.workingStatus === 'Unavailable').length;
 
-  // Monthly velocity sample data for partner project fulfillment
-  const fulfillmentData = [
-    { month: 'Apr', required: 18, assigned: 16 },
-    { month: 'May', required: 22, assigned: 20 },
-    { month: 'Jun', required: 28, assigned: 25 },
-    { month: 'Jul', required: 32, assigned: 30 },
-    { month: 'Aug', required: 34, assigned: 32 },
-  ];
+  // Workforce Availability Breakdown
+  const availabilityBreakdown = useMemo(() => {
+    if ((partnerWorkforce || []).length === 0) {
+      return [
+        { name: 'Available', value: 0, color: '#10b981', label: '0 Ready for Allocation' },
+        { name: 'Currently Working', value: 0, color: '#2563eb', label: '0 Active on Tasks' },
+        { name: 'Assigned / Sprinted', value: 0, color: '#f59e0b', label: '0 Allocated' },
+        { name: 'Unavailable', value: 0, color: '#ef4444', label: '0 On Leave / Bench' },
+      ];
+    }
+    return [
+      { name: 'Available', value: availableWorkforceCount, color: '#10b981', label: `${availableWorkforceCount} Ready for Allocation` },
+      { name: 'Currently Working', value: workingCount, color: '#2563eb', label: `${workingCount} Active on Tasks` },
+      { name: 'Assigned / Sprinted', value: assignedWorkforceCount, color: '#f59e0b', label: `${assignedWorkforceCount} Allocated` },
+      { name: 'Unavailable', value: unavailableCount, color: '#ef4444', label: `${unavailableCount} On Leave / Bench` },
+    ];
+  }, [partnerWorkforce, availableWorkforceCount, workingCount, assignedWorkforceCount, unavailableCount]);
+
+  // Monthly velocity fulfillment data
+  const fulfillmentData = useMemo(() => {
+    const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const hasData = (partnerWorkforce || []).length > 0 || (partnerProjects || []).length > 0;
+    const totalReq = (partnerProjects || []).reduce((acc, p) => acc + (Number(p.workforceRequired) || 0), 0);
+    const totalAss = (partnerProjects || []).reduce((acc, p) => acc + (Number(p.workforceAssigned) || 0), 0);
+
+    return months.map((m) => ({
+      month: m,
+      required: hasData ? Math.max(1, Math.round(totalReq / 5)) : 0,
+      assigned: hasData ? Math.max(0, Math.round(totalAss / 5)) : 0,
+    }));
+  }, [partnerWorkforce, partnerProjects]);
+
+  const overallSlaPercent = useMemo(() => {
+    if (!partnerProjects || partnerProjects.length === 0) return '0%';
+    const totalReq = partnerProjects.reduce((acc, p) => acc + (Number(p.workforceRequired) || 0), 0);
+    const totalAss = partnerProjects.reduce((acc, p) => acc + (Number(p.workforceAssigned) || 0), 0);
+    if (totalReq === 0) return '100%';
+    return `${Math.min(100, Math.round((totalAss / totalReq) * 100))}%`;
+  }, [partnerProjects]);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -286,7 +322,7 @@ export const PartnerDashboard = () => {
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 <span className="font-bold text-emerald-950">Available</span>
               </div>
-              <span className="font-black text-emerald-700 text-sm">8</span>
+              <span className="font-black text-emerald-700 text-sm">{availableWorkforceCount}</span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 flex items-center justify-between">
@@ -294,7 +330,7 @@ export const PartnerDashboard = () => {
                 <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
                 <span className="font-bold text-blue-950">Currently Working</span>
               </div>
-              <span className="font-black text-blue-700 text-sm">14</span>
+              <span className="font-black text-blue-700 text-sm">{workingCount}</span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between">
@@ -302,7 +338,7 @@ export const PartnerDashboard = () => {
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                 <span className="font-bold text-amber-950">Assigned</span>
               </div>
-              <span className="font-black text-amber-700 text-sm">26</span>
+              <span className="font-black text-amber-700 text-sm">{assignedWorkforceCount}</span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200/80 flex items-center justify-between">
@@ -310,7 +346,7 @@ export const PartnerDashboard = () => {
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
                 <span className="font-bold text-rose-950">Unavailable</span>
               </div>
-              <span className="font-black text-rose-700 text-sm">4</span>
+              <span className="font-black text-rose-700 text-sm">{unavailableCount}</span>
             </div>
           </div>
         </div>
@@ -353,7 +389,7 @@ export const PartnerDashboard = () => {
           <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-indigo-600" />
-              <span className="text-indigo-900 font-semibold">Overall Fulfillment SLA: <strong>94.1%</strong></span>
+              <span className="text-indigo-900 font-semibold">Overall Fulfillment SLA: <strong>{overallSlaPercent}</strong></span>
             </div>
             <span className="text-[11px] font-bold text-indigo-700">Managed by FlexiStaff Team</span>
           </div>
@@ -391,7 +427,16 @@ export const PartnerDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {partnerProjects.slice(0, 4).map((prj) => (
+              {partnerProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 px-4 text-center text-slate-500">
+                    <FolderKanban size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-slate-700">No project requirements assigned yet.</p>
+                    <p className="text-[11px] text-slate-400">Project requirements from clients will appear here once allocated.</p>
+                  </td>
+                </tr>
+              ) : (
+                partnerProjects.slice(0, 4).map((prj) => (
                 <tr key={prj.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <div>
@@ -453,7 +498,8 @@ export const PartnerDashboard = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

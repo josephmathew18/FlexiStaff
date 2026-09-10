@@ -367,13 +367,13 @@ export const PartnerWorkforce = () => {
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-slate-400 font-semibold">Working Project:</span>
                       <span className="font-bold text-slate-900 truncate max-w-[170px]">
-                        {emp.assignedProject || 'E-Commerce Platform Development'}
+                        {emp.assignedProject || 'Unassigned'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-slate-400 font-semibold">Client Company:</span>
                       <span className="font-bold text-blue-700 truncate max-w-[170px]">
-                        {emp.clientName || 'Client Organization'}
+                        {emp.clientName || 'N/A'}
                       </span>
                     </div>
                     {emp.currentMilestone && (
@@ -772,7 +772,7 @@ export const PartnerWorkforce = () => {
                     <span className="text-[#004ac6]">Needed: {fulfillingRequest.required}</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    Select suitable active professionals from your talent roster to propose to the Organization Manager.
+                    Select suitable active professionals from your talent roster to propose to the HR Manager.
                   </p>
                 </div>
 

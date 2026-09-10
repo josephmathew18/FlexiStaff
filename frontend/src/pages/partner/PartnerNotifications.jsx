@@ -114,7 +114,14 @@ export const PartnerNotifications = () => {
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {filtered.map((notif) => (
+        {filtered.length === 0 ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center space-y-3">
+            <Bell size={32} className="mx-auto text-slate-300" />
+            <h3 className="font-bold text-slate-800 text-sm">No notifications available</h3>
+            <p className="text-xs text-slate-500">You're all caught up! System activity and project alerts will appear here.</p>
+          </div>
+        ) : (
+          filtered.map((notif) => (
           <motion.div
             key={notif.id}
             layout
@@ -155,7 +162,8 @@ export const PartnerNotifications = () => {
 
             <ChevronRight size={16} className="text-slate-400 shrink-0 self-center" />
           </motion.div>
-        ))}
+        ))
+        )}
       </div>
     </div>
   );

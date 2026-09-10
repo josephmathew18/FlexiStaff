@@ -218,18 +218,18 @@ export const ClientLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-80 rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden z-50 text-xs"
+                    className="absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-[#14132b] shadow-xl border border-slate-200 dark:border-white/10 overflow-hidden z-50 text-xs text-slate-900 dark:text-white"
                   >
-                    <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                      <h4 className="font-bold text-slate-900">Project Notifications</h4>
-                      <span className="text-[10px] text-emerald-600 font-bold">{unreadNotifCount} unread</span>
+                    <div className="p-3.5 border-b border-slate-100 dark:border-white/10 flex items-center justify-between bg-slate-50 dark:bg-[#1c1a36]">
+                      <h4 className="font-bold text-slate-900 dark:text-white">Project Notifications</h4>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{unreadNotifCount} unread</span>
                     </div>
-                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-white/10">
                       {clientNotifications.map((notif) => (
-                        <div key={notif.id} className="p-3 hover:bg-slate-50 transition-colors">
-                          <p className="font-bold text-slate-900">{notif.title}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{notif.message}</p>
-                          <span className="text-[9px] text-slate-400 mt-1 block">{notif.time}</span>
+                        <div key={notif.id} className="p-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                          <p className="font-bold text-slate-900 dark:text-white">{notif.title}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{notif.message}</p>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 block">{notif.time}</span>
                         </div>
                       ))}
                     </div>
@@ -254,7 +254,11 @@ export const ClientLayout = () => {
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
+                className={`flex items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-xs transition-colors shadow-2xs ${
+                  effectiveTheme === 'dark'
+                    ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10'
+                    : 'border-slate-200 bg-white text-[#191b23] hover:bg-slate-50'
+                }`}
               >
                 <UserAvatar
                   src={clientProfile?.avatar}
@@ -264,7 +268,7 @@ export const ClientLayout = () => {
                 />
                 <div className="hidden lg:block text-left">
                   <p className="font-bold text-xs leading-none">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
-                  <p className="text-[10px] text-[#737686] leading-tight mt-0.5">{clientProfile?.company || ''}</p>
+                  <p className="text-[10px] text-[#737686] dark:text-slate-400 leading-tight mt-0.5">{clientProfile?.company || ''}</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
               </button>
@@ -275,12 +279,12 @@ export const ClientLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
+                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-2 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
-                    <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{clientProfile?.email || user?.email || ''}</p>
-                      <span className="mt-1.5 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                    <div className="p-3 bg-slate-50 dark:bg-[#1c1a36] rounded-xl mb-1.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clientProfile?.email || user?.email || ''}</p>
+                      <span className="mt-1.5 inline-block rounded-md bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
                         {clientProfile?.company || 'Client Organization'}
                       </span>
                     </div>
@@ -288,7 +292,7 @@ export const ClientLayout = () => {
                     <Link
                       to="/client/profile"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <Building2 size={15} className="text-slate-400" />
                       <span>Profile</span>
@@ -297,18 +301,18 @@ export const ClientLayout = () => {
                     <Link
                       to="/client/support"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <HelpCircle size={15} className="text-slate-400" />
                       <span>Support</span>
                     </Link>
 
-                    <div className="border-t border-slate-100 my-1" />
+                    <div className="border-t border-slate-100 dark:border-white/10 my-1" />
 
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                     >
                       <LogOut size={15} />
                       <span>Sign Out</span>
@@ -325,7 +329,9 @@ export const ClientLayout = () => {
           <Outlet />
         </main>
 
-        <footer className="border-t border-slate-200/60 bg-white py-3 px-6 text-center text-xs text-slate-400 font-medium shrink-0">
+        <footer className={`border-t py-3 px-6 text-center text-xs font-medium shrink-0 transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-slate-400' : 'bg-white border-slate-200/60 text-slate-400'
+        }`}>
           © 2026 FlexiStaffAI.
         </footer>
       </div>

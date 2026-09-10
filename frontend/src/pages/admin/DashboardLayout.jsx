@@ -380,20 +380,20 @@ const InlineSidebar = ({
 
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'Company', path: '/company', icon: Building2 },
-    { label: 'Client Directory', path: '/clients', icon: Users },
-    { label: 'Partner Companies', path: '/partners', icon: Handshake },
-    { label: 'Manager', path: '/managers', icon: UserCheck },
+    { label: 'Company', path: '/admin/company', icon: Building2 },
+    { label: 'Client Directory', path: '/admin/clients', icon: Users },
+    { label: 'Partner Companies', path: '/admin/partners', icon: Handshake },
+    { label: 'HR Manager', path: '/admin/managers', icon: UserCheck },
     {
       label: 'Workforce',
-      path: '/workforce',
+      path: '/admin/workforce',
       icon: Briefcase,
       badge: availableWorkforceCount > 0 ? `${availableWorkforceCount} Avail` : null,
       badgeColor: 'bg-emerald-100 text-emerald-800',
     },
     {
       label: 'Project',
-      path: '/projects',
+      path: '/admin/projects',
       icon: FolderKanban,
       badge: pendingRequestsCount > 0 ? `${pendingRequestsCount} Pending` : null,
       badgeColor: 'bg-amber-100 text-amber-800',
@@ -563,26 +563,27 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
 
   const getBreadcrumbs = () => {
     const path = location.pathname;
-    if (path.startsWith('/projects/')) {
-      const id = path.split('/')[2];
+    if (path.startsWith('/admin/projects/')) {
+      const id = path.split('/')[3];
       return [
-        { label: 'Projects & Requests', path: '/projects' },
+        { label: 'Projects & Requests', path: '/admin/projects' },
         { label: `Project Details (${id})`, path },
       ];
     }
 
     const map = {
-      '/dashboard': [{ label: 'Dashboard Overview', path: '/dashboard' }],
-      '/company': [{ label: 'Company Profile & Compliance', path: '/company' }],
-      '/clients': [{ label: 'Client Management', path: '/clients' }],
-      '/partners': [{ label: 'Partner Companies', path: '/partners' }],
-      '/managers': [{ label: 'Organization Managers', path: '/managers' }],
-      '/workforce': [{ label: 'Workforce Management', path: '/workforce' }],
-      '/projects': [{ label: 'Projects & Requests', path: '/projects' }],
+      '/admin/dashboard': [{ label: 'Dashboard Overview', path: '/admin/dashboard' }],
+      '/admin/company': [{ label: 'Company Profile & Compliance', path: '/admin/company' }],
+      '/admin/clients': [{ label: 'Client Management', path: '/admin/clients' }],
+      '/admin/partners': [{ label: 'Partner Companies', path: '/admin/partners' }],
+      '/admin/managers': [{ label: 'HR Managers', path: '/admin/managers' }],
+      '/admin/workforce': [{ label: 'Workforce Management', path: '/admin/workforce' }],
+      '/admin/projects': [{ label: 'Projects & Requests', path: '/admin/projects' }],
+      '/admin/assignment-approvals': [{ label: 'Assignment Approvals', path: '/admin/assignment-approvals' }],
       '/admin/support-tickets': [{ label: 'Support & Feedback Reports', path: '/admin/support-tickets' }],
     };
 
-    return map[path] || [{ label: 'Dashboard', path: '/dashboard' }];
+    return map[path] || [{ label: 'Dashboard', path: '/admin/dashboard' }];
   };
 
   const breadcrumbs = getBreadcrumbs();
@@ -671,7 +672,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
                 </div>
 
                 <Link
-                  to="/company"
+                  to="/admin/company"
                   onClick={() => setIsProfileOpen(false)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                     effectiveTheme === 'dark' ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
@@ -735,10 +736,10 @@ export const DashboardLayout = () => {
       stage: 'Request',
       priority: 'High',
       manager: managers[0]?.name || '',
-      budget: '$100,000',
-      deadline: '2026-11-30',
+      budget: '',
+      deadline: '',
       description: '',
-      skills: 'React, TypeScript, Node.js',
+      skills: '',
     },
   });
 
@@ -843,7 +844,7 @@ export const DashboardLayout = () => {
 
             <div>
               <label className="block text-xs font-semibold text-[#434655] mb-1">
-                Assigned Organization Manager <span className="text-rose-500">*</span>
+                Assigned HR Manager <span className="text-rose-500">*</span>
               </label>
               <select
                 {...register('manager')}

@@ -35,6 +35,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 export const ManagerLayout = () => {
+  const { effectiveTheme } = useTheme();
   const {
     managers,
     managerProfile,
@@ -148,7 +149,7 @@ export const ManagerLayout = () => {
           >
             <UserAvatar
               src={managerProfile?.avatar}
-              name={managerProfile?.name || user?.name || 'Organization Manager'}
+              name={managerProfile?.name || user?.name || 'HR Manager'}
               size="sm"
               className="h-8 w-8 rounded-lg"
             />
@@ -156,11 +157,11 @@ export const ManagerLayout = () => {
               <p className={`text-xs font-bold group-hover:text-blue-700 truncate ${
                 effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                {managerProfile?.name || user?.name || 'Organization Manager'}
+                {managerProfile?.name || user?.name || 'HR Manager'}
               </p>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700">
                 <Briefcase size={10} className="text-blue-600" />
-                <span>Organization Manager</span>
+                <span>HR Manager</span>
               </span>
             </div>
           </Link>
@@ -237,7 +238,7 @@ export const ManagerLayout = () => {
 
   return (
     <div className={`flex min-h-screen font-sans antialiased transition-colors ${
-      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+      effectiveTheme === 'dark' ? 'bg-[#0b0a1a] text-white' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-30 shadow-xs">
@@ -278,12 +279,12 @@ export const ManagerLayout = () => {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              className="md:hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
             >
               <Menu size={20} />
             </button>
             <div className="hidden sm:block">
-              <span className="text-xs font-semibold text-[#737686]">FlexiStaff Organization Manager Portal</span>
+              <span className="text-xs font-semibold text-[#737686] dark:text-slate-400">FlexiStaff Workforce Operations</span>
               <h2 className={`text-sm font-bold capitalize ${
                 effectiveTheme === 'dark' ? 'text-white' : 'text-[#191b23]'
               }`}>
@@ -302,7 +303,7 @@ export const ManagerLayout = () => {
               <span>Skill-Based Matching</span>
             </Link>
 
-            {/* Notifications */}
+            {/* Notifications Popover */}
             <div className="relative">
               <button
                 type="button"
@@ -310,11 +311,13 @@ export const ManagerLayout = () => {
                   setIsNotificationsOpen(!isNotificationsOpen);
                   setIsProfileOpen(false);
                 }}
-                className="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs"
+                className={`relative rounded-xl border p-2 transition-colors shadow-2xs ${
+                  effectiveTheme === 'dark' ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
               >
                 <Bell size={18} />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white ring-2 ring-white">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-black text-white ring-2 ring-white">
                     {unreadNotifCount}
                   </span>
                 )}
@@ -326,20 +329,20 @@ export const ManagerLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/10"
+                    className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                      <h4 className="text-xs font-bold text-slate-900">Manager Notifications</h4>
-                      <Link
-                        to="/manager/notifications"
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="text-[11px] font-bold text-[#004ac6] hover:underline"
-                      >
-                        View All
-                      </Link>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">Manager Alerts</h4>
+                        {unreadNotifCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
+                            {unreadNotifCount} unread
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto my-1">
+                    <div className="divide-y divide-slate-100 dark:divide-white/10 max-h-72 overflow-y-auto my-1">
                       {(managerNotifications || []).map((notif) => (
                         <div
                           key={notif.id}
@@ -347,13 +350,11 @@ export const ManagerLayout = () => {
                             setIsNotificationsOpen(false);
                             if (notif.link) navigate(notif.link);
                           }}
-                          className={`p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors text-xs ${
-                            notif.unread ? 'bg-blue-50/40 font-semibold' : ''
-                          }`}
+                          className="p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-xs"
                         >
-                          <p className="font-bold text-slate-900">{notif.title}</p>
-                          <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">{notif.message}</p>
-                          <span className="text-[10px] text-slate-400 mt-1 block">{notif.time}</span>
+                          <p className="font-bold text-slate-900 dark:text-white">{notif.title}</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2">{notif.message}</p>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">{notif.time}</span>
                         </div>
                       ))}
                     </div>
@@ -370,17 +371,21 @@ export const ManagerLayout = () => {
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
+                className={`flex items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-xs transition-colors shadow-2xs ${
+                  effectiveTheme === 'dark'
+                    ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10'
+                    : 'border-slate-200 bg-white text-[#191b23] hover:bg-slate-50'
+                }`}
               >
                 <UserAvatar
                   src={managerProfile?.avatar}
-                  name={managerProfile?.name || user?.name || 'Organization Manager'}
+                  name={managerProfile?.name || user?.name || 'HR Manager'}
                   size="xs"
                   className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{managerProfile?.name || user?.name || 'Organization Manager'}</p>
-                  <p className="text-[10px] text-[#737686] leading-tight mt-0.5">Manager Portal</p>
+                  <p className="font-bold text-xs leading-none">{managerProfile?.name || user?.name || 'HR Manager'}</p>
+                  <p className="text-[10px] text-[#737686] dark:text-slate-400 leading-tight mt-0.5">Manager Portal</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
               </button>
@@ -391,12 +396,12 @@ export const ManagerLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
+                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-2 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
-                    <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{managerProfile?.name || user?.name || 'Organization Manager'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{managerProfile?.email || user?.email || ''}</p>
-                      <span className="mt-1.5 inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                    <div className="p-3 bg-slate-50 dark:bg-[#1c1a36] rounded-xl mb-1.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{managerProfile?.name || user?.name || 'HR Manager'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{managerProfile?.email || user?.email || ''}</p>
+                      <span className="mt-1.5 inline-block rounded-md bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
                         {managerProfile?.department || 'Enterprise Workforce Operations'}
                       </span>
                     </div>
@@ -404,7 +409,7 @@ export const ManagerLayout = () => {
                     <Link
                       to="/manager/profile"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <User size={15} className="text-slate-400" />
                       <span>Profile</span>
@@ -413,18 +418,18 @@ export const ManagerLayout = () => {
                     <Link
                       to="/manager/support"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <HelpCircle size={15} className="text-slate-400" />
                       <span>Support Desk</span>
                     </Link>
 
-                    <div className="border-t border-slate-100 my-1" />
+                    <div className="border-t border-slate-100 dark:border-white/10 my-1" />
 
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                     >
                       <LogOut size={15} />
                       <span>Sign Out</span>
@@ -455,7 +460,7 @@ export const ManagerLayout = () => {
                   Project Management Access Paused
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-                  Your Organization Manager account is currently marked as <strong>{currentManagerData?.status}</strong>. Access to active sprint delivery orchestration, workforce matching, and project allocation has been temporarily disabled.
+                  Your HR Manager account is currently marked as <strong>{currentManagerData?.status}</strong>. Access to active sprint delivery orchestration, workforce matching, and project allocation has been temporarily disabled.
                 </p>
                 {currentManagerData?.statusReason && (
                   <div className="text-xs text-amber-900 bg-amber-100/70 p-3 rounded-2xl max-w-md mx-auto border border-amber-200/80 text-left">

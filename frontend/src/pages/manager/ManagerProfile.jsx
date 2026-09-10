@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   User,
   Mail,
@@ -9,13 +9,10 @@ import {
   ShieldCheck,
   KeyRound,
   Bell,
-  CheckCircle2,
   Save,
   Camera,
-  Layers,
   Eye,
   EyeOff,
-  Sparkles,
   Upload,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
@@ -30,7 +27,7 @@ export const ManagerProfile = () => {
     name: managerProfile?.name || 'Assigned Manager',
     email: managerProfile?.email || '',
     phone: managerProfile?.phone || '+91 98765 43210',
-    jobTitle: managerProfile?.jobTitle || managerProfile?.role || 'Organization Manager',
+    jobTitle: managerProfile?.jobTitle || managerProfile?.role || 'HR Manager',
     department: managerProfile?.department || 'Enterprise Talent Matching',
     location: managerProfile?.location || 'Bengaluru, India',
     bio:
@@ -38,6 +35,21 @@ export const ManagerProfile = () => {
       'Oversees technical resource allocation, skill matching, and sprint milestone execution across enterprise partner projects.',
     avatar: managerProfile?.avatar || '',
   });
+
+  React.useEffect(() => {
+    if (managerProfile) {
+      setFormData({
+        name: managerProfile.name || 'Assigned Manager',
+        email: managerProfile.email || '',
+        phone: managerProfile.phone || '+91 98765 43210',
+        jobTitle: managerProfile.jobTitle || managerProfile.role || 'HR Manager',
+        department: managerProfile.department || 'Enterprise Talent Matching',
+        location: managerProfile.location || 'Bengaluru, India',
+        bio: managerProfile.bio || 'Oversees technical resource allocation, skill matching, and sprint milestone execution across enterprise partner projects.',
+        avatar: managerProfile.avatar || '',
+      });
+    }
+  }, [managerProfile]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -58,17 +70,13 @@ export const ManagerProfile = () => {
   );
 
   const [isSaving, setIsSaving] = useState(false);
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleMediaUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload a valid image file (PNG, JPG, WEBP).');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB.');
       return;
     }
 
@@ -113,7 +121,7 @@ export const ManagerProfile = () => {
     setTimeout(() => {
       setIsSaving(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      toast.success('Password updated successfully!');
+      toast.success('Manager portal password updated successfully!');
     }, 400);
   };
 
@@ -127,17 +135,17 @@ export const ManagerProfile = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-5">
         <div>
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#004ac6] to-[#2563eb] text-white flex items-center justify-center shadow-md shadow-blue-500/20">
               <User size={20} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Organization Manager Profile
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                HR Manager Profile
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Manage operational credentials, assigned department, authentication security, and matching alerts.
               </p>
             </div>
@@ -145,24 +153,24 @@ export const ManagerProfile = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-blue-800 border border-blue-200 flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-blue-600" />
-            <span>Authorized Organization Manager</span>
+          <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-blue-600 dark:text-blue-400" />
+            <span>Authorized HR Manager</span>
           </span>
         </div>
       </div>
 
       {/* Profile Overview Card */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
+      <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
         <div
-          className="relative group cursor-pointer"
+          className="relative group cursor-pointer shrink-0"
           onClick={() => fileInputRef.current?.click()}
         >
           <UserAvatar
             src={formData.avatar}
             name={formData.name}
             size="xl"
-            className="w-24 h-24 rounded-3xl ring-4 ring-blue-50 shadow-md"
+            className="w-24 h-24 rounded-3xl ring-4 ring-blue-50 dark:ring-white/10 shadow-md"
           />
           <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1.5 rounded-xl shadow-xs">
             <Camera size={14} />
@@ -171,27 +179,27 @@ export const ManagerProfile = () => {
 
         <div className="text-center sm:text-left flex-1 space-y-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900">{formData.name}</h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold self-center sm:self-auto border border-blue-200">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">{formData.name}</h2>
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold self-center sm:self-auto border border-blue-200 dark:border-blue-800/40">
               {formData.jobTitle}
             </span>
           </div>
-          <p className="text-xs text-slate-500 font-semibold">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
             {formData.department} • FlexiStaff Global Operations
           </p>
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 pt-1">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">
             <span className="flex items-center gap-1">
-              <Mail size={12} className="text-slate-400" />
+              <Mail size={12} className="text-slate-400 dark:text-slate-500" />
               {formData.email}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <Phone size={12} className="text-slate-400" />
+              <Phone size={12} className="text-slate-400 dark:text-slate-500" />
               {formData.phone}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <MapPin size={12} className="text-slate-400" />
+              <MapPin size={12} className="text-slate-400 dark:text-slate-500" />
               {formData.location}
             </span>
           </div>
@@ -199,14 +207,14 @@ export const ManagerProfile = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2">
         <button
           type="button"
           onClick={() => setActiveTab('general')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
             activeTab === 'general'
               ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <User size={14} />
@@ -219,7 +227,7 @@ export const ManagerProfile = () => {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
             activeTab === 'security'
               ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <KeyRound size={14} />
@@ -232,7 +240,7 @@ export const ManagerProfile = () => {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
             activeTab === 'notifications'
               ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
-              : 'text-slate-600 hover:bg-slate-100'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
           }`}
         >
           <Bell size={14} />
@@ -242,10 +250,10 @@ export const ManagerProfile = () => {
 
       {/* Tab 1: Operational Information Form */}
       {activeTab === 'general' && (
-        <form onSubmit={handleGeneralSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-extrabold text-slate-900">Manager Credentials</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+        <form onSubmit={handleGeneralSubmit} className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Manager Credentials</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Update your contact information, organizational department, and operational focus.
             </p>
           </div>
@@ -253,21 +261,22 @@ export const ManagerProfile = () => {
           {/* Profile Photo Selector with Upload */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700">Manager Profile Photo</label>
-              <span className="text-[11px] text-slate-400">JPG, PNG, WEBP (Max 5MB)</span>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Manager Profile Photo</label>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">JPG, PNG, WEBP</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="relative group shrink-0">
-                <img
+                <UserAvatar
                   src={formData.avatar}
-                  alt="Profile"
-                  className="w-20 h-20 rounded-2xl object-cover ring-2 ring-slate-200 shadow-xs"
+                  name={formData.name}
+                  size="lg"
+                  className="w-20 h-20 rounded-2xl ring-2 ring-slate-200 dark:ring-white/15 shadow-xs"
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] font-bold gap-1"
+                  className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[10px] font-bold gap-1"
                 >
                   <Camera size={18} />
                   <span>Upload</span>
@@ -276,7 +285,7 @@ export const ManagerProfile = () => {
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 w-full rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-600 bg-slate-50/50 hover:bg-blue-50/20 p-3.5 text-center cursor-pointer transition-all"
+                className="flex-1 w-full rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/15 hover:border-blue-600 dark:hover:border-blue-400 bg-slate-50/50 dark:bg-[#1c1a36]/50 hover:bg-blue-50/20 dark:hover:bg-blue-950/20 p-3.5 text-center cursor-pointer transition-all"
               >
                 <input
                   ref={fileInputRef}
@@ -286,12 +295,12 @@ export const ManagerProfile = () => {
                   onChange={handleMediaUpload}
                 />
                 <div className="flex flex-col items-center justify-center gap-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
                     <Upload size={15} />
                     <span>Upload Photo from Media / Device</span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    Click to browse or drag and drop image file (PNG, JPG, WEBP up to 5MB)
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Click to browse or drag and drop image file (PNG, JPG, WEBP)
                   </p>
                 </div>
               </div>
@@ -301,84 +310,84 @@ export const ManagerProfile = () => {
           {/* Form Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Official Email Address *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Official Email Address *</label>
               <input
                 type="email"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Contact Phone *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Contact Phone *</label>
               <input
                 type="tel"
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Location *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Location *</label>
               <input
                 type="text"
                 required
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Job Title *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Job Title *</label>
               <input
                 type="text"
                 required
                 value={formData.jobTitle}
                 onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Department *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Department *</label>
               <input
                 type="text"
                 required
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">Operational Responsibilities / Bio</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Operational Responsibilities / Bio</label>
               <textarea
                 rows={3}
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 placeholder="Detail your organizational duties and squad management scope..."
-                className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-900 outline-none focus:border-blue-600"
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-slate-100">
+          <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-white/10">
             <button
               type="submit"
               disabled={isSaving}
@@ -393,29 +402,29 @@ export const ManagerProfile = () => {
 
       {/* Tab 2: Change Password */}
       {activeTab === 'security' && (
-        <form onSubmit={handlePasswordSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6 max-w-2xl">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-extrabold text-slate-900">Change Password</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+        <form onSubmit={handlePasswordSubmit} className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs space-y-6 max-w-2xl">
+          <div className="border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Change Password</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Keep your manager portal access secure.
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Current Password *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Current Password *</label>
               <div className="relative">
                 <input
                   type={showCurrentPass ? 'text' : 'password'}
                   value={passwordData.currentPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                   placeholder="Enter current password"
-                  className="w-full rounded-xl border border-slate-300 p-3 pr-10 text-xs text-slate-900 outline-none focus:border-blue-600"
+                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 pr-10 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 outline-none focus:border-blue-600"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrentPass(!showCurrentPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -423,19 +432,19 @@ export const ManagerProfile = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">New Password *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">New Password *</label>
               <div className="relative">
                 <input
                   type={showNewPass ? 'text' : 'password'}
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                   placeholder="Min. 6 characters"
-                  className="w-full rounded-xl border border-slate-300 p-3 pr-10 text-xs text-slate-900 outline-none focus:border-blue-600"
+                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 pr-10 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 outline-none focus:border-blue-600"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPass(!showNewPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -443,19 +452,19 @@ export const ManagerProfile = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Confirm New Password *</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password *</label>
               <div className="relative">
                 <input
                   type={showConfirmPass ? 'text' : 'password'}
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                   placeholder="Re-enter new password"
-                  className="w-full rounded-xl border border-slate-300 p-3 pr-10 text-xs text-slate-900 outline-none focus:border-blue-600"
+                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 pr-10 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 outline-none focus:border-blue-600"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPass(!showConfirmPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -463,7 +472,7 @@ export const ManagerProfile = () => {
             </div>
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-slate-100">
+          <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-white/10">
             <button
               type="submit"
               disabled={isSaving}
@@ -478,66 +487,66 @@ export const ManagerProfile = () => {
 
       {/* Tab 3: Notification Preferences */}
       {activeTab === 'notifications' && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-extrabold text-slate-900">Manager Notification Preferences</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+        <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Manager Notification Preferences</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Control your operational notifications for talent matching, assignment approvals, and sprint milestones.
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
               <div>
-                <p className="font-extrabold text-slate-900 text-xs">Email Notifications</p>
-                <p className="text-[11px] text-slate-500">Receive summary reports on team activities and project handoffs.</p>
+                <p className="font-extrabold text-slate-900 dark:text-white text-xs">Email Notifications</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Receive summary reports on team activities and project handoffs.</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleNotificationToggle('email')}
-                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.email ? 'bg-blue-600' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.email ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
               >
                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${notifications.email ? 'translate-x-6' : ''}`} />
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
               <div>
-                <p className="font-extrabold text-slate-900 text-xs">Assignment Requests & Company Approvals</p>
-                <p className="text-[11px] text-slate-500">Instant notification when Company signs off on your matched specialists.</p>
+                <p className="font-extrabold text-slate-900 dark:text-white text-xs">Assignment Requests & Company Approvals</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Instant notification when Company signs off on your matched specialists.</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleNotificationToggle('assignmentRequests')}
-                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.assignmentRequests ? 'bg-blue-600' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.assignmentRequests ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
               >
                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${notifications.assignmentRequests ? 'translate-x-6' : ''}`} />
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
               <div>
-                <p className="font-extrabold text-slate-900 text-xs">Talent Pool Availability Alerts</p>
-                <p className="text-[11px] text-slate-500">Get notified when new engineers join the bench or become available for matching.</p>
+                <p className="font-extrabold text-slate-900 dark:text-white text-xs">Talent Pool Availability Alerts</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Get notified when new engineers join the bench or become available for matching.</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleNotificationToggle('talentAvailability')}
-                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.talentAvailability ? 'bg-blue-600' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.talentAvailability ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
               >
                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${notifications.talentAvailability ? 'translate-x-6' : ''}`} />
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/10">
               <div>
-                <p className="font-extrabold text-slate-900 text-xs">Project Milestone Progress</p>
-                <p className="text-[11px] text-slate-500">Alerts when workforce talent marks sprint deliverables as completed.</p>
+                <p className="font-extrabold text-slate-900 dark:text-white text-xs">Project Milestone Progress</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Alerts when workforce talent marks sprint deliverables as completed.</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleNotificationToggle('milestoneUpdates')}
-                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.milestoneUpdates ? 'bg-blue-600' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${notifications.milestoneUpdates ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
               >
                 <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${notifications.milestoneUpdates ? 'translate-x-6' : ''}`} />
               </button>

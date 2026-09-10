@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { compressImage } from '../utils/imageCompressor';
 import { Logo } from '../components/common/Logo';
 import {
   User,
@@ -19,6 +20,8 @@ import {
   Check,
   ArrowRight,
   ChevronLeft,
+  Upload,
+  Camera,
 } from 'lucide-react';
 import { MdHub } from 'react-icons/md';
 
@@ -38,10 +41,27 @@ export const Register = ({ onNavigateToLogin }) => {
     phone: '',
     role: 'Client',
     companyName: '',
+    profilePic: '',
     password: '',
     confirmPassword: '',
     terms: false,
   });
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToastNotification('Please upload a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    try {
+      const compressedDataUrl = await compressImage(file, 300, 300, 0.85);
+      setFormData((prev) => ({ ...prev, profilePic: compressedDataUrl }));
+      showToastNotification('Profile photo uploaded successfully!', 'success');
+    } catch {
+      showToastNotification('Could not process photo file.');
+    }
+  };
 
   // Field focus and touched tracking
   const [touched, setTouched] = useState({});
@@ -420,6 +440,33 @@ export const Register = ({ onNavigateToLogin }) => {
                   exit={{ opacity: 0, x: -15 }}
                   className="space-y-4"
                 >
+                  {/* Profile Photo / Logo Upload */}
+                  <div className="space-y-1.5 pb-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">Profile Photo / Organization Logo</label>
+                      <span className="text-[11px] text-slate-400">JPG, PNG, WEBP</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                        {formData.profilePic ? (
+                          <img src={formData.profilePic} alt="Profile preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <User size={24} className="text-slate-400" />
+                        )}
+                      </div>
+                      <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 hover:border-[#6A54F4] bg-slate-50/50 p-3 text-xs font-bold text-[#6A54F4] transition-all">
+                        <Upload size={15} />
+                        <span>{formData.profilePic ? 'Change Photo' : 'Click to Upload Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
                   {/* Full Name */}
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-slate-700">

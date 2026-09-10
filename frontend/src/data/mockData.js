@@ -35,7 +35,34 @@ export const initialCompanyProfile = {
 
 export const initialClients = [];
 export const initialPartners = [];
-export const initialManagers = [];
+export const initialManagers = [
+  {
+    id: 'mng-001',
+    employeeId: 'MNG-001',
+    name: 'Thomas Anderson',
+    email: 'thomas@flexistaff.com',
+    loginEmail: 'thomas',
+    phone: '+91 98765 43210',
+    role: 'Organization Manager',
+    jobTitle: 'Senior HR Operations Manager',
+    department: 'Enterprise Resource Allocation',
+    status: 'Active',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80',
+  },
+  {
+    id: 'mng-002',
+    employeeId: 'MNG-002',
+    name: 'Manager User',
+    email: 'manager@gmail.com',
+    loginEmail: 'manager',
+    phone: '+91 98765 43211',
+    role: 'Organization Manager',
+    jobTitle: 'Resource Allocation Manager',
+    department: 'Enterprise Resource Allocation',
+    status: 'Active',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=160&q=80',
+  },
+];
 export const initialWorkforce = [];
 export const initialProjects = [];
 export const initialActivities = [];

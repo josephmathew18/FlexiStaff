@@ -74,6 +74,31 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: 'Please enter your password.' };
     }
 
+    // Check if partner organization account is deactivated by Admin
+    try {
+      const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+      if (savedPartnersStr) {
+        const partnersList = JSON.parse(savedPartnersStr);
+        const matchingPartner = partnersList.find((p) => {
+          if (!p) return false;
+          const pEmail = (p.email || '').toLowerCase().trim();
+          return pEmail && (pEmail === trimmedEmail || (trimmedEmail.includes('partner') && String(p.status).toLowerCase().trim() !== 'active'));
+        });
+
+        if (matchingPartner) {
+          const status = String(matchingPartner.status || '').toLowerCase().trim();
+          if (['inactive', 'deactivated', 'terminated', 'pending', 'rejected'].includes(status)) {
+            return {
+              success: false,
+              error: `Access Denied: Partner organization "${matchingPartner.name}" is currently ${matchingPartner.status || 'Inactive'}. Login access has been disabled by Admin.`,
+            };
+          }
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
     try {
       // 1. Attempt Spring Boot Backend REST API Authentication
       const apiRes = await api.auth.login(trimmedEmail, trimmedPassword);
@@ -128,30 +153,95 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Local authentication fallback (restores stored registered user or initializes session)
-    let savedUser = null;
+    let registeredUsers = [];
     try {
-      const stored = localStorage.getItem('flexistaff_user');
-      if (stored) savedUser = JSON.parse(stored);
-    } catch {
-      // Ignore
+      const stored = localStorage.getItem('flexistaff_registered_users');
+      if (stored) registeredUsers = JSON.parse(stored);
+    } catch {}
+
+    // Flexible multi-field lookup helper
+    const matchesInput = (obj) => {
+      if (!obj) return false;
+      const email = (obj.email || '').toLowerCase().trim();
+      const loginEmail = (obj.loginEmail || '').toLowerCase().trim();
+      const name = (obj.name || obj.fullName || obj.contactPerson || '').toLowerCase().trim();
+      const empId = (obj.employeeId || '').toLowerCase().trim();
+      const firstWord = name.split(' ')[0];
+
+      return (
+        (email && email === trimmedEmail) ||
+        (loginEmail && loginEmail === trimmedEmail) ||
+        (name && name === trimmedEmail) ||
+        (empId && empId === trimmedEmail) ||
+        (firstWord && firstWord === trimmedEmail) ||
+        (email && email.split('@')[0] === trimmedEmail)
+      );
+    };
+
+    let matchedUser = registeredUsers.find(matchesInput);
+
+    if (!matchedUser) {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        if (savedUserStr) {
+          const u = JSON.parse(savedUserStr);
+          if (matchesInput(u)) matchedUser = u;
+        }
+      } catch {}
     }
+
+    let matchedManagerOrg = null;
+    try {
+      const savedManagersStr = localStorage.getItem('flexistaff_managers');
+      if (savedManagersStr) {
+        const managersList = JSON.parse(savedManagersStr);
+        matchedManagerOrg = managersList.find(matchesInput);
+      }
+    } catch {}
+
+    let matchedPartnerOrg = null;
+    try {
+      const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+      if (savedPartnersStr) {
+        const partnersList = JSON.parse(savedPartnersStr);
+        matchedPartnerOrg = partnersList.find(matchesInput);
+      }
+    } catch {}
+
+    let matchedClientOrg = null;
+    try {
+      const savedClientsStr = localStorage.getItem('flexistaff_clients');
+      if (savedClientsStr) {
+        const clientsList = JSON.parse(savedClientsStr);
+        matchedClientOrg = clientsList.find(matchesInput);
+      }
+    } catch {}
+
+    let matchedWorkforceOrg = null;
+    try {
+      const savedWorkforceStr = localStorage.getItem('flexistaff_workforce');
+      if (savedWorkforceStr) {
+        const workforceList = JSON.parse(savedWorkforceStr);
+        matchedWorkforceOrg = workforceList.find(matchesInput);
+      }
+    } catch {}
 
     let userRole = selectedRole;
     if (!userRole) {
-      if (savedUser && savedUser.email && savedUser.email.toLowerCase() === trimmedEmail && savedUser.role) {
-        userRole = savedUser.role;
-      } else if (trimmedEmail.includes('client')) {
-        userRole = 'Client';
-      } else if (trimmedEmail.includes('manager')) {
+      if (matchedManagerOrg || trimmedEmail.includes('manager') || (matchedUser && matchedUser.role === 'Manager')) {
         userRole = 'Manager';
-      } else if (trimmedEmail.includes('partner')) {
+      } else if (matchedPartnerOrg || trimmedEmail.includes('partner') || (matchedUser && (matchedUser.role === 'Partner Company' || matchedUser.role === 'Partner'))) {
         userRole = 'Partner Company';
-      } else if (trimmedEmail.includes('workforce') || trimmedEmail.includes('freelancer') || trimmedEmail.includes('worker')) {
+      } else if (matchedWorkforceOrg || trimmedEmail.includes('workforce') || trimmedEmail.includes('freelancer') || trimmedEmail.includes('worker') || (matchedUser && matchedUser.role === 'Workforce')) {
         userRole = 'Workforce';
-      } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin') {
+      } else if (matchedClientOrg || trimmedEmail.includes('client') || (matchedUser && matchedUser.role === 'Client')) {
+        userRole = 'Client';
+      } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin' || (matchedUser && matchedUser.role === 'Admin')) {
         userRole = 'Admin';
+      } else if (matchedUser && matchedUser.role) {
+        userRole = matchedUser.role;
       } else {
-        userRole = savedUser?.role || 'Admin';
+        userRole = 'Client';
       }
     }
 
@@ -160,29 +250,71 @@ export const AuthProvider = ({ children }) => {
         ? '/client/dashboard'
         : userRole === 'Manager'
         ? '/manager/dashboard'
-        : userRole === 'Partner Company'
+        : userRole === 'Partner Company' || userRole === 'Partner'
         ? '/partner/dashboard'
-        : userRole === 'Workforce'
+        : userRole === 'Workforce' || userRole === 'Freelancer'
         ? '/workforce/dashboard'
         : '/admin/dashboard';
 
+    const displayName =
+      (userRole === 'Manager' ? matchedManagerOrg?.name : null) ||
+      (userRole === 'Partner Company' ? (matchedPartnerOrg?.contactPerson || matchedPartnerOrg?.name) : null) ||
+      (userRole === 'Client' ? (matchedClientOrg?.contactPerson || matchedClientOrg?.name) : null) ||
+      (userRole === 'Workforce' ? matchedWorkforceOrg?.name : null) ||
+      matchedUser?.name ||
+      matchedUser?.fullName ||
+      matchedManagerOrg?.name ||
+      matchedPartnerOrg?.name ||
+      matchedClientOrg?.name ||
+      matchedWorkforceOrg?.name ||
+      trimmedEmail.split('@')[0];
+
+    const companyName =
+      matchedUser?.companyName ||
+      matchedUser?.company ||
+      matchedPartnerOrg?.name ||
+      matchedClientOrg?.companyName ||
+      matchedClientOrg?.company ||
+      (userRole === 'Client' ? 'Enterprise Client' : userRole === 'Partner Company' ? 'Partner Company' : userRole === 'Manager' ? 'Enterprise Resource Allocation' : '');
+
+    const resolvedEmail =
+      matchedManagerOrg?.email ||
+      matchedManagerOrg?.loginEmail ||
+      matchedUser?.email ||
+      matchedPartnerOrg?.email ||
+      matchedClientOrg?.email ||
+      matchedWorkforceOrg?.email ||
+      trimmedEmail;
+
     const localUser = {
-      id: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && savedUser.id) || `usr-${Date.now()}`,
-      name: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.name || savedUser.fullName)) || trimmedEmail.split('@')[0],
-      fullName: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.fullName || savedUser.name)) || trimmedEmail.split('@')[0],
-      email: trimmedEmail,
-      phone: savedUser?.phone || '',
-      companyName: savedUser?.companyName || savedUser?.company || (userRole === 'Client' ? 'Enterprise Client' : ''),
-      company: savedUser?.company || savedUser?.companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
-      contactPerson: (savedUser && savedUser.email?.toLowerCase() === trimmedEmail && (savedUser.name || savedUser.fullName)) || trimmedEmail.split('@')[0],
+      id: (userRole === 'Manager' ? matchedManagerOrg?.id : null) || matchedUser?.id || matchedPartnerOrg?.id || matchedClientOrg?.id || matchedWorkforceOrg?.id || `usr-${Date.now()}`,
+      name: displayName,
+      fullName: displayName,
+      email: resolvedEmail,
+      phone: matchedManagerOrg?.phone || matchedUser?.phone || matchedPartnerOrg?.phone || matchedClientOrg?.phone || matchedWorkforceOrg?.phone || '',
+      companyName: companyName,
+      company: companyName,
+      contactPerson: displayName,
       role: userRole,
       portalPath,
+      avatar: matchedManagerOrg?.avatar || matchedUser?.avatar || '',
     };
 
     setUser(localUser);
     setRole(userRole);
     setIsAuthenticated(true);
     localStorage.setItem('flexistaff_user', JSON.stringify(localUser));
+    localStorage.setItem('flexistaff_role', userRole);
+
+    // Save to registered users list for persistence
+    try {
+      const existingListStr = localStorage.getItem('flexistaff_registered_users');
+      let list = existingListStr ? JSON.parse(existingListStr) : [];
+      if (!list.some((u) => u.email && u.email.toLowerCase() === trimmedEmail)) {
+        list.push(localUser);
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(list));
+      }
+    } catch {}
 
     return {
       success: true,
@@ -204,7 +336,16 @@ export const AuthProvider = ({ children }) => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
     const userRole = role === 'Freelancer' ? 'Workforce' : role;
-    const portalPath = userRole === 'Client' ? '/client/dashboard' : '/workforce/dashboard';
+    const portalPath =
+      userRole === 'Client'
+        ? '/client/dashboard'
+        : userRole === 'Manager'
+        ? '/manager/dashboard'
+        : userRole === 'Partner Company' || userRole === 'Partner'
+        ? '/partner/dashboard'
+        : userRole === 'Workforce'
+        ? '/workforce/dashboard'
+        : '/admin/dashboard';
 
     const registeredUser = {
       id: `usr-${Date.now()}`,
@@ -241,6 +382,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('flexistaff_user', JSON.stringify(registeredUser));
     localStorage.setItem('flexistaff_role', userRole);
     localStorage.setItem('flexistaff_auth', 'true');
+
+    // Also persist in flexistaff_registered_users array
+    try {
+      const existingListStr = localStorage.getItem('flexistaff_registered_users');
+      let list = existingListStr ? JSON.parse(existingListStr) : [];
+      const filtered = list.filter((u) => u.email && u.email.toLowerCase() !== trimmedEmail);
+      filtered.push(registeredUser);
+      localStorage.setItem('flexistaff_registered_users', JSON.stringify(filtered));
+    } catch {}
 
     return {
       success: true,

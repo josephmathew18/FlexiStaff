@@ -53,40 +53,11 @@ export const PartnerProjectDetails = () => {
   const { partnerProjects = [], partnerWorkforce = [] } = useData() || {};
 
   const project = useMemo(() => {
-    return (
-      (partnerProjects || []).find((p) => p && p.id === id) ||
-      (partnerProjects || [])[0] || {
-        id: id || 'PRJ-PARTNER-101',
-        name: 'E-Commerce Platform Development',
-        category: 'Full-Stack Web',
-        priority: 'High',
-        stage: 'Development',
-        status: 'In Progress',
-        progress: 75,
-        startDate: '2026-08-01',
-        expectedEndDate: '2027-01-31',
-        description: 'Enterprise scalable multi-tenant e-commerce platform with automated payment workflows.',
-        techStack: 'React.js, Node.js, PostgreSQL, AWS',
-        workforceAssigned: 6,
-        workforceRequired: 6,
-        budget: '$180,000',
-        spent: '$135,000',
-        workflowSteps: [
-          { name: 'Partner Project Request', status: 'Completed', date: 'Aug 01, 2026' },
-          { name: 'Company Requirement Review', status: 'Completed', date: 'Aug 05, 2026' },
-          { name: 'Scope & Architecture Sign-Off', status: 'Completed', date: 'Aug 10, 2026' },
-          { name: 'Workforce Matching', status: 'Completed', date: 'Aug 15, 2026' },
-          { name: 'Squad Assignment Sign-Off', status: 'Completed', date: 'Aug 20, 2026' },
-          { name: 'Sprint Execution', status: 'Active', date: 'Current' },
-          { name: 'QA Testing', status: 'Pending', date: 'Nov 2026' },
-          { name: 'Client Acceptance', status: 'Pending', date: 'Dec 2026' },
-          { name: 'Final Delivery', status: 'Pending', date: 'Jan 2027' },
-        ],
-      }
-    );
+    return (partnerProjects || []).find((p) => p && String(p.id).toLowerCase() === String(id).toLowerCase()) || null;
   }, [partnerProjects, id]);
 
   const assignedEmployees = useMemo(() => {
+    if (!project) return [];
     return (partnerWorkforce || []).filter(
       (w) =>
         w &&
@@ -94,6 +65,27 @@ export const PartnerProjectDetails = () => {
           (w.assignedProject && (w.assignedProject || '').toLowerCase().includes((project.name || '').toLowerCase().slice(0, 8))))
     );
   }, [partnerWorkforce, project]);
+
+  if (!project) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto my-12 text-center">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 space-y-4">
+          <FolderKanban size={40} className="mx-auto text-slate-300" />
+          <h2 className="text-xl font-bold text-slate-800">Project Not Found</h2>
+          <p className="text-xs text-slate-500">
+            The requested project requirement could not be located in your partner organization portfolio.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/partner/projects')}
+            className="px-4 py-2 rounded-xl bg-[#2563eb] text-white text-xs font-bold shadow-xs hover:bg-[#1d4ed8]"
+          >
+            Back to Projects Portfolio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const stagesList = [
     'Requirement',

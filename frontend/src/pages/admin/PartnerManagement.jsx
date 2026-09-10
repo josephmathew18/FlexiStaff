@@ -31,6 +31,9 @@ import {
   Calendar,
   Layers,
   ArrowRight,
+  Pencil,
+  Power,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -47,10 +50,10 @@ const StatusBadge = ({ status = 'Active', size = 'sm' }) => {
   let bg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
   let dot = 'bg-emerald-500';
 
-  if (['pending', 'inactive', 'pending review', 'onboarding'].includes(normalized)) {
+  if (['pending', 'pending review', 'onboarding'].includes(normalized)) {
     bg = 'bg-amber-50 text-amber-700 border-amber-200';
     dot = 'bg-amber-500';
-  } else if (['rejected', 'terminated'].includes(normalized)) {
+  } else if (['inactive', 'deactivated', 'rejected', 'terminated'].includes(normalized)) {
     bg = 'bg-rose-50 text-rose-700 border-rose-200';
     dot = 'bg-rose-500';
   }
@@ -185,6 +188,139 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
   );
 };
 
+// ====================================================================
+// INLINE REUSABLE UI: SkillSelector (Matches User Skill Design)
+// ====================================================================
+const SkillSelector = ({ value = '', onChange, error }) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const selectedSkills = useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    return String(value)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [value]);
+
+  const suggestedSkills = [
+    'React',
+    'Node.js',
+    'Python',
+    'TypeScript',
+    'AWS',
+    'Docker',
+    'PostgreSQL',
+    'Full Stack Development',
+    'UI/UX Design',
+    'Software QA',
+    'Software Testing',
+    'Data Analysis',
+    'Information Analysis',
+    'Test Results & Analysis',
+    'Alpha Testing',
+    'Beta Testing',
+    'Kubernetes',
+    'GraphQL',
+    'Tailwind CSS',
+  ];
+
+  const addSkill = (skill) => {
+    const trimmed = skill.trim();
+    if (!trimmed) return;
+    if (!selectedSkills.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+      const updated = [...selectedSkills, trimmed];
+      onChange(updated.join(', '));
+    }
+    setInputValue('');
+  };
+
+  const removeSkill = (skillToRemove) => {
+    const updated = selectedSkills.filter((s) => s !== skillToRemove);
+    onChange(updated.join(', '));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addSkill(inputValue);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-semibold text-[#434655] dark:text-slate-300 block mb-1.5">
+          Your skills / Specialty Skill Domains <span className="text-rose-500">*</span>
+        </label>
+
+        {/* Selected skills & Input box */}
+        <div
+          className={`w-full rounded-2xl border bg-white dark:bg-[#1c1a36] p-3 text-xs text-[#191b23] dark:text-white transition-all focus-within:border-[#004ac6] flex flex-wrap items-center gap-2 min-h-[52px] ${
+            error ? 'border-rose-400 bg-rose-50/20' : 'border-[#c3c6d7] dark:border-white/15'
+          }`}
+        >
+          {selectedSkills.map((skill, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-3 py-1 text-xs font-bold text-[#004ac6] dark:text-blue-300"
+            >
+              <span>{skill}</span>
+              <button
+                type="button"
+                onClick={() => removeSkill(skill)}
+                className="hover:text-rose-500 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={() => inputValue && addSkill(inputValue)}
+            placeholder={selectedSkills.length === 0 ? 'Enter skills here' : 'Type skill & press Enter...'}
+            className="flex-1 min-w-[140px] bg-transparent outline-none text-xs text-[#191b23] dark:text-white placeholder-slate-400"
+          />
+        </div>
+        {error && (
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-rose-600 mt-1">
+            <AlertCircle size={13} />
+            <span>{error.message || error}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Suggested skills */}
+      <div className="space-y-2 pt-1">
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Suggested skills</span>
+        <div className="flex flex-wrap gap-2">
+          {suggestedSkills.map((skill) => {
+            const isAdded = selectedSkills.some((s) => s.toLowerCase() === skill.toLowerCase());
+            return (
+              <button
+                key={skill}
+                type="button"
+                onClick={() => (isAdded ? removeSkill(skill) : addSkill(skill))}
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  isAdded
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-slate-100 dark:bg-[#1c1a36] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-blue-400 hover:text-blue-600'
+                }`}
+              >
+                <span>{isAdded ? '✓' : '+'}</span>
+                <span>{skill}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Form Schemas
 const partnerSchema = yup.object().shape({
   name: yup.string().required('Partner company name is required'),
@@ -199,23 +335,32 @@ const partnerSchema = yup.object().shape({
     .required('Supplied talent count is required'),
   status: yup.string().required('Status is required'),
   location: yup.string().required('Location is required'),
-  specialties: yup.string().required('Enter comma-separated specialty skills'),
+  specialties: yup.string().required('Select or enter specialty skills'),
+  tempPassword: yup.string().required('Temporary password is required').min(6, 'Password must be at least 6 characters'),
+  confirmPassword: yup
+    .string()
+    .required('Please confirm password')
+    .oneOf([yup.ref('tempPassword'), null], 'Passwords must match'),
 });
 
-const submitStaffSchema = yup.object().shape({
-  name: yup.string().required('Candidate name is required'),
-  partnerName: yup.string().required('Partner company is required'),
+const editPartnerSchema = yup.object().shape({
+  name: yup.string().required('Partner company name is required'),
+  contactPerson: yup.string().required('Contact person is required'),
   email: yup.string().email('Invalid email address').required('Email is required'),
   phone: yup.string().required('Phone number is required'),
-  title: yup.string().required('Job title / designation is required'),
-  skills: yup.string().required('Enter comma-separated skills'),
-  experience: yup.string().required('Experience range is required'),
-  hourlyRate: yup.string().required('Hourly billing rate is required'),
+  tier: yup.string().required('Partnership tier is required'),
+  suppliedProfessionals: yup
+    .number()
+    .typeError('Enter a valid number')
+    .min(0, 'Cannot be negative')
+    .required('Supplied talent count is required'),
+  status: yup.string().required('Status is required'),
   location: yup.string().required('Location is required'),
+  specialties: yup.string().required('Select or enter specialty skills'),
 });
 
 export const PartnerManagement = () => {
-  const { partners, addPartner, workforce, submitPartnerCandidate, projects } = useData();
+  const { partners, addPartner, updatePartner, deletePartner, clearPartners, workforce, projects } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -225,13 +370,15 @@ export const PartnerManagement = () => {
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState(null);
-  const [staffSubmitPartner, setStaffSubmitPartner] = useState(null);
+  const [editingPartner, setEditingPartner] = useState(null);
 
   // Form for Registering New Partner Company
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(partnerSchema),
@@ -241,33 +388,78 @@ export const PartnerManagement = () => {
       email: '',
       phone: '',
       tier: 'Tier-1 Strategic Partner',
-      suppliedProfessionals: 15,
+      suppliedProfessionals: 0,
       status: 'Active',
-      location: 'San Jose, CA',
-      specialties: 'AWS, Kubernetes, DevOps, Python',
+      location: '',
+      specialties: '',
+      tempPassword: '',
+      confirmPassword: '',
     },
   });
 
-  // Form for Submitting Temporary Staff under a Partner
+  // Form for Editing Existing Partner Company
   const {
-    register: registerStaff,
-    handleSubmit: handleStaffSubmit,
-    reset: resetStaff,
-    formState: { errors: staffErrors, isSubmitting: isSubmittingStaff },
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    setValue: setEditValue,
+    watch: watchEdit,
+    formState: { errors: editErrors, isSubmitting: isSubmittingEdit },
   } = useForm({
-    resolver: yupResolver(submitStaffSchema),
-    defaultValues: {
-      name: '',
-      partnerName: '',
-      email: '',
-      phone: '',
-      title: 'Senior Cloud DevOps Specialist',
-      skills: 'AWS, Kubernetes, Docker, Terraform',
-      experience: '6+ years',
-      hourlyRate: '$110/hr',
-      location: 'Seattle, WA',
-    },
+    resolver: yupResolver(editPartnerSchema),
   });
+
+  const handleOpenEditModal = (partner) => {
+    setEditingPartner(partner);
+    setEditValue('name', partner.name || '');
+    setEditValue('contactPerson', partner.contactPerson || '');
+    setEditValue('email', partner.email || '');
+    setEditValue('phone', partner.phone || '');
+    setEditValue('tier', partner.tier || 'Tier-1 Strategic Partner');
+    setEditValue('suppliedProfessionals', partner.suppliedProfessionals || 0);
+    setEditValue('status', partner.status || 'Active');
+    setEditValue('location', partner.location || '');
+    setEditValue(
+      'specialties',
+      Array.isArray(partner.specialties) ? partner.specialties.join(', ') : partner.specialties || ''
+    );
+  };
+
+  const onEditSubmit = (data) => {
+    if (!editingPartner) return;
+    const specialtiesArray = typeof data.specialties === 'string'
+      ? data.specialties.split(',').map((s) => s.trim()).filter(Boolean)
+      : data.specialties;
+
+    updatePartner(editingPartner.id, {
+      ...data,
+      specialties: specialtiesArray,
+    });
+
+    toast.success(`Partner Organization ${data.name} updated successfully!`);
+    setEditingPartner(null);
+  };
+
+  // Toggle Partner Status (Deactivate / Activate)
+  const handleTogglePartnerStatus = (partner) => {
+    const isCurrentlyActive = String(partner.status).toLowerCase().trim() === 'active';
+    const newStatus = isCurrentlyActive ? 'Inactive' : 'Active';
+    updatePartner(partner.id, { status: newStatus });
+    if (isCurrentlyActive) {
+      toast.info(`Partner Organization "${partner.name}" has been deactivated.`);
+    } else {
+      toast.success(`Partner Organization "${partner.name}" is now active!`);
+    }
+  };
+
+  // Delete Single Partner
+  const handleDeletePartner = (partner) => {
+    if (window.confirm(`Are you sure you want to delete ${partner.name}? This will remove all associated partner data.`)) {
+      deletePartner(partner.id);
+      toast.info(`Partner Organization "${partner.name}" has been deleted.`);
+      if (selectedPartner?.id === partner.id) setSelectedPartner(null);
+      if (editingPartner?.id === partner.id) setEditingPartner(null);
+    }
+  };
 
   // Filtered Partners
   const filteredPartners = useMemo(() => {
@@ -309,19 +501,6 @@ export const PartnerManagement = () => {
     setIsAddModalOpen(false);
   };
 
-  // Submit Staff for Partner
-  const onSubmitStaff = (data) => {
-    const skillsArray = data.skills.split(',').map((s) => s.trim()).filter(Boolean);
-    submitPartnerCandidate({
-      ...data,
-      skills: skillsArray,
-      partnerName: staffSubmitPartner?.name || data.partnerName,
-      roleType: 'Professional',
-    });
-    toast.success(`Candidate ${data.name} submitted under ${staffSubmitPartner?.name || data.partnerName} for Admin Review!`);
-    resetStaff();
-    setStaffSubmitPartner(null);
-  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -346,6 +525,22 @@ export const PartnerManagement = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {partners.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to clear all partner organizations to start fresh?')) {
+                  clearPartners();
+                  toast.info('All partner records cleared. Ready to start fresh!');
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30 px-3.5 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-all active:scale-95"
+              title="Clear all partner records"
+            >
+              <Trash2 size={15} />
+              <span>Clear All Partners</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
@@ -360,7 +555,7 @@ export const PartnerManagement = () => {
       {/* ========================================================================= */}
       {/* KPI METRICS OVERVIEW CARDS */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Partner Agencies</span>
@@ -368,11 +563,9 @@ export const PartnerManagement = () => {
               <Handshake size={18} />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{partners.length}</span>
-            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active Network</span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Approved staffing vendors</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
@@ -382,11 +575,9 @@ export const PartnerManagement = () => {
               <Users size={18} />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{totalSuppliedStaff}</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Engineers</span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Total cataloged professionals</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
@@ -396,27 +587,9 @@ export const PartnerManagement = () => {
               <CheckCircle2 size={18} />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
+          <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{totalActivePlacements}</span>
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {totalSuppliedStaff > 0 ? `${Math.round((totalActivePlacements / totalSuppliedStaff) * 100)}%` : '0%'} Allocated
-            </span>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Engaged on client sprints</p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bench Readiness SLA</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Clock size={18} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">92.8%</span>
-            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">&lt; 24h Response</span>
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">Average candidate mobilization</p>
         </div>
       </div>
 
@@ -583,35 +756,34 @@ export const PartnerManagement = () => {
                 </div>
 
                 {/* Bottom Action Buttons */}
-                <div className="pt-3 border-t border-slate-100 dark:border-white/10 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStaffSubmitPartner(partner);
-                      resetStaff({
-                        name: '',
-                        partnerName: partner.name,
-                        email: '',
-                        phone: '',
-                        title: 'Senior Cloud Specialist',
-                        skills: partner.specialties?.join(', ') || 'AWS, Kubernetes, Go',
-                        experience: '5+ years',
-                        hourlyRate: '$110/hr',
-                        location: partner.location,
-                      });
-                    }}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-colors shadow-2xs"
-                  >
-                    <UserPlus size={13} />
-                    <span>Submit Staff</span>
-                  </button>
-
+                <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedPartner(partner)}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-bold transition-colors"
                   >
                     <span>View Agreement</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePartnerStatus(partner)}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                      String(partner.status).toLowerCase().trim() === 'active'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                    }`}
+                    title={String(partner.status).toLowerCase().trim() === 'active' ? 'Deactivate Partner Organization' : 'Activate Partner Organization'}
+                  >
+                    <Power size={14} />
+                    <span>{String(partner.status).toLowerCase().trim() === 'active' ? 'Deactivate' : 'Activate'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePartner(partner)}
+                    className="flex items-center justify-center p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors"
+                    title="Delete Partner Organization"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </motion.div>
@@ -653,13 +825,36 @@ export const PartnerManagement = () => {
                       <StatusBadge status={partner.status} />
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPartner(partner)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-semibold"
-                      >
-                        Details
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPartner(partner)}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-semibold"
+                        >
+                          Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePartnerStatus(partner)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                            String(partner.status).toLowerCase().trim() === 'active'
+                              ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 hover:bg-amber-100'
+                              : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100'
+                          }`}
+                          title={String(partner.status).toLowerCase().trim() === 'active' ? 'Deactivate Partner' : 'Activate Partner'}
+                        >
+                          <Power size={13} />
+                          <span>{String(partner.status).toLowerCase().trim() === 'active' ? 'Deactivate' : 'Activate'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePartner(partner)}
+                          className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-colors"
+                          title="Delete Partner Organization"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -705,9 +900,9 @@ export const PartnerManagement = () => {
               error={errors.tier}
               required
               options={[
-                { value: 'Tier-1 Strategic Partner', label: 'Tier-1 Strategic Partner' },
-                { value: 'Tier-2 Preferred Partner', label: 'Tier-2 Preferred Partner' },
-                { value: 'Tier-3 Certified Partner', label: 'Tier-3 Certified Partner' },
+                { value: 'Tier-1 Strategic Partner', label: 'Strategic Partner' },
+                { value: 'Tier-2 Preferred Partner', label: 'Preferred Partner' },
+                { value: 'Tier-3 Certified Partner', label: 'Certified Partner' },
               ]}
             />
           </div>
@@ -764,20 +959,45 @@ export const PartnerManagement = () => {
             />
           </div>
 
-          <FormInput
-            label="Specialty Skill Domains (Comma-separated)"
-            name="specialties"
-            placeholder="AWS, Kubernetes, Go, Python, React"
-            register={register}
+          {/* Partner Login Credentials Section */}
+          <div className="pt-2 border-t border-slate-100 dark:border-white/10 space-y-3">
+            <span className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider block">
+              Partner Account Credentials (For Login Access)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <FormInput
+                label="Temporary Password"
+                name="tempPassword"
+                type="password"
+                placeholder="Min 6 characters"
+                register={register}
+                error={errors.tempPassword}
+                required
+              />
+              <FormInput
+                label="Confirm Password"
+                name="confirmPassword"
+                type="password"
+                placeholder="Confirm password"
+                register={register}
+                error={errors.confirmPassword}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Specialty Skill Domains Component */}
+          <SkillSelector
+            value={watch('specialties') || ''}
+            onChange={(newVal) => setValue('specialties', newVal, { shouldValidate: true })}
             error={errors.specialties}
-            required
           />
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={() => setIsAddModalOpen(false)}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:hover:bg-white/10 dark:text-white"
             >
               Cancel
             </button>
@@ -793,31 +1013,45 @@ export const PartnerManagement = () => {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* MODAL 2: SUBMIT TEMPORARY STAFF UNDER PARTNER */}
+      {/* MODAL 2: EDIT PARTNER ORGANIZATION */}
       {/* ========================================================================= */}
       <Modal
-        isOpen={Boolean(staffSubmitPartner)}
-        onClose={() => setStaffSubmitPartner(null)}
-        title={`Submit Temporary Staff for ${staffSubmitPartner?.name}`}
-        subtitle="This candidate will be sent to the FlexiStaff Admin Review Queue for acceptance."
+        isOpen={Boolean(editingPartner)}
+        onClose={() => setEditingPartner(null)}
+        title="Edit Partner Organization"
+        subtitle={`Update partnership details for ${editingPartner?.name}`}
       >
-        <form onSubmit={handleStaffSubmit(onSubmitStaff)} className="space-y-4">
+        <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+          <FormInput
+            label="Partner Company Name"
+            name="name"
+            placeholder="Enter partner company name"
+            register={registerEdit}
+            error={editErrors.name}
+            required
+          />
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <FormInput
-              label="Candidate Full Name"
-              name="name"
-              placeholder="Enter candidate full name"
-              register={registerStaff}
-              error={staffErrors.name}
+              label="Contact Representative"
+              name="contactPerson"
+              placeholder="Enter contact person name"
+              register={registerEdit}
+              error={editErrors.contactPerson}
               required
             />
             <FormInput
-              label="Job Title / Designation"
-              name="title"
-              placeholder="Enter job title"
-              register={registerStaff}
-              error={staffErrors.title}
+              label="Partnership Tier"
+              name="tier"
+              type="select"
+              register={registerEdit}
+              error={editErrors.tier}
               required
+              options={[
+                { value: 'Tier-1 Strategic Partner', label: 'Strategic Partner' },
+                { value: 'Tier-2 Preferred Partner', label: 'Preferred Partner' },
+                { value: 'Tier-3 Certified Partner', label: 'Certified Partner' },
+              ]}
             />
           </div>
 
@@ -826,71 +1060,75 @@ export const PartnerManagement = () => {
               label="Corporate Email"
               name="email"
               type="email"
-              placeholder="victor@staffingagency.com"
-              register={registerStaff}
-              error={staffErrors.email}
+              placeholder="Enter corporate email address"
+              register={registerEdit}
+              error={editErrors.email}
               required
             />
             <FormInput
               label="Phone Number"
               name="phone"
-              placeholder="+91 98765 43210"
-              register={registerStaff}
-              error={staffErrors.phone}
+              placeholder="Enter phone number"
+              register={registerEdit}
+              error={editErrors.phone}
               required
             />
           </div>
-
-          <FormInput
-            label="Verified Technical Skills (Comma-separated)"
-            name="skills"
-            placeholder="Go, Kubernetes, AWS, Distributed Systems"
-            register={registerStaff}
-            error={staffErrors.skills}
-            required
-          />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <FormInput
-              label="Experience"
-              name="experience"
-              placeholder="6+ years"
-              register={registerStaff}
-              error={staffErrors.experience}
+              label="Talent Capacity"
+              name="suppliedProfessionals"
+              type="number"
+              placeholder="15"
+              register={registerEdit}
+              error={editErrors.suppliedProfessionals}
               required
             />
             <FormInput
-              label="Hourly Billing Rate"
-              name="hourlyRate"
-              placeholder="$115/hr"
-              register={registerStaff}
-              error={staffErrors.hourlyRate}
+              label="Status"
+              name="status"
+              type="select"
+              register={registerEdit}
+              error={editErrors.status}
               required
+              options={[
+                { value: 'Active', label: 'Active Agreement' },
+                { value: 'Pending', label: 'Pending Review' },
+                { value: 'Inactive', label: 'Inactive' },
+              ]}
             />
             <FormInput
-              label="Location"
+              label="Headquarters"
               name="location"
-              placeholder="Stockholm, SE"
-              register={registerStaff}
-              error={staffErrors.location}
+              placeholder="Seattle, WA"
+              register={registerEdit}
+              error={editErrors.location}
               required
             />
           </div>
+
+          {/* Specialty Skill Domains Component */}
+          <SkillSelector
+            value={watchEdit('specialties') || ''}
+            onChange={(newVal) => setEditValue('specialties', newVal, { shouldValidate: true })}
+            error={editErrors.specialties}
+          />
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={() => setStaffSubmitPartner(null)}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              onClick={() => setEditingPartner(null)}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:hover:bg-white/10 dark:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmittingStaff}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
+              disabled={isSubmittingEdit}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 active:scale-95 transition-all"
             >
-              Submit to Admin Queue
+              Save Changes
             </button>
           </div>
         </form>
@@ -945,17 +1183,34 @@ export const PartnerManagement = () => {
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  setStaffSubmitPartner(selectedPartner);
+                  const targetPartner = selectedPartner;
                   setSelectedPartner(null);
+                  handleOpenEditModal(targetPartner);
                 }}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-2"
               >
-                <UserPlus size={15} />
-                <span>Submit Candidate for this Partner</span>
+                <Pencil size={15} />
+                <span>Edit Partner Details</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetPartner = selectedPartner;
+                  setSelectedPartner(null);
+                  handleTogglePartnerStatus(targetPartner);
+                }}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 ${
+                  String(selectedPartner?.status).toLowerCase().trim() === 'active'
+                    ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400'
+                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400'
+                }`}
+              >
+                <Power size={15} />
+                <span>{String(selectedPartner?.status).toLowerCase().trim() === 'active' ? 'Deactivate' : 'Activate'}</span>
               </button>
             </div>
           </div>

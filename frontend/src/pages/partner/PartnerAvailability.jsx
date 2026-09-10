@@ -24,6 +24,42 @@ export const PartnerAvailability = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState('all');
 
+  const countAvailable = useMemo(
+    () =>
+      (partnerWorkforce || []).filter(
+        (w) =>
+          (w.availability || '').toLowerCase() === 'available' ||
+          (w.workingStatus || '').toLowerCase() === 'available'
+      ).length,
+    [partnerWorkforce]
+  );
+
+  const countPartial = useMemo(
+    () =>
+      (partnerWorkforce || []).filter(
+        (w) => (w.availability || '').toLowerCase() === 'partially available'
+      ).length,
+    [partnerWorkforce]
+  );
+
+  const countAssigned = useMemo(
+    () =>
+      (partnerWorkforce || []).filter(
+        (w) =>
+          (w.availability || '').toLowerCase() === 'assigned' ||
+          (w.workingStatus || '').toLowerCase() === 'working'
+      ).length,
+    [partnerWorkforce]
+  );
+
+  const countUnavailable = useMemo(
+    () =>
+      (partnerWorkforce || []).filter(
+        (w) => (w.availability || '').toLowerCase() === 'unavailable'
+      ).length,
+    [partnerWorkforce]
+  );
+
   const filtered = useMemo(() => {
     return (partnerWorkforce || []).filter((emp) => {
       if (!emp) return false;
@@ -81,7 +117,7 @@ export const PartnerAvailability = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
               Available
             </span>
-            <span className="text-xs font-black text-emerald-700">8</span>
+            <span className="text-xs font-black text-emerald-700">{countAvailable}</span>
           </div>
           <p className="text-[11px] text-emerald-800 mt-1 font-medium">Ready for immediate project sprint allocation</p>
         </div>
@@ -97,7 +133,7 @@ export const PartnerAvailability = () => {
               <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
               Partially Available
             </span>
-            <span className="text-xs font-black text-amber-700">6</span>
+            <span className="text-xs font-black text-amber-700">{countPartial}</span>
           </div>
           <p className="text-[11px] text-amber-800 mt-1 font-medium">50% bandwidth available for new assignments</p>
         </div>
@@ -113,7 +149,7 @@ export const PartnerAvailability = () => {
               <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
               Assigned
             </span>
-            <span className="text-xs font-black text-blue-700">26</span>
+            <span className="text-xs font-black text-blue-700">{countAssigned}</span>
           </div>
           <p className="text-[11px] text-blue-800 mt-1 font-medium">Fully allocated on active project sprints</p>
         </div>
@@ -129,7 +165,7 @@ export const PartnerAvailability = () => {
               <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
               Unavailable
             </span>
-            <span className="text-xs font-black text-rose-700">4</span>
+            <span className="text-xs font-black text-rose-700">{countUnavailable}</span>
           </div>
           <p className="text-[11px] text-rose-800 mt-1 font-medium">Bench rotation, leave, or security onboarding</p>
         </div>
@@ -176,7 +212,16 @@ export const PartnerAvailability = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((emp) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 px-4 text-center text-slate-500">
+                    <Users size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-slate-700">No workforce members found.</p>
+                    <p className="text-[11px] text-slate-400">Add workforce professionals to configure their availability.</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
@@ -224,7 +269,8 @@ export const PartnerAvailability = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

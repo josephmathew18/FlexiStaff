@@ -43,6 +43,33 @@ export const PartnerLayout = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  // Verify partner account active status on session
+  React.useEffect(() => {
+    try {
+      const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+      if (savedPartnersStr) {
+        const partnersList = JSON.parse(savedPartnersStr);
+        const userEmail = (user?.email || '').toLowerCase().trim();
+        const matched = partnersList.find((p) => {
+          if (!p) return false;
+          const pEmail = (p.email || '').toLowerCase().trim();
+          return pEmail && (pEmail === userEmail || userEmail.includes('partner'));
+        });
+
+        if (matched) {
+          const status = String(matched.status || '').toLowerCase().trim();
+          if (['inactive', 'deactivated', 'terminated', 'pending', 'rejected'].includes(status)) {
+            toast.error(`Partner organization "${matched.name}" has been deactivated by Admin. Logging out...`);
+            logout();
+            navigate('/login');
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }, [user, navigate, logout]);
+
   const pendingRequestsCount = (partnerWorkforce || []).filter(
     (w) => w.status === 'Pending Allocation' || w.status === 'Under Review'
   ).length;
@@ -80,7 +107,7 @@ export const PartnerLayout = () => {
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
-    { label: 'Company Profile', path: '/partner/profile', icon: Building2 },
+    { label: 'Profile', path: '/partner/profile', icon: Building2 },
     { label: 'Support & Help', path: '/partner/support', icon: HelpCircle },
   ];
 
@@ -122,14 +149,14 @@ export const PartnerLayout = () => {
           >
             <UserAvatar
               src={partnerProfile?.logoUrl || partnerProfile?.avatar}
-              name={partnerProfile?.name || 'Partner Company'}
+              name={partnerProfile?.name || user?.companyName || user?.name || 'Partner Company'}
               size="sm"
               className="h-8 w-8 rounded-lg"
             />
             <div className="min-w-0 flex-1">
               <p className={`text-xs font-bold group-hover:text-indigo-700 truncate ${
                 effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}>{partnerProfile?.name || 'Partner Company'}</p>
+              }`}>{partnerProfile?.name || user?.companyName || user?.name || 'Partner Company'}</p>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
                 <ShieldCheck size={10} className="text-emerald-600" />
                 <span>Verified Partner Company</span>
@@ -148,7 +175,7 @@ export const PartnerLayout = () => {
             const isActive =
               location.pathname === item.path ||
               (item.path === '/partner/projects' && location.pathname.startsWith('/partner/projects/')) ||
-              (item.path === '/partner/workforce' && location.pathname.startsWith('/partner/workforce/'));
+              (item.path === '/partner/workforce' && location.pathname.startsWith('/partner/workforce/') && location.pathname !== '/partner/workforce/register');
 
             return (
               <NavLink
@@ -205,7 +232,7 @@ export const PartnerLayout = () => {
 
   return (
     <div className={`flex min-h-screen font-sans antialiased transition-colors ${
-      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+      effectiveTheme === 'dark' ? 'bg-[#0b0a1a] text-white' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col fixed inset-y-0 z-30 shadow-xs">
@@ -246,12 +273,12 @@ export const PartnerLayout = () => {
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              className="md:hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
             >
               <Menu size={20} />
             </button>
             <div className="hidden sm:block">
-              <span className="text-xs font-semibold text-[#737686]">FlexiStaff Client & Partner Portal</span>
+              <span className="text-xs font-semibold text-[#737686] dark:text-slate-400">FlexiStaff Client & Partner Portal</span>
               <h2 className={`text-sm font-bold capitalize ${
                 effectiveTheme === 'dark' ? 'text-white' : 'text-[#191b23]'
               }`}>
@@ -270,7 +297,9 @@ export const PartnerLayout = () => {
                   setIsNotificationsOpen(!isNotificationsOpen);
                   setIsProfileOpen(false);
                 }}
-                className="relative rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs"
+                className={`relative rounded-xl border p-2 transition-colors shadow-2xs ${
+                  effectiveTheme === 'dark' ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
               >
                 <Bell size={18} />
                 {unreadNotifCount > 0 && (
@@ -286,13 +315,13 @@ export const PartnerLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-900/10"
+                    className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-slate-900">Partner Notifications</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">Partner Notifications</h4>
                         {unreadNotifCount > 0 && (
-                          <span className="px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 text-[10px] font-bold">
+                          <span className="px-1.5 py-0.2 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
                             {unreadNotifCount} new
                           </span>
                         )}
@@ -300,13 +329,13 @@ export const PartnerLayout = () => {
                       <button
                         type="button"
                         onClick={markAllPartnerNotificationsRead}
-                        className="text-[11px] font-bold text-[#004ac6] hover:underline"
+                        className="text-[11px] font-bold text-[#004ac6] dark:text-indigo-400 hover:underline"
                       >
                         Mark all as read
                       </button>
                     </div>
 
-                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto my-1">
+                    <div className="divide-y divide-slate-100 dark:divide-white/10 max-h-72 overflow-y-auto my-1">
                       {partnerNotifications.map((notif) => (
                         <div
                           key={notif.id}
@@ -315,22 +344,20 @@ export const PartnerLayout = () => {
                             setIsNotificationsOpen(false);
                             if (notif.link) navigate(notif.link);
                           }}
-                          className={`p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors text-xs ${
-                            notif.unread ? 'bg-blue-50/40 font-semibold' : ''
-                          }`}
+                          className="p-2.5 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-xs"
                         >
-                          <p className="font-bold text-slate-900">{notif.title}</p>
-                          <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">{notif.message}</p>
-                          <span className="text-[10px] text-slate-400 mt-1 block">{notif.time}</span>
+                          <p className="font-bold text-slate-900 dark:text-white">{notif.title}</p>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2">{notif.message}</p>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">{notif.time}</span>
                         </div>
                       ))}
                     </div>
 
-                    <div className="border-t border-slate-100 pt-2 text-center">
+                    <div className="border-t border-slate-100 dark:border-white/10 pt-2 text-center">
                       <Link
                         to="/partner/notifications"
                         onClick={() => setIsNotificationsOpen(false)}
-                        className="text-xs font-bold text-indigo-600 hover:underline block"
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline block"
                       >
                         View Notification Center →
                       </Link>
@@ -348,17 +375,21 @@ export const PartnerLayout = () => {
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 text-xs text-[#191b23] hover:bg-slate-50 transition-colors shadow-2xs"
+                className={`flex items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-xs transition-colors shadow-2xs ${
+                  effectiveTheme === 'dark'
+                    ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10'
+                    : 'border-slate-200 bg-white text-[#191b23] hover:bg-slate-50'
+                }`}
               >
                 <UserAvatar
                   src={partnerProfile?.avatar}
-                  name={partnerProfile?.contactPerson || partnerProfile?.name || 'Partner Contact'}
+                  name={partnerProfile?.contactPerson || partnerProfile?.name || user?.fullName || user?.name || 'Partner Contact'}
                   size="xs"
                   className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{partnerProfile.contactPerson}</p>
-                  <p className="text-[10px] text-[#737686] leading-tight mt-0.5">{partnerProfile.name}</p>
+                  <p className="font-bold text-xs leading-none">{partnerProfile?.contactPerson || user?.fullName || user?.name || partnerProfile?.name || 'Partner Account'}</p>
+                  <p className="text-[10px] text-[#737686] dark:text-slate-400 leading-tight mt-0.5">{partnerProfile?.name || user?.companyName || 'Partner Organization'}</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
               </button>
@@ -369,20 +400,20 @@ export const PartnerLayout = () => {
                     initial={{ opacity: 0, y: 8, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10"
+                    className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-2 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
-                    <div className="p-3 bg-slate-50 rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900">{partnerProfile.contactPerson}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{partnerProfile.email}</p>
-                      <span className="mt-1.5 inline-block rounded-md bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
-                        {partnerProfile.industry}
+                    <div className="p-3 bg-slate-50 dark:bg-[#1c1a36] rounded-xl mb-1.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{partnerProfile?.contactPerson || user?.fullName || user?.name || partnerProfile?.name || 'Partner Account'}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{partnerProfile?.email || user?.email || ''}</p>
+                      <span className="mt-1.5 inline-block rounded-md bg-indigo-100 dark:bg-indigo-950/60 px-2 py-0.5 text-[10px] font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40">
+                        {partnerProfile?.tier || 'Verified Partner'}
                       </span>
                     </div>
 
                     <Link
                       to="/partner/profile"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <Building2 size={15} className="text-slate-400" />
                       <span>Profile</span>
@@ -391,18 +422,18 @@ export const PartnerLayout = () => {
                     <Link
                       to="/partner/support"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
                     >
                       <HelpCircle size={15} className="text-slate-400" />
                       <span>Support Desk</span>
                     </Link>
 
-                    <div className="border-t border-slate-100 my-1" />
+                    <div className="border-t border-slate-100 dark:border-white/10 my-1" />
 
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                     >
                       <LogOut size={15} />
                       <span>Sign Out</span>
@@ -419,7 +450,9 @@ export const PartnerLayout = () => {
           <Outlet />
         </main>
 
-        <footer className="border-t border-slate-200/60 bg-white py-3 px-6 text-center text-xs text-slate-400 font-medium shrink-0">
+        <footer className={`border-t py-3 px-6 text-center text-xs font-medium shrink-0 transition-colors ${
+          effectiveTheme === 'dark' ? 'bg-[#141324] border-white/10 text-slate-400' : 'bg-white border-slate-200/60 text-slate-400'
+        }`}>
           © 2026 FlexiStaffAI.
         </footer>
       </div>
