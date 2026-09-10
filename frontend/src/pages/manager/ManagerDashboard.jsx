@@ -78,17 +78,39 @@ export const ManagerDashboard = () => {
       p.status !== 'Pending'
   );
 
-  const approvedProjectsCount = approvedList.length || 6;
-  const pendingAssignmentsCount = (managerAssignments || []).filter((a) => a.status === 'Pending Assignment Approval' || a.status === 'Pending').length || 4;
-  const availableWorkforceCount = (workforce || []).filter((w) => (w.availability === 'Available' || w.availability === 'Immediate') && w.approvalStatus === 'Approved').length || 13;
-  const activeProjectsCount = approvedList.filter((p) => p.stage === 'In Progress' || p.status === 'In Progress').length || 6;
-  const completedProjectsCount = approvedList.filter((p) => p.stage === 'Completed' || p.status === 'Completed').length || 12;
+  const approvedProjectsCount = approvedList.length;
+  const pendingAssignmentsCount = (managerAssignments || []).filter(
+    (a) => a.status === 'Pending Assignment Approval' || a.status === 'Pending'
+  ).length;
+  const availableWorkforceCount = (workforce || []).filter(
+    (w) => (w.availability === 'Available' || w.availability === 'Immediate') && (w.approvalStatus === 'Approved' || w.status === 'Active')
+  ).length;
+  const activeProjectsCount = approvedList.filter(
+    (p) => p.stage === 'In Progress' || p.status === 'In Progress'
+  ).length;
+  const completedProjectsCount = approvedList.filter(
+    (p) => p.stage === 'Completed' || p.status === 'Completed'
+  ).length;
 
-  // Chart 1: Project Status Distribution (Approved Lifecycle Only)
+  const assignedWorkforceCount = (workforce || []).filter(
+    (w) => w.status === 'Assigned' || w.availability === 'Assigned'
+  ).length;
+  const workingWorkforceCount = (workforce || []).filter(
+    (w) => w.status === 'Busy' || w.availability === 'Busy' || w.availability === 'Working'
+  ).length;
+  const unavailableWorkforceCount = (workforce || []).filter(
+    (w) => w.availability === 'Unavailable'
+  ).length;
+
+  // Chart 1: Project Status Distribution
   const projectStatusData = [
     { status: 'Approved', count: approvedProjectsCount, fill: '#6366f1' },
     { status: 'Assignment Pending', count: pendingAssignmentsCount, fill: '#f59e0b' },
-    { status: 'Assignment Approved', count: 5, fill: '#3b82f6' },
+    {
+      status: 'Assignment Approved',
+      count: (managerAssignments || []).filter((a) => a.status === 'Approved' || a.status === 'Accepted').length,
+      fill: '#3b82f6',
+    },
     { status: 'In Progress', count: activeProjectsCount, fill: '#2563eb' },
     { status: 'Completed', count: completedProjectsCount, fill: '#10b981' },
   ];
@@ -96,9 +118,9 @@ export const ManagerDashboard = () => {
   // Chart 2: Workforce Availability
   const workforceAvailabilityData = [
     { name: 'Available', value: availableWorkforceCount, color: '#10b981' },
-    { name: 'Assigned', value: 19, color: '#f59e0b' },
-    { name: 'Working', value: 22, color: '#2563eb' },
-    { name: 'Unavailable', value: 3, color: '#ef4444' },
+    { name: 'Assigned', value: assignedWorkforceCount, color: '#f59e0b' },
+    { name: 'Working', value: workingWorkforceCount, color: '#2563eb' },
+    { name: 'Unavailable', value: unavailableWorkforceCount, color: '#ef4444' },
   ];
 
   return (
@@ -223,8 +245,8 @@ export const ManagerDashboard = () => {
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-700">Highest concentration in <strong>Completed (16)</strong> and <strong>Approved (12)</strong></span>
-            <span className="text-[11px] font-bold text-indigo-700">Sprint SLA: 96.8%</span>
+            <span className="font-semibold text-slate-700">Approved Projects: <strong>{approvedProjectsCount}</strong> | Pending Assignments: <strong>{pendingAssignmentsCount}</strong></span>
+            <span className="text-[11px] font-bold text-indigo-700">Active Sprints: {activeProjectsCount}</span>
           </div>
         </div>
 
@@ -278,14 +300,14 @@ export const ManagerDashboard = () => {
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
                 Available
               </span>
-              <span className="font-black">28</span>
+              <span className="font-black">{availableWorkforceCount}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-blue-50 text-blue-950">
               <span className="font-bold flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
                 Working
               </span>
-              <span className="font-black">22</span>
+              <span className="font-black">{workingWorkforceCount}</span>
             </div>
           </div>
         </div>
@@ -304,28 +326,22 @@ export const ManagerDashboard = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
-          <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Company Approval</span>
-            <p className="font-bold text-slate-900">New project approved by Company</p>
-            <p className="text-[11px] text-slate-600">E-Commerce Platform Development ready for skill matching</p>
-            <span className="text-[10px] text-slate-400 block pt-1">15 min ago</span>
+        {activities && activities.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+            {activities.slice(0, 3).map((act, idx) => (
+              <div key={idx} className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">{act.user || 'System'}</span>
+                <p className="font-bold text-slate-900">{act.action}</p>
+                <p className="text-[11px] text-slate-600">{act.target}</p>
+                <span className="text-[10px] text-slate-400 block pt-1">{act.time || 'Just now'}</span>
+              </div>
+            ))}
           </div>
-
-          <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">Workforce Assignment</span>
-            <p className="font-bold text-slate-900">React Developer assigned to E-Commerce Project</p>
-            <p className="text-[11px] text-slate-600">Workforce specialist matched and allocated to sprint</p>
-            <span className="text-[10px] text-slate-400 block pt-1">1 hour ago</span>
+        ) : (
+          <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            No recent activity recorded yet. Live updates will appear here as workforce assignments and approvals occur.
           </div>
-
-          <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Sprint Progress</span>
-            <p className="font-bold text-slate-900">Project progress updated to 75%</p>
-            <p className="text-[11px] text-slate-600">Product listing module completed with verified test coverage</p>
-            <span className="text-[10px] text-slate-400 block pt-1">2 hours ago</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

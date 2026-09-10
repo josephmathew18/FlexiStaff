@@ -172,12 +172,12 @@ export const ManagerApprovedProjects = () => {
                   </td>
                   <td className="py-3.5 px-4 font-semibold text-slate-800">{prj.client || prj.partner || 'Client Organization'}</td>
                   <td className="py-3.5 px-4">
-                    <span className="font-extrabold text-slate-900">{prj.workforceRequired || 6}</span>
+                    <span className="font-extrabold text-slate-900">{prj.workforceRequired || (prj.requirements ? prj.requirements.length : 1)}</span>
                     <span className="text-[11px] text-slate-500 ml-1">({prj.workforceAssigned || 0} Assigned)</span>
                   </td>
                   <td className="py-3.5 px-4">
                     <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {(prj.techStack || 'React.js, Java, MySQL, Selenium').split(',').slice(0, 3).map((s, idx) => (
+                      {(Array.isArray(prj.skills) ? prj.skills.join(', ') : (prj.techStack || 'Skill Matching')).split(',').slice(0, 3).map((s, idx) => (
                         <span key={idx} className="px-1.5 py-0.2 rounded bg-slate-100 text-[10px] font-semibold text-slate-700">
                           {s.trim()}
                         </span>

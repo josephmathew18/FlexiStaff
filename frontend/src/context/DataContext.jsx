@@ -302,7 +302,23 @@ export const DataProvider = ({ children }) => {
         }
 
         if (savedUserStr) {
-          const savedUser = JSON.parse(savedUserStr);
+          let savedUser = JSON.parse(savedUserStr);
+          const emailLower = (savedUser.email || '').toLowerCase();
+          const nameLower = (savedUser.name || savedUser.companyName || savedUser.company || '').toLowerCase();
+
+          // Auto-fix session role if Infosys was previously saved as Client
+          if ((emailLower.includes('infosys') || nameLower.includes('infosys')) && savedUser.role !== 'Partner Company') {
+            savedUser = {
+              ...savedUser,
+              role: 'Partner Company',
+              portalPath: '/partner/dashboard',
+            };
+            try {
+              localStorage.setItem('flexistaff_user', JSON.stringify(savedUser));
+              localStorage.setItem('flexistaff_role', 'Partner Company');
+            } catch {}
+          }
+
           if (savedUser && (savedUser.role === 'Partner Company' || savedUser.role === 'Partner' || savedUser.role === 'ROLE_PARTNER')) {
             const userEmail = (savedUser.email || '').toLowerCase().trim();
             const userName = (savedUser.companyName || savedUser.company || (savedUser.name !== 'System Administrator' ? savedUser.name : '') || '').toLowerCase().trim();
@@ -399,7 +415,67 @@ export const DataProvider = ({ children }) => {
   const [partnerSupportTickets, setPartnerSupportTickets] = useState(initialPartnerSupportTickets);
 
   // Manager Portal State
-  const [managerProfile, setManagerProfile] = useState(initialManagerProfile);
+  // Manager Portal State
+  const [managerProfile, setManagerProfile] = useState(() => {
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      const savedManagersStr = localStorage.getItem('flexistaff_managers');
+      let currentManagersList = [];
+      if (savedManagersStr) {
+        try { currentManagersList = JSON.parse(savedManagersStr); } catch {}
+      }
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && (savedUser.role === 'Manager' || savedUser.role === 'ROLE_MANAGER')) {
+          const userEmail = (savedUser.email || savedUser.loginEmail || '').toLowerCase().trim();
+          const userName = (savedUser.name || savedUser.fullName || '').toLowerCase().trim();
+          const userId = savedUser.id;
+
+          let matchedMng = (currentManagersList || []).find((m) => {
+            if (!m) return false;
+            const mId = m.id;
+            const mEmail = (m.email || '').toLowerCase().trim();
+            const mLoginEmail = (m.loginEmail || '').toLowerCase().trim();
+            const mName = (m.name || '').toLowerCase().trim();
+            const mEmpId = (m.employeeId || '').toLowerCase().trim();
+
+            return (
+              (mId && userId && mId === userId) ||
+              (mEmail && userEmail && (mEmail === userEmail || mEmail.includes(userEmail) || userEmail.includes(mEmail))) ||
+              (mLoginEmail && userEmail && (mLoginEmail === userEmail || mLoginEmail.includes(userEmail) || userEmail.includes(mLoginEmail))) ||
+              (mName && userName && (mName === userName || mName.includes(userName) || userName.includes(mName))) ||
+              (mEmpId && userEmail && mEmpId === userEmail)
+            );
+          });
+
+          if (!matchedMng && currentManagersList.length > 0) {
+            matchedMng = currentManagersList[0];
+          }
+
+          return {
+            id: matchedMng?.id || savedUser.id || 'mng-101',
+            name: matchedMng?.name || savedUser.name || savedUser.fullName || '',
+            email: matchedMng?.email || matchedMng?.loginEmail || savedUser.email || savedUser.loginEmail || '',
+            loginEmail: matchedMng?.loginEmail || savedUser.loginEmail || '',
+            phone: matchedMng?.phone || savedUser.phone || '',
+            role: matchedMng?.jobTitle || matchedMng?.role || savedUser.jobTitle || savedUser.role || 'Manager',
+            jobTitle: matchedMng?.jobTitle || matchedMng?.role || savedUser.jobTitle || savedUser.role || 'Manager',
+            department: matchedMng?.department || savedUser.department || '',
+            location: matchedMng?.address || matchedMng?.location || savedUser.address || savedUser.location || '',
+            address: matchedMng?.address || matchedMng?.location || savedUser.address || savedUser.location || '',
+            bio: matchedMng?.bio || savedUser.bio || '',
+            avatar: matchedMng?.avatar || savedUser.avatar || '',
+            employeeId: matchedMng?.employeeId || savedUser.employeeId || '',
+            dob: matchedMng?.dob || savedUser.dob || '',
+            joinDate: matchedMng?.joinDate || savedUser.joinDate || '',
+            experience: matchedMng?.experience || savedUser.experience || '',
+          };
+        }
+      }
+    } catch {}
+    return initialManagerProfile;
+  });
+
   const [managerAssignments, setManagerAssignments] = useState(initialManagerAssignments);
   const [managerNotifications, setManagerNotifications] = useState(initialManagerNotifications);
   const [freelancerRequests, setFreelancerRequests] = useState([]);
@@ -412,38 +488,66 @@ export const DataProvider = ({ children }) => {
         const savedManagersStr = localStorage.getItem('flexistaff_managers');
         let currentManagersList = managers;
         if (savedManagersStr) {
-          try { currentManagersList = JSON.parse(savedManagersStr); } catch {}
+          try {
+            const parsed = JSON.parse(savedManagersStr);
+            if (Array.isArray(parsed) && parsed.length > 0) currentManagersList = parsed;
+          } catch {}
         }
 
         if (savedUserStr) {
           const savedUser = JSON.parse(savedUserStr);
           if (savedUser && (savedUser.role === 'Manager' || savedUser.role === 'ROLE_MANAGER')) {
-            const userEmail = (savedUser.email || '').toLowerCase().trim();
+            const userEmail = (savedUser.email || savedUser.loginEmail || '').toLowerCase().trim();
             const userName = (savedUser.name || savedUser.fullName || '').toLowerCase().trim();
+            const userId = savedUser.id;
 
             let matchedMng = (currentManagersList || []).find((m) => {
               if (!m) return false;
+              const mId = m.id;
               const mEmail = (m.email || '').toLowerCase().trim();
+              const mLoginEmail = (m.loginEmail || '').toLowerCase().trim();
               const mName = (m.name || '').toLowerCase().trim();
-              return (mEmail && userEmail && mEmail === userEmail) || (mName && userName && mName === userName);
+              const mEmpId = (m.employeeId || '').toLowerCase().trim();
+
+              return (
+                (mId && userId && mId === userId) ||
+                (mEmail && userEmail && (mEmail === userEmail || mEmail.includes(userEmail) || userEmail.includes(mEmail))) ||
+                (mLoginEmail && userEmail && (mLoginEmail === userEmail || mLoginEmail.includes(userEmail) || userEmail.includes(mLoginEmail))) ||
+                (mName && userName && (mName === userName || mName.includes(userName) || userName.includes(mName))) ||
+                (mEmpId && userEmail && mEmpId === userEmail)
+              );
             });
 
-            const managerName = matchedMng?.name || savedUser.name || savedUser.fullName || 'Organization Manager';
-            const emailAddr = matchedMng?.email || savedUser.email || '';
-            const phoneNo = matchedMng?.phone || savedUser.phone || '+91 98765 43210';
-            const jobTitle = matchedMng?.role || matchedMng?.jobTitle || 'Organization Manager';
+            if (!matchedMng && currentManagersList.length > 0) {
+              matchedMng = currentManagersList[0];
+            }
+
+            const managerName = matchedMng?.name || savedUser.name || savedUser.fullName || '';
+            const emailAddr = matchedMng?.email || matchedMng?.loginEmail || savedUser.email || savedUser.loginEmail || '';
+            const phoneNo = matchedMng?.phone || savedUser.phone || '';
+            const jobTitle = matchedMng?.jobTitle || matchedMng?.role || savedUser.jobTitle || savedUser.role || 'Manager';
+            const dept = matchedMng?.department || savedUser.department || '';
+            const loc = matchedMng?.address || matchedMng?.location || savedUser.address || savedUser.location || '';
+            const bioText = matchedMng?.bio || savedUser.bio || '';
+            const avatarImg = matchedMng?.avatar || savedUser.avatar || '';
 
             setManagerProfile({
               id: matchedMng?.id || savedUser.id || 'mng-101',
               name: managerName,
               email: emailAddr,
+              loginEmail: matchedMng?.loginEmail || savedUser.loginEmail || emailAddr,
               phone: phoneNo,
               role: jobTitle,
               jobTitle: jobTitle,
-              department: matchedMng?.department || 'Enterprise Resource Allocation',
-              location: matchedMng?.location || 'Bengaluru, India',
-              bio: matchedMng?.bio || 'Oversees technical resource allocation and sprint milestone execution.',
-              avatar: matchedMng?.avatar || savedUser.avatar || '',
+              department: dept,
+              location: loc,
+              address: loc,
+              bio: bioText,
+              avatar: avatarImg,
+              employeeId: matchedMng?.employeeId || savedUser.employeeId || '',
+              dob: matchedMng?.dob || savedUser.dob || '',
+              joinDate: matchedMng?.joinDate || savedUser.joinDate || '',
+              experience: matchedMng?.experience || savedUser.experience || '',
             });
           }
         }
@@ -480,13 +584,57 @@ export const DataProvider = ({ children }) => {
               if (!w) return false;
               const wEmail = (w.email || '').toLowerCase().trim();
               const wName = (w.name || '').toLowerCase().trim();
-              return (wEmail && userEmail && wEmail === userEmail) || (wName && userName && wName === userName);
+              const wId = w.id ? String(w.id) : '';
+              const uId = savedUser.id ? String(savedUser.id) : '';
+              return (
+                (wId && uId && wId === uId) ||
+                (wEmail && userEmail && wEmail === userEmail) ||
+                (wName && userName && wName === userName)
+              );
             });
+
+            if (!matchedWf) {
+              try {
+                const regStr = localStorage.getItem('flexistaff_registered_users');
+                if (regStr) {
+                  const regList = JSON.parse(regStr);
+                  matchedWf = regList.find((u) => {
+                    if (!u) return false;
+                    const uEmail = (u.email || '').toLowerCase().trim();
+                    const uName = (u.name || u.fullName || '').toLowerCase().trim();
+                    const uId = u.id ? String(u.id) : '';
+                    return (
+                      (uId && savedUser.id && uId === savedUser.id) ||
+                      (uEmail && userEmail && uEmail === userEmail) ||
+                      (uName && userName && uName === userName)
+                    );
+                  });
+                }
+              } catch {}
+            }
 
             const wfName = matchedWf?.name || savedUser.name || savedUser.fullName || 'Workforce Specialist';
             const emailAddr = matchedWf?.email || savedUser.email || '';
             const phoneNo = matchedWf?.phone || savedUser.phone || '+91 98765 00000';
-            const title = matchedWf?.title || matchedWf?.role || 'Senior Full-Stack Engineer';
+            const title = matchedWf?.title || matchedWf?.role || savedUser.title || savedUser.jobTitle || 'Senior Full-Stack Engineer';
+            const partnerCompany =
+              matchedWf?.partnerCompany ||
+              matchedWf?.partner ||
+              matchedWf?.partnerName ||
+              savedUser.partnerCompany ||
+              savedUser.partnerName ||
+              savedUser.companyName ||
+              savedUser.company ||
+              '';
+
+            const isPartnerEmployee =
+              Boolean(partnerCompany) ||
+              matchedWf?.roleType === 'Professional' ||
+              matchedWf?.professionalType === 'PARTNER_EMPLOYEE' ||
+              matchedWf?.userType === 'PARTNER_EMPLOYEE' ||
+              savedUser?.roleType === 'Professional' ||
+              savedUser?.professionalType === 'PARTNER_EMPLOYEE' ||
+              savedUser?.userType === 'PARTNER_EMPLOYEE';
 
             setWorkforceUserProfile({
               id: matchedWf?.id || savedUser.id || 'wf-101',
@@ -495,14 +643,42 @@ export const DataProvider = ({ children }) => {
               phone: phoneNo,
               title: title,
               role: title,
-              experience: matchedWf?.experience || '4+ Years',
-              location: matchedWf?.location || 'Bengaluru, India',
-              skills: matchedWf?.skills || ['React.js', 'Node.js', 'TypeScript', 'Tailwind CSS'],
-              availability: matchedWf?.availability || 'Available',
-              preferredWorkType: matchedWf?.preferredWorkType || 'Remote',
-              bio: matchedWf?.bio || 'Specialized engineering professional experienced in building enterprise cloud architectures.',
+              experience: matchedWf?.experience || savedUser.experience || '4+ Years',
+              location: matchedWf?.location || savedUser.location || 'Bengaluru, India',
+              skills: matchedWf?.skills || savedUser.skills || ['React.js', 'Node.js', 'TypeScript', 'Tailwind CSS'],
+              availability: matchedWf?.availability || savedUser.availability || 'Available',
+              preferredWorkType: matchedWf?.preferredWorkType || savedUser.preferredWorkType || 'Remote',
+              bio: matchedWf?.bio || savedUser.bio || 'Specialized engineering professional experienced in building enterprise cloud architectures.',
               avatar: matchedWf?.avatar || savedUser.avatar || '',
+              hourlyRate: matchedWf?.hourlyRate || savedUser.hourlyRate || '$85/hr',
+              partnerCompany: partnerCompany,
+              partnerName: partnerCompany,
+              partner: partnerCompany,
+              companyName: partnerCompany,
+              company: partnerCompany,
+              roleType: isPartnerEmployee ? 'Professional' : 'Freelancer',
+              professionalType: isPartnerEmployee ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
+              userType: isPartnerEmployee ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
             });
+
+            if (isPartnerEmployee && (!savedUser.partnerCompany || savedUser.name !== wfName)) {
+              const updatedSavedUser = {
+                ...savedUser,
+                name: wfName,
+                fullName: wfName,
+                companyName: partnerCompany,
+                company: partnerCompany,
+                partnerCompany: partnerCompany,
+                partnerName: partnerCompany,
+                partner: partnerCompany,
+                roleType: 'Professional',
+                professionalType: 'PARTNER_EMPLOYEE',
+                userType: 'PARTNER_EMPLOYEE',
+              };
+              try {
+                localStorage.setItem('flexistaff_user', JSON.stringify(updatedSavedUser));
+              } catch {}
+            }
           }
         }
       } catch {}
@@ -921,7 +1097,57 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateManagerProfile = (data) => {
-    setManagerProfile((prev) => ({ ...prev, ...data }));
+    setManagerProfile((prev) => {
+      const updated = { ...prev, ...data };
+
+      // Sync flexistaff_user in localStorage if user is Manager
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && (savedUser.role === 'Manager' || savedUser.role === 'ROLE_MANAGER')) {
+            const updatedUser = {
+              ...savedUser,
+              name: updated.name || savedUser.name,
+              fullName: updated.name || savedUser.fullName,
+              email: updated.email || savedUser.email,
+              phone: updated.phone || savedUser.phone,
+              location: updated.location || updated.address || savedUser.location,
+              address: updated.address || updated.location || savedUser.address,
+              department: updated.department || savedUser.department,
+              jobTitle: updated.jobTitle || updated.role || savedUser.jobTitle,
+              bio: updated.bio || savedUser.bio,
+              avatar: updated.avatar || savedUser.avatar,
+            };
+            localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+          }
+        }
+      } catch {}
+
+      // Sync managers list in state & localStorage
+      setManagers((prevManagers) => {
+        const targetId = updated.id || prev.id;
+        const exists = (prevManagers || []).some(
+          (m) => m.id === targetId || m.email === updated.email || m.name === updated.name
+        );
+        let newManagers;
+        if (exists) {
+          newManagers = prevManagers.map((m) =>
+            m.id === targetId || m.email === updated.email || m.name === updated.name
+              ? { ...m, ...updated }
+              : m
+          );
+        } else {
+          newManagers = [{ ...updated, id: targetId || `mng-${Date.now()}` }, ...prevManagers];
+        }
+        try {
+          localStorage.setItem('flexistaff_managers', JSON.stringify(newManagers));
+        } catch {}
+        return newManagers;
+      });
+
+      return updated;
+    });
   };
 
   const updateClientProfile = (data) => {
@@ -2109,7 +2335,13 @@ export const DataProvider = ({ children }) => {
         managerData.avatar ||
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
     };
-    setManagers((prev) => [newManager, ...prev]);
+    setManagers((prev) => {
+      const updated = [newManager, ...prev];
+      try {
+        localStorage.setItem('flexistaff_managers', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     setManagerProfile(newManager);
 
     addActivity({
@@ -2454,6 +2686,29 @@ export const DataProvider = ({ children }) => {
     setPartnerWorkforce((prev) => [newProf, ...prev]);
     setWorkforce((prev) => [newProf, ...prev]);
 
+    // Save to flexistaff_registered_users so employee can log in immediately
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      let regList = regStr ? JSON.parse(regStr) : [];
+      const userEmailLower = (newProf.email || '').toLowerCase().trim();
+      const updatedReg = regList.filter((u) => u && (u.email || '').toLowerCase().trim() !== userEmailLower);
+      updatedReg.push({
+        id: newProf.id,
+        name: newProf.name,
+        fullName: newProf.name,
+        email: userEmailLower,
+        password: profData.password || profData.tempPassword || 'Workforce@123',
+        phone: newProf.phone,
+        role: 'Workforce',
+        portalPath: '/workforce/dashboard',
+        companyName: newProf.partnerCompany,
+        company: newProf.partnerCompany,
+        title: newProf.title,
+        avatar: newProf.avatar,
+      });
+      localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+    } catch {}
+
     // Send activity & notifications
     addActivity({
       title: 'New Specialist Registered',
@@ -2506,8 +2761,52 @@ export const DataProvider = ({ children }) => {
 
   const updateWorkforceMember = (id, updatedData) => {
     setWorkforce((prev) =>
-      prev.map((wf) => (wf.id === id ? { ...wf, ...updatedData } : wf))
+      prev.map((wf) => (wf.id === id ? { ...wf, ...updatedData, title: updatedData.title || updatedData.role || wf.title, role: updatedData.title || updatedData.role || wf.role } : wf))
     );
+    setPartnerWorkforce((prev) =>
+      prev.map((wf) => (wf.id === id ? { ...wf, ...updatedData, title: updatedData.title || updatedData.role || wf.title, role: updatedData.title || updatedData.role || wf.role } : wf))
+    );
+
+    // Sync localStorage
+    try {
+      const savedStr = localStorage.getItem('flexistaff_workforce');
+      if (savedStr) {
+        const list = JSON.parse(savedStr);
+        const updatedList = list.map((w) => (w.id === id ? { ...w, ...updatedData } : w));
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(updatedList));
+      }
+
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        const updatedRegList = regList.map((u) => {
+          if (u.id === id || (updatedData.email && u.email?.toLowerCase() === updatedData.email.toLowerCase())) {
+            return {
+              ...u,
+              name: updatedData.name || u.name,
+              fullName: updatedData.name || u.fullName,
+              email: updatedData.email || u.email,
+              password: updatedData.password || u.password,
+              phone: updatedData.phone || u.phone,
+            };
+          }
+          return u;
+        });
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedRegList));
+      }
+    } catch {}
+
+    setWorkforceUserProfile((prev) => {
+      if (prev && (prev.id === id || (updatedData.email && prev.email?.toLowerCase() === updatedData.email.toLowerCase()))) {
+        return {
+          ...prev,
+          ...updatedData,
+          title: updatedData.title || updatedData.role || prev.title,
+          role: updatedData.title || updatedData.role || prev.role,
+        };
+      }
+      return prev;
+    });
   };
 
   const deleteWorkforceMember = (id) => {

@@ -91,13 +91,14 @@ const DashboardRedirect = () => {
   }
 
   const currentRole = (role || user?.role || '').toLowerCase();
+  const uInfo = ((user?.name || '') + ' ' + (user?.companyName || '') + ' ' + (user?.email || '')).toLowerCase();
 
-  if (currentRole.includes('client')) return <Navigate to="/client/dashboard" replace />;
+  if (currentRole.includes('partner') || uInfo.includes('infosys')) return <Navigate to="/partner/dashboard" replace />;
   if (currentRole.includes('manager')) return <Navigate to="/manager/dashboard" replace />;
-  if (currentRole.includes('partner')) return <Navigate to="/partner/dashboard" replace />;
   if (currentRole.includes('workforce') || currentRole.includes('freelancer') || currentRole.includes('professional')) {
     return <Navigate to="/workforce/dashboard" replace />;
   }
+  if (currentRole.includes('client')) return <Navigate to="/client/dashboard" replace />;
 
   // Admin Role Smart Redirects
   const path = location.pathname;

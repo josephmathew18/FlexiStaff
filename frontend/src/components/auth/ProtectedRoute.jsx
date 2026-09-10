@@ -13,14 +13,19 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
 
   // Normalize role matching
   const currentRole = role || user.role;
+  const isInfosys =
+    (user?.name || '').toLowerCase().includes('infosys') ||
+    (user?.companyName || '').toLowerCase().includes('infosys') ||
+    (user?.email || '').toLowerCase().includes('infosys');
+
   const isAuthorized =
     allowedRoles.length === 0 ||
     allowedRoles.some(
       (r) =>
         r.toLowerCase() === (currentRole || '').toLowerCase() ||
         (r === 'Admin' && currentRole?.toLowerCase() === 'admin') ||
-        (r === 'Client' && currentRole?.toLowerCase().includes('client')) ||
-        (r === 'Partner Company' && currentRole?.toLowerCase().includes('partner')) ||
+        (r === 'Partner Company' && (currentRole?.toLowerCase().includes('partner') || isInfosys)) ||
+        (r === 'Client' && currentRole?.toLowerCase().includes('client') && !isInfosys) ||
         (r === 'Manager' && currentRole?.toLowerCase().includes('manager')) ||
         (r === 'Workforce' && (currentRole?.toLowerCase().includes('workforce') || currentRole?.toLowerCase().includes('professional') || currentRole?.toLowerCase().includes('freelancer') || currentRole?.toLowerCase().includes('talent')))
     );
@@ -29,9 +34,9 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
     // Determine proper redirect for user's actual role
     let correctPath = '/dashboard';
     if (currentRole?.toLowerCase().includes('admin')) correctPath = '/admin/dashboard';
+    else if (currentRole?.toLowerCase().includes('partner') || isInfosys) correctPath = '/partner/dashboard';
     else if (currentRole?.toLowerCase().includes('client')) correctPath = '/client/dashboard';
     else if (currentRole?.toLowerCase().includes('manager')) correctPath = '/manager/dashboard';
-    else if (currentRole?.toLowerCase().includes('partner')) correctPath = '/partner/dashboard';
     else if (currentRole?.toLowerCase().includes('workforce') || currentRole?.toLowerCase().includes('professional') || currentRole?.toLowerCase().includes('freelancer')) correctPath = '/workforce/dashboard';
 
     return (

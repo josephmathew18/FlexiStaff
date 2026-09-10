@@ -16,40 +16,40 @@ import {
   Upload,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 
 export const ManagerProfile = () => {
   const { managerProfile, updateManagerProfile } = useData();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: managerProfile?.name || 'Assigned Manager',
-    email: managerProfile?.email || '',
-    phone: managerProfile?.phone || '+91 98765 43210',
-    jobTitle: managerProfile?.jobTitle || managerProfile?.role || 'HR Manager',
-    department: managerProfile?.department || 'Enterprise Talent Matching',
-    location: managerProfile?.location || 'Bengaluru, India',
-    bio:
-      managerProfile?.bio ||
-      'Oversees technical resource allocation, skill matching, and sprint milestone execution across enterprise partner projects.',
-    avatar: managerProfile?.avatar || '',
+    name: managerProfile?.name || user?.name || '',
+    email: managerProfile?.email || user?.email || '',
+    phone: managerProfile?.phone || user?.phone || '',
+    jobTitle: managerProfile?.jobTitle || managerProfile?.role || user?.jobTitle || 'Manager',
+    department: managerProfile?.department || user?.department || 'Operations',
+    location: managerProfile?.location || managerProfile?.address || user?.location || user?.address || '',
+    bio: managerProfile?.bio || user?.bio || '',
+    avatar: managerProfile?.avatar || user?.avatar || '',
   });
 
   React.useEffect(() => {
-    if (managerProfile) {
+    if (managerProfile || user) {
       setFormData({
-        name: managerProfile.name || 'Assigned Manager',
-        email: managerProfile.email || '',
-        phone: managerProfile.phone || '+91 98765 43210',
-        jobTitle: managerProfile.jobTitle || managerProfile.role || 'HR Manager',
-        department: managerProfile.department || 'Enterprise Talent Matching',
-        location: managerProfile.location || 'Bengaluru, India',
-        bio: managerProfile.bio || 'Oversees technical resource allocation, skill matching, and sprint milestone execution across enterprise partner projects.',
-        avatar: managerProfile.avatar || '',
+        name: managerProfile?.name || user?.name || '',
+        email: managerProfile?.email || user?.email || '',
+        phone: managerProfile?.phone || user?.phone || '',
+        jobTitle: managerProfile?.jobTitle || managerProfile?.role || user?.jobTitle || 'Manager',
+        department: managerProfile?.department || user?.department || 'Operations',
+        location: managerProfile?.location || managerProfile?.address || user?.location || user?.address || '',
+        bio: managerProfile?.bio || user?.bio || '',
+        avatar: managerProfile?.avatar || user?.avatar || '',
       });
     }
-  }, [managerProfile]);
+  }, [managerProfile, user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -143,7 +143,7 @@ export const ManagerProfile = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                HR Manager Profile
+                Manager Profile
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Manage operational credentials, assigned department, authentication security, and matching alerts.
@@ -155,7 +155,7 @@ export const ManagerProfile = () => {
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 flex items-center gap-1.5">
             <ShieldCheck size={14} className="text-blue-600 dark:text-blue-400" />
-            <span>Authorized HR Manager</span>
+            <span>Authorized Manager</span>
           </span>
         </div>
       </div>
@@ -168,7 +168,7 @@ export const ManagerProfile = () => {
         >
           <UserAvatar
             src={formData.avatar}
-            name={formData.name}
+            name={formData.name || 'Manager'}
             size="xl"
             className="w-24 h-24 rounded-3xl ring-4 ring-blue-50 dark:ring-white/10 shadow-md"
           />
@@ -179,28 +179,28 @@ export const ManagerProfile = () => {
 
         <div className="text-center sm:text-left flex-1 space-y-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">{formData.name}</h2>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white">{formData.name || 'Manager'}</h2>
             <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-xs font-bold self-center sm:self-auto border border-blue-200 dark:border-blue-800/40">
-              {formData.jobTitle}
+              {formData.jobTitle || 'Manager'}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
-            {formData.department} • FlexiStaff Global Operations
+            {formData.department ? `${formData.department} • ` : ''}FlexiStaff Operations
           </p>
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">
             <span className="flex items-center gap-1">
               <Mail size={12} className="text-slate-400 dark:text-slate-500" />
-              {formData.email}
+              {formData.email || 'N/A'}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <Phone size={12} className="text-slate-400 dark:text-slate-500" />
-              {formData.phone}
+              {formData.phone || 'N/A'}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <MapPin size={12} className="text-slate-400 dark:text-slate-500" />
-              {formData.location}
+              {formData.location || 'N/A'}
             </span>
           </div>
         </div>

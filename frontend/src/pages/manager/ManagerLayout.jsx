@@ -148,8 +148,8 @@ export const ManagerLayout = () => {
             className="flex items-center gap-2.5 group"
           >
             <UserAvatar
-              src={managerProfile?.avatar}
-              name={managerProfile?.name || user?.name || 'HR Manager'}
+              src={managerProfile?.avatar || user?.avatar}
+              name={managerProfile?.name || user?.name || 'Manager'}
               size="sm"
               className="h-8 w-8 rounded-lg"
             />
@@ -157,11 +157,11 @@ export const ManagerLayout = () => {
               <p className={`text-xs font-bold group-hover:text-blue-700 truncate ${
                 effectiveTheme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                {managerProfile?.name || user?.name || 'HR Manager'}
+                {managerProfile?.name || user?.name || 'Manager'}
               </p>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700">
                 <Briefcase size={10} className="text-blue-600" />
-                <span>HR Manager</span>
+                <span>{managerProfile?.jobTitle || managerProfile?.role || user?.jobTitle || 'Manager'}</span>
               </span>
             </div>
           </Link>
@@ -378,13 +378,13 @@ export const ManagerLayout = () => {
                 }`}
               >
                 <UserAvatar
-                  src={managerProfile?.avatar}
-                  name={managerProfile?.name || user?.name || 'HR Manager'}
+                  src={managerProfile?.avatar || user?.avatar}
+                  name={managerProfile?.name || user?.name || 'Manager'}
                   size="xs"
                   className="h-7 w-7 rounded-lg"
                 />
                 <div className="hidden lg:block text-left">
-                  <p className="font-bold text-xs leading-none">{managerProfile?.name || user?.name || 'HR Manager'}</p>
+                  <p className="font-bold text-xs leading-none">{managerProfile?.name || user?.name || 'Manager'}</p>
                   <p className="text-[10px] text-[#737686] dark:text-slate-400 leading-tight mt-0.5">Manager Portal</p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
@@ -399,10 +399,10 @@ export const ManagerLayout = () => {
                     className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-2 shadow-xl shadow-slate-900/10 text-slate-900 dark:text-white"
                   >
                     <div className="p-3 bg-slate-50 dark:bg-[#1c1a36] rounded-xl mb-1.5">
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">{managerProfile?.name || user?.name || 'HR Manager'}</p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{managerProfile?.name || user?.name || 'Manager'}</p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{managerProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
-                        {managerProfile?.department || 'Enterprise Workforce Operations'}
+                        {managerProfile?.department || 'FlexiStaff Operations'}
                       </span>
                     </div>
 

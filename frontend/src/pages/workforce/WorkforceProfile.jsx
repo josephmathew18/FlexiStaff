@@ -27,8 +27,15 @@ export const WorkforceProfile = () => {
   const { workforceUserProfile, updateWorkforceUserProfile } = useData() || {};
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompany) ||
+    Boolean(workforceUserProfile?.partnerName) ||
+    Boolean(workforceUserProfile?.partner) ||
+    (Boolean(workforceUserProfile?.companyName) && workforceUserProfile?.companyName !== 'Enterprise Client') ||
+    workforceUserProfile?.roleType === 'Professional' ||
+    workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
-    Boolean(workforceUserProfile?.partnerCompany);
+    workforceUserProfile?.employmentType?.includes('Partner') ||
+    workforceUserProfile?.employmentType?.includes('Company');
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [formData, setFormData] = useState({

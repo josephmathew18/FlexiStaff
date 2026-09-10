@@ -87,15 +87,16 @@ export const ManagerMatching = () => {
   // Current active project
   const currentProject = useMemo(() => {
     return (
-      availableProjects.find((p) => p.id === selectedProjectId) || {
-        id: selectedProjectId || 'PRJ-101',
-        name: 'Enterprise Project',
-        title: 'Enterprise Project',
-        client: 'Enterprise Client',
-        duration: '6 Months',
-        workforceRequired: 3,
+      availableProjects.find((p) => p.id === selectedProjectId) ||
+      availableProjects[0] || {
+        id: selectedProjectId || 'PRJ-NEW',
+        name: 'Project Workspace',
+        title: 'Project Workspace',
+        client: 'Client Organization',
+        duration: 'FlexiStaff Sprint',
+        workforceRequired: 1,
         workforceAssigned: 0,
-        requiredSkills: ['React.js', 'Node.js', 'PostgreSQL'],
+        requiredSkills: ['Full Stack', 'Software Engineering'],
         status: 'Approved',
       }
     );

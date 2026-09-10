@@ -24,6 +24,9 @@ import {
   UserCheck,
   Check,
   AlertCircle,
+  KeyRound,
+  Eye,
+  EyeOff,
   Building2,
   Trash2,
 } from 'lucide-react';
@@ -62,18 +65,18 @@ export const PartnerAddWorkforce = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    pseudonym: '',
     email: '',
+    password: '',
     phone: '',
-    location: 'Remote (US/EU)',
+    location: '',
     roleCategory: 'Frontend Development',
     title: '',
     experienceLevel: 'Senior (5-8 yrs)',
     experience: '5+ years',
-    hourlyRate: '95',
+    hourlyRate: '',
     preferredWorkType: 'Remote',
     availability: 'Available',
-    weeklyHours: '40 hrs/week',
+    weeklyHours: '',
     bio: '',
     github: '',
     linkedin: '',
@@ -83,6 +86,8 @@ export const PartnerAddWorkforce = () => {
     isNdaSigned: true,
     avatar: '',
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const [skills, setSkills] = useState([]);
   const [newSkillInput, setNewSkillInput] = useState('');
@@ -149,8 +154,10 @@ export const PartnerAddWorkforce = () => {
     try {
       const payload = {
         name: formData.name.trim(),
-        pseudonym: formData.pseudonym.trim() || formData.name.trim(),
+        pseudonym: formData.name.trim(),
         email: formData.email.trim() || `${formData.name.trim().toLowerCase().replace(/\s+/g, '.')}@apexdigital.com`,
+        password: formData.password.trim() || 'Workforce@123',
+        tempPassword: formData.password.trim() || 'Workforce@123',
         phone: formData.phone.trim() || '+91 98765 43210',
         location: formData.location,
         role: formData.title.trim(),
@@ -346,31 +353,34 @@ export const PartnerAddWorkforce = () => {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: val,
-                      pseudonym: prev.pseudonym ? prev.pseudonym : val,
-                    }));
-                  }}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter full name"
                   className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
                 />
               </div>
 
-              {/* Display / Pseudonym */}
+              {/* Workforce Login Password */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Display Code / Masked Name
+                  Employee Login Password
                 </label>
-                <input
-                  type="text"
-                  value={formData.pseudonym}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, pseudonym: e.target.value }))}
-                  placeholder="Enter display title / name"
-                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
-                />
+                <div className="relative">
+                  <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                    placeholder="Enter password for workforce login"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-9 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
 
               {/* Work Email */}
@@ -641,82 +651,10 @@ export const PartnerAddWorkforce = () => {
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* SECTION 5: CERTIFICATIONS & BIO */}
-          {/* ========================================================================= */}
-          <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-white/10 pb-3.5">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-400 flex items-center justify-center font-bold text-sm">
-                5
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Bio, Certifications & Links</h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Summary, credentials, and verification links</p>
-              </div>
-            </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Certifications & Accreditations
-                </label>
-                <div className="relative">
-                  <Award size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={formData.certifications}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, certifications: e.target.value }))}
-                    placeholder="Enter AWS, GCP, Azure, or other certifications"
-                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    GitHub Profile URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.github}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, github: e.target.value }))}
-                    placeholder="https://github.com/username"
-                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    LinkedIn / Portfolio URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.linkedin}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, linkedin: e.target.value }))}
-                    placeholder="https://linkedin.com/in/username"
-                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Professional Bio / Executive Summary
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.bio}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-                  placeholder="Dedicated engineering specialist with deep expertise in scalable architecture and high-performance microservices..."
-                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
-                />
-              </div>
-            </div>
-          </div>
 
           {/* ========================================================================= */}
-          {/* SECTION 6: ENTERPRISE COMPLIANCE & VERIFICATION */}
+          {/* SECTION 5: ENTERPRISE COMPLIANCE & VERIFICATION */}
           {/* ========================================================================= */}
           <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs space-y-3.5">
             <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-white/10 pb-3">

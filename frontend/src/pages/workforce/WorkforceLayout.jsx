@@ -62,7 +62,13 @@ export const WorkforceLayout = () => {
   };
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompany) ||
+    Boolean(workforceUserProfile?.partnerName) ||
+    Boolean(workforceUserProfile?.partner) ||
+    (Boolean(workforceUserProfile?.companyName) && workforceUserProfile?.companyName !== 'Enterprise Client') ||
     workforceUserProfile?.roleType === 'Professional' ||
+    workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
+    workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
     workforceUserProfile?.employmentType?.includes('Company');
 

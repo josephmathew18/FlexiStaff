@@ -165,16 +165,24 @@ export const AuthProvider = ({ children }) => {
       const email = (obj.email || '').toLowerCase().trim();
       const loginEmail = (obj.loginEmail || '').toLowerCase().trim();
       const name = (obj.name || obj.fullName || obj.contactPerson || '').toLowerCase().trim();
+      const companyName = (obj.companyName || obj.company || '').toLowerCase().trim();
       const empId = (obj.employeeId || '').toLowerCase().trim();
       const firstWord = name.split(' ')[0];
+      const firstWordCompany = companyName.split(' ')[0];
 
       return (
         (email && email === trimmedEmail) ||
         (loginEmail && loginEmail === trimmedEmail) ||
         (name && name === trimmedEmail) ||
+        (companyName && companyName === trimmedEmail) ||
         (empId && empId === trimmedEmail) ||
         (firstWord && firstWord === trimmedEmail) ||
-        (email && email.split('@')[0] === trimmedEmail)
+        (firstWordCompany && firstWordCompany === trimmedEmail) ||
+        (email && email.split('@')[0] === trimmedEmail) ||
+        (name && name.includes(trimmedEmail)) ||
+        (companyName && companyName.includes(trimmedEmail)) ||
+        (trimmedEmail && name && trimmedEmail.includes(name)) ||
+        (trimmedEmail && companyName && trimmedEmail.includes(companyName))
       );
     };
 
@@ -202,10 +210,14 @@ export const AuthProvider = ({ children }) => {
     let matchedPartnerOrg = null;
     try {
       const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+      let currentPartnersList = [];
       if (savedPartnersStr) {
-        const partnersList = JSON.parse(savedPartnersStr);
-        matchedPartnerOrg = partnersList.find(matchesInput);
+        try { currentPartnersList = JSON.parse(savedPartnersStr); } catch {}
       }
+      if (!currentPartnersList || currentPartnersList.length === 0) {
+        currentPartnersList = initialPartners;
+      }
+      matchedPartnerOrg = (currentPartnersList || []).find(matchesInput);
     } catch {}
 
     let matchedClientOrg = null;
@@ -226,14 +238,28 @@ export const AuthProvider = ({ children }) => {
       }
     } catch {}
 
+    const isWorkforceUser =
+      Boolean(matchedWorkforceOrg) ||
+      (matchedUser && (matchedUser.role === 'Workforce' || matchedUser.role === 'Freelancer' || matchedUser.role === 'ROLE_WORKFORCE' || matchedUser.role === 'ROLE_PROFESSIONAL'));
+
+    const isPartnerUser =
+      !isWorkforceUser &&
+      (Boolean(matchedPartnerOrg) ||
+      trimmedEmail.includes('partner') ||
+      (matchedUser && (
+        matchedUser.role === 'Partner Company' ||
+        matchedUser.role === 'Partner' ||
+        matchedUser.role === 'ROLE_PARTNER'
+      )));
+
     let userRole = selectedRole;
     if (!userRole) {
-      if (matchedManagerOrg || trimmedEmail.includes('manager') || (matchedUser && matchedUser.role === 'Manager')) {
-        userRole = 'Manager';
-      } else if (matchedPartnerOrg || trimmedEmail.includes('partner') || (matchedUser && (matchedUser.role === 'Partner Company' || matchedUser.role === 'Partner'))) {
-        userRole = 'Partner Company';
-      } else if (matchedWorkforceOrg || trimmedEmail.includes('workforce') || trimmedEmail.includes('freelancer') || trimmedEmail.includes('worker') || (matchedUser && matchedUser.role === 'Workforce')) {
+      if (isWorkforceUser) {
         userRole = 'Workforce';
+      } else if (isPartnerUser) {
+        userRole = 'Partner Company';
+      } else if (matchedManagerOrg || trimmedEmail.includes('manager') || (matchedUser && matchedUser.role === 'Manager')) {
+        userRole = 'Manager';
       } else if (matchedClientOrg || trimmedEmail.includes('client') || (matchedUser && matchedUser.role === 'Client')) {
         userRole = 'Client';
       } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin' || (matchedUser && matchedUser.role === 'Admin')) {
@@ -269,13 +295,30 @@ export const AuthProvider = ({ children }) => {
       matchedWorkforceOrg?.name ||
       trimmedEmail.split('@')[0];
 
-    const companyName =
+    const partnerCompany =
+      matchedWorkforceOrg?.partnerCompany ||
+      matchedWorkforceOrg?.partnerName ||
+      matchedWorkforceOrg?.partner ||
+      matchedUser?.partnerCompany ||
+      matchedUser?.partnerName ||
       matchedUser?.companyName ||
       matchedUser?.company ||
       matchedPartnerOrg?.name ||
       matchedClientOrg?.companyName ||
       matchedClientOrg?.company ||
-      (userRole === 'Client' ? 'Enterprise Client' : userRole === 'Partner Company' ? 'Partner Company' : userRole === 'Manager' ? 'Enterprise Resource Allocation' : '');
+      '';
+
+    const companyName = partnerCompany || (userRole === 'Client' ? 'Enterprise Client' : userRole === 'Partner Company' ? 'Partner Company' : userRole === 'Manager' ? 'Enterprise Resource Allocation' : '');
+
+    const roleType =
+      matchedWorkforceOrg?.roleType ||
+      matchedUser?.roleType ||
+      (partnerCompany ? 'Professional' : 'Freelancer');
+
+    const professionalType =
+      matchedWorkforceOrg?.professionalType ||
+      matchedUser?.professionalType ||
+      (partnerCompany ? 'PARTNER_EMPLOYEE' : 'FREELANCER');
 
     const resolvedEmail =
       matchedManagerOrg?.email ||
@@ -287,17 +330,37 @@ export const AuthProvider = ({ children }) => {
       trimmedEmail;
 
     const localUser = {
-      id: (userRole === 'Manager' ? matchedManagerOrg?.id : null) || matchedUser?.id || matchedPartnerOrg?.id || matchedClientOrg?.id || matchedWorkforceOrg?.id || `usr-${Date.now()}`,
+      id: matchedWorkforceOrg?.id || matchedUser?.id || matchedPartnerOrg?.id || matchedClientOrg?.id || matchedManagerOrg?.id || `usr-${Date.now()}`,
       name: displayName,
       fullName: displayName,
       email: resolvedEmail,
-      phone: matchedManagerOrg?.phone || matchedUser?.phone || matchedPartnerOrg?.phone || matchedClientOrg?.phone || matchedWorkforceOrg?.phone || '',
+      loginEmail: matchedManagerOrg?.loginEmail || matchedUser?.loginEmail || resolvedEmail,
+      phone: matchedWorkforceOrg?.phone || matchedManagerOrg?.phone || matchedUser?.phone || matchedPartnerOrg?.phone || matchedClientOrg?.phone || '',
       companyName: companyName,
       company: companyName,
+      partnerCompany: partnerCompany,
+      partnerName: partnerCompany,
+      partner: partnerCompany,
+      roleType: roleType,
+      professionalType: professionalType,
+      userType: professionalType,
       contactPerson: displayName,
       role: userRole,
       portalPath,
-      avatar: matchedManagerOrg?.avatar || matchedUser?.avatar || '',
+      avatar: matchedWorkforceOrg?.avatar || matchedManagerOrg?.avatar || matchedUser?.avatar || '',
+      location: matchedWorkforceOrg?.location || matchedManagerOrg?.location || matchedUser?.location || '',
+      address: matchedWorkforceOrg?.location || matchedManagerOrg?.address || matchedUser?.address || '',
+      department: matchedManagerOrg?.department || matchedUser?.department || '',
+      jobTitle: matchedWorkforceOrg?.title || matchedWorkforceOrg?.role || matchedManagerOrg?.jobTitle || matchedUser?.jobTitle || '',
+      title: matchedWorkforceOrg?.title || matchedWorkforceOrg?.role || matchedUser?.title || '',
+      bio: matchedWorkforceOrg?.bio || matchedManagerOrg?.bio || matchedUser?.bio || '',
+      employeeId: matchedWorkforceOrg?.id || matchedManagerOrg?.employeeId || matchedUser?.employeeId || '',
+      dob: matchedManagerOrg?.dob || matchedUser?.dob || '',
+      joinDate: matchedManagerOrg?.joinDate || matchedUser?.joinDate || '',
+      experience: matchedWorkforceOrg?.experience || matchedManagerOrg?.experience || matchedUser?.experience || '',
+      skills: matchedWorkforceOrg?.skills || matchedUser?.skills || [],
+      hourlyRate: matchedWorkforceOrg?.hourlyRate || matchedUser?.hourlyRate || '$85/hr',
+      availability: matchedWorkforceOrg?.availability || matchedUser?.availability || 'Available',
     };
 
     setUser(localUser);

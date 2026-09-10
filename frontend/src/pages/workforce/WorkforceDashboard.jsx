@@ -25,7 +25,13 @@ export const WorkforceDashboard = () => {
   const { workforceUserProfile, managerAssignments = [], updateWorkforceUserProfile } = useData() || {};
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompany) ||
+    Boolean(workforceUserProfile?.partnerName) ||
+    Boolean(workforceUserProfile?.partner) ||
+    (Boolean(workforceUserProfile?.companyName) && workforceUserProfile?.companyName !== 'Enterprise Client') ||
     workforceUserProfile?.roleType === 'Professional' ||
+    workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
+    workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
     workforceUserProfile?.employmentType?.includes('Company');
 
@@ -79,89 +85,6 @@ export const WorkforceDashboard = () => {
                   : 'View My Assignments'}
               </span>
             </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Employment Classification Banner */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md ${
-                isCompanyEmployee
-                  ? 'bg-gradient-to-br from-[#2563eb] to-[#4f46e5]'
-                  : 'bg-gradient-to-br from-[#059669] to-[#10b981]'
-              }`}
-            >
-              {isCompanyEmployee ? <Building2 size={24} /> : <UserCheck size={24} />}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Employment Status
-                </span>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    isCompanyEmployee
-                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  }`}
-                >
-                  {isCompanyEmployee ? 'Company Employee' : 'Independent Freelancer'}
-                </span>
-              </div>
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                {isCompanyEmployee
-                  ? `Employed by ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
-                  : 'Independent Technical Freelancer (Direct Contractor)'}
-              </h2>
-            </div>
-          </div>
-        </div>
-
-        {/* Breakdown Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Engagement Model</span>
-            <p className="font-extrabold text-slate-900">
-              {isCompanyEmployee
-                ? 'Partner Company Representation'
-                : 'Direct FlexiStaff Contract'}
-            </p>
-            <p className="text-[11px] text-slate-500">
-              {isCompanyEmployee
-                ? 'Represented by verified vendor partner organization'
-                : 'Independently contracted and directly matched'}
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Payroll & Contract Terms</span>
-            <p className="font-extrabold text-slate-900">
-              {isCompanyEmployee
-                ? 'Managed via Partner Payroll'
-                : 'Direct Milestone & Hourly Invoicing'}
-            </p>
-            <p className="text-[11px] text-slate-500">
-              {isCompanyEmployee
-                ? `Contract governed by ${workforceUserProfile?.partnerCompany || 'Partner'}`
-                : 'Standard independent freelancer agreement'}
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Bench & Availability</span>
-            <p className="font-extrabold text-slate-900">
-              {isCompanyEmployee
-                ? 'Synchronized with Partner Roster'
-                : 'Self-Managed Bench Availability'}
-            </p>
-            <p className="text-[11px] text-slate-500">
-              {isCompanyEmployee
-                ? 'Availability status coordinated with Partner Manager'
-                : 'You directly toggle live availability for project matching'}
-            </p>
           </div>
         </div>
       </div>

@@ -58,14 +58,16 @@ export const ManagerProjectDetails = () => {
   }, [id, projects, partnerProjects]);
 
   const requirementsList = project.requirements || [
-    { role: 'Frontend React Developer', required: 2, assigned: 1, skills: 'React.js, JavaScript, HTML, CSS' },
-    { role: 'Java Backend Architect', required: 2, assigned: 1, skills: 'Java, Spring Boot, MySQL' },
-    { role: 'UI/UX Designer', required: 1, assigned: 1, skills: 'Figma, UI Design' },
-    { role: 'QA Automation Engineer', required: 1, assigned: 0, skills: 'Testing, Selenium' },
+    {
+      role: project.category || 'Engineering Specialist',
+      required: project.workforceRequired || 1,
+      assigned: project.workforceAssigned || 0,
+      skills: Array.isArray(project.skills) ? project.skills.join(', ') : (project.techStack || 'Technical Matching'),
+    },
   ];
 
-  const totalRequired = requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || project.workforceRequired || 6;
-  const totalAssigned = requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || project.workforceAssigned || 3;
+  const totalRequired = requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || project.workforceRequired || 1;
+  const totalAssigned = requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || project.workforceAssigned || 0;
   const totalRemaining = Math.max(0, totalRequired - totalAssigned);
 
   return (

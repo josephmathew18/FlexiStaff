@@ -320,9 +320,9 @@ export const PartnerProjectDetails = () => {
                 className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-blue-300 hover:shadow-xs transition-all space-y-3"
               >
                 <div className="flex items-center gap-3">
-                  <img src={emp.avatar} alt={emp.pseudonym} className="w-11 h-11 rounded-xl object-cover ring-1 ring-slate-200" />
+                  <img src={emp.avatar} alt={emp.name || emp.pseudonym} className="w-11 h-11 rounded-xl object-cover ring-1 ring-slate-200" />
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">{emp.pseudonym}</h4>
+                    <h4 className="text-xs font-bold text-slate-900">{emp.name || emp.pseudonym}</h4>
                     <p className="text-[11px] font-semibold text-blue-600">{emp.role}</p>
                     <span className="text-[10px] text-slate-400">{emp.workingStatus} • {emp.availability}</span>
                   </div>

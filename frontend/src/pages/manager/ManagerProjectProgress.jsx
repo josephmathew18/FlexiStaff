@@ -45,9 +45,9 @@ export const ManagerProjectProgress = () => {
       {/* Progress Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {allProjects.map((prj) => {
-          const currentProgress = prj.progress || 70;
-          const assigned = prj.workforceAssigned || 3;
-          const required = prj.workforceRequired || 6;
+          const currentProgress = prj.progress || 0;
+          const assigned = prj.workforceAssigned || 0;
+          const required = prj.workforceRequired || (prj.requirements ? prj.requirements.length : 1);
 
           return (
             <div

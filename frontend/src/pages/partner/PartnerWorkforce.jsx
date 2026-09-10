@@ -1,6 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Pencil,
+  KeyRound,
+  Mail,
+  Phone,
+  MapPin,
+  Save,
   Users,
   Search,
   Filter,
@@ -100,6 +106,7 @@ export const PartnerWorkforce = () => {
     partnerWorkforceRequests = [],
     partnerProjects = [],
     updatePartnerProfessionalAvailability,
+    updateWorkforceMember,
     respondPartnerWorkforceRequest,
     rejectPartnerWorkforceRequest,
   } = useData() || {};
@@ -116,6 +123,74 @@ export const PartnerWorkforce = () => {
 
   // Selected Professional Details Modal
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  // Edit Professional Modal State
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    title: '',
+    email: '',
+    password: '',
+    phone: '',
+    hourlyRate: '',
+    location: '',
+    availability: 'Available',
+    skills: '',
+    bio: '',
+  });
+
+  const handleStartEdit = (emp) => {
+    setEditingEmployee(emp);
+    setEditForm({
+      name: emp.name || emp.pseudonym || '',
+      title: emp.title || emp.role || '',
+      email: emp.email || '',
+      password: emp.password || emp.tempPassword || 'Workforce@123',
+      phone: emp.phone || '',
+      hourlyRate: emp.hourlyRate || '$85/hr',
+      location: emp.location || 'Remote',
+      availability: emp.availability || 'Available',
+      skills: Array.isArray(emp.skills) ? emp.skills.join(', ') : String(emp.skills || ''),
+      bio: emp.bio || '',
+    });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingEmployee) return;
+
+    if (!editForm.name.trim()) {
+      toast.error('Please enter the employee name.');
+      return;
+    }
+
+    const skillsArray = editForm.skills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const updatedData = {
+      name: editForm.name.trim(),
+      pseudonym: editForm.name.trim(),
+      title: editForm.title.trim() || 'Software Specialist',
+      role: editForm.title.trim() || 'Software Specialist',
+      email: editForm.email.trim(),
+      password: editForm.password.trim() || 'Workforce@123',
+      tempPassword: editForm.password.trim() || 'Workforce@123',
+      phone: editForm.phone.trim(),
+      hourlyRate: editForm.hourlyRate.trim().startsWith('$') ? editForm.hourlyRate.trim() : `$${editForm.hourlyRate.trim()}`,
+      location: editForm.location.trim() || 'Remote',
+      availability: editForm.availability,
+      skills: skillsArray.length > 0 ? skillsArray : ['React.js', 'Node.js'],
+      bio: editForm.bio.trim(),
+    };
+
+    if (typeof updateWorkforceMember === 'function') {
+      updateWorkforceMember(editingEmployee.id, updatedData);
+    }
+    toast.success(`Professional "${editForm.name}" updated successfully!`);
+    setEditingEmployee(null);
+  };
 
   // Workforce Requests Filters & Fulfillment Modal
   const [requestSearch, setRequestSearch] = useState('');
@@ -344,13 +419,13 @@ export const PartnerWorkforce = () => {
                   <div className="flex items-start gap-3">
                     <img
                       src={emp.avatar}
-                      alt={emp.pseudonym || emp.name}
+                      alt={emp.name || emp.pseudonym}
                       className="w-12 h-12 rounded-2xl object-cover ring-2 ring-slate-100 shadow-xs shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <h3 className="text-sm font-bold text-slate-900 truncate">
-                          {emp.pseudonym || emp.name}
+                          {emp.name || emp.pseudonym}
                         </h3>
                         <span className="text-[10px] font-mono text-slate-400 uppercase">{emp.id}</span>
                       </div>
@@ -422,16 +497,26 @@ export const PartnerWorkforce = () => {
                 </div>
 
                 {/* Footer Action */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                   <span className="text-[11px] font-bold text-slate-900">{emp.hourlyRate || '$85/hr'}</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEmployee(emp)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#004ac6] hover:bg-blue-100 text-xs font-bold transition-colors"
-                  >
-                    <Eye size={13} />
-                    <span>View Profile</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(emp)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/20 text-xs font-bold transition-colors"
+                    >
+                      <Pencil size={13} />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEmployee(emp)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-bold transition-colors"
+                    >
+                      <Eye size={13} />
+                      <span>View Profile</span>
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -612,11 +697,11 @@ export const PartnerWorkforce = () => {
                 <div className="flex items-center gap-3.5">
                   <img
                     src={selectedEmployee.avatar}
-                    alt={selectedEmployee.pseudonym || selectedEmployee.name}
+                    alt={selectedEmployee.name || selectedEmployee.pseudonym}
                     className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm"
                   />
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">{selectedEmployee.pseudonym || selectedEmployee.name}</h3>
+                    <h3 className="text-base font-bold text-slate-900">{selectedEmployee.name || selectedEmployee.pseudonym}</h3>
                     <p className="text-xs font-semibold text-blue-600">{selectedEmployee.role}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <AvailabilityBadge availability={selectedEmployee.availability} />
@@ -893,6 +978,188 @@ export const PartnerWorkforce = () => {
             </motion.div>
           </div>
         )}
+        {/* ========================================================================= */}
+        {/* EDIT PROFESSIONAL MODAL */}
+        {/* ========================================================================= */}
+        {editingEmployee && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingEmployee(null)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-8"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 p-6 bg-slate-50/70 dark:bg-[#1c1a36]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-400 flex items-center justify-center font-bold">
+                    <Pencil size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Professional Details</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Update employee profile, contact info, and login credentials</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingEmployee(null)}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/60 dark:hover:bg-white/10 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Primary Job Title */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Job Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Work Email */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Work Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Login Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Login Password</label>
+                    <input
+                      type="text"
+                      value={editForm.password}
+                      onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                      placeholder="Workforce@123"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Direct Phone</label>
+                    <input
+                      type="text"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Hourly Rate */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Hourly Billing Rate</label>
+                    <input
+                      type="text"
+                      value={editForm.hourlyRate}
+                      onChange={(e) => setEditForm({ ...editForm, hourlyRate: e.target.value })}
+                      placeholder="$85/hr"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                      placeholder="Bengaluru, India"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Availability */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Availability Status</label>
+                    <select
+                      value={editForm.availability}
+                      onChange={(e) => setEditForm({ ...editForm, availability: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Partially Available">Partially Available</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Unavailable">Unavailable</option>
+                    </select>
+                  </div>
+
+                  {/* Skills */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technical Skills (Comma separated)</label>
+                    <input
+                      type="text"
+                      value={editForm.skills}
+                      onChange={(e) => setEditForm({ ...editForm, skills: e.target.value })}
+                      placeholder="React.js, Node.js, Python, PostgreSQL"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+
+                  {/* Bio */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Professional Bio</label>
+                    <textarea
+                      rows={3}
+                      value={editForm.bio}
+                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingEmployee(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#1c1a36] text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+                  >
+                    <Save size={15} />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
       </AnimatePresence>
     </div>
   );

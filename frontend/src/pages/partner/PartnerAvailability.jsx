@@ -225,9 +225,9 @@ export const PartnerAvailability = () => {
                 <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      <img src={emp.avatar} alt={emp.pseudonym} className="w-8 h-8 rounded-xl object-cover ring-1 ring-slate-200" />
+                      <img src={emp.avatar} alt={emp.name || emp.pseudonym} className="w-8 h-8 rounded-xl object-cover ring-1 ring-slate-200" />
                       <div>
-                        <p className="font-bold text-slate-900">{emp.pseudonym}</p>
+                        <p className="font-bold text-slate-900">{emp.name || emp.pseudonym}</p>
                         <p className="text-[10px] text-slate-400 font-mono">ID: {emp.id}</p>
                       </div>
                     </div>
