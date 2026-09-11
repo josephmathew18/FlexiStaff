@@ -42,13 +42,16 @@ export const AdminAssignmentApprovals = () => {
   const [rejectReason, setRejectReason] = useState('');
 
   const pendingCount = (managerAssignments || []).filter(
-    (a) => a && a.status === 'Pending Assignment Approval'
+    (a) => a && (a.status === 'Pending Assignment Approval' || a.status === 'Pending Admin Approval')
   ).length;
 
   const filteredAssignments = useMemo(() => {
     return (managerAssignments || []).filter((a) => {
       if (!a) return false;
-      if (statusFilter !== 'all' && a.status !== statusFilter) return false;
+      if (statusFilter !== 'all') {
+        const matchPending = statusFilter === 'Pending Assignment Approval' && (a.status === 'Pending Assignment Approval' || a.status === 'Pending Admin Approval');
+        if (!matchPending && a.status !== statusFilter) return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = (a.professionalName || '').toLowerCase().includes(q);
@@ -63,7 +66,7 @@ export const AdminAssignmentApprovals = () => {
 
   const handleApprove = (asg) => {
     approveWorkforceAssignment(asg.id);
-    toast.success(`Approved assignment for ${asg.professionalName}. Sent to candidate for response.`);
+    toast.success(`Approved assignment for ${asg.professionalName}. Project is now In Progress and started!`);
     setSelectedAsg(null);
   };
 
@@ -83,6 +86,7 @@ export const AdminAssignmentApprovals = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Pending Assignment Approval':
+      case 'Pending Admin Approval':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
             <Clock size={12} className="text-amber-600 dark:text-amber-400" />
@@ -299,7 +303,7 @@ export const AdminAssignmentApprovals = () => {
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
-                      {asg.status === 'Pending Assignment Approval' ? (
+                      {asg.status === 'Pending Assignment Approval' || asg.status === 'Pending Admin Approval' ? (
                         <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"

@@ -23,6 +23,14 @@ import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 
+const formatCapitalizedName = (str) => {
+  if (!str) return '';
+  return String(str)
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export const WorkforceProfile = () => {
   const { workforceUserProfile, updateWorkforceUserProfile } = useData() || {};
 
@@ -39,7 +47,7 @@ export const WorkforceProfile = () => {
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [formData, setFormData] = useState({
-    name: workforceUserProfile?.name || 'Technical Specialist',
+    name: formatCapitalizedName(workforceUserProfile?.name || 'Technical Specialist'),
     email: workforceUserProfile?.email || '',
     phone: workforceUserProfile?.phone || '+91 98765 00000',
     title: workforceUserProfile?.title || workforceUserProfile?.role || 'Senior Full-Stack Engineer',
@@ -59,7 +67,7 @@ export const WorkforceProfile = () => {
   React.useEffect(() => {
     if (workforceUserProfile) {
       setFormData({
-        name: workforceUserProfile.name || 'Technical Specialist',
+        name: formatCapitalizedName(workforceUserProfile.name || 'Technical Specialist'),
         email: workforceUserProfile.email || '',
         phone: workforceUserProfile.phone || '+91 98765 00000',
         title: workforceUserProfile.title || workforceUserProfile.role || 'Senior Full-Stack Engineer',
@@ -224,18 +232,7 @@ export const WorkforceProfile = () => {
 
         <div className="text-center sm:text-left flex-1 space-y-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">{formData.name}</h2>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-bold self-center sm:self-auto ${
-                isCompanyEmployee
-                  ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40'
-                  : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40'
-              }`}
-            >
-              {isCompanyEmployee
-                ? `Partner: ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
-                : 'Direct Contractor'}
-            </span>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white capitalize">{formatCapitalizedName(formData.name)}</h2>
           </div>
           <p className="text-xs text-purple-700 dark:text-purple-400 font-extrabold">{formData.title}</p>
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">

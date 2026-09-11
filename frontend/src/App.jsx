@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -79,7 +79,6 @@ import WorkforceSupport from './pages/workforce/WorkforceSupport';
 // Authentication & Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
-import { useLocation } from 'react-router-dom';
 
 // Smart Role-Based Dashboard Redirect
 const DashboardRedirect = () => {
@@ -112,6 +111,23 @@ const DashboardRedirect = () => {
   return <Navigate to="/admin/dashboard" replace />;
 };
 
+// Smart Role-Based Project Redirect
+const ProjectRedirect = () => {
+  const { id } = useParams();
+  const { user, role, isAuthenticated } = useAuth() || {};
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const currentRole = (role || user?.role || '').toLowerCase();
+  if (currentRole.includes('client')) return <Navigate to={`/client/projects/${id}`} replace />;
+  if (currentRole.includes('partner')) return <Navigate to={`/partner/projects/${id}`} replace />;
+  if (currentRole.includes('manager')) return <Navigate to={`/manager/projects/${id}`} replace />;
+
+  return <Navigate to={`/admin/projects/${id}`} replace />;
+};
+
 function App() {
   return (
     <ThemeProvider>
@@ -136,6 +152,7 @@ function App() {
             <Route path="/managers" element={<DashboardRedirect />} />
             <Route path="/workforce" element={<DashboardRedirect />} />
             <Route path="/projects" element={<DashboardRedirect />} />
+            <Route path="/projects/:id" element={<ProjectRedirect />} />
 
             {/* ========================================================================= */}
             {/* DEDICATED ADMIN PORTAL SUITE (/admin/*) */}

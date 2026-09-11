@@ -24,7 +24,20 @@ export const ClientProjectDetails = () => {
   const navigate = useNavigate();
   const { projects = [], toggleMilestone } = useData() || {};
 
-  const project = projects.find((p) => p.id === projectId) || projects[0];
+  const decodedId = decodeURIComponent(projectId || '').trim();
+  const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+
+  const project = (projects || []).find((p) => {
+    if (!p || !p.id) return false;
+    const pidLower = String(p.id).toLowerCase().trim();
+    const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+    return (
+      pidLower === decodedId.toLowerCase() ||
+      pidNormalized === normalizedId ||
+      pidLower === projectId?.toLowerCase() ||
+      pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+    );
+  }) || (projects || [])[0];
 
   if (!project) {
     return (

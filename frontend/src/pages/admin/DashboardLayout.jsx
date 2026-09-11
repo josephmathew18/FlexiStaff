@@ -388,15 +388,11 @@ const InlineSidebar = ({
       label: 'Workforce',
       path: '/admin/workforce',
       icon: Briefcase,
-      badge: availableWorkforceCount > 0 ? `${availableWorkforceCount} Avail` : null,
-      badgeColor: 'bg-emerald-100 text-emerald-800',
     },
     {
       label: 'Project',
       path: '/admin/projects',
       icon: FolderKanban,
-      badge: pendingRequestsCount > 0 ? `${pendingRequestsCount} Pending` : null,
-      badgeColor: 'bg-amber-100 text-amber-800',
     },
     {
       label: 'Assignments',

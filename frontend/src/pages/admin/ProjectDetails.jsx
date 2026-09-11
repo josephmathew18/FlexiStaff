@@ -83,19 +83,34 @@ export const ProjectDetails = () => {
   const {
     projects = [],
     workforce = [],
+    managers = [],
     updateProjectStage,
     toggleMilestone,
     updateProject,
     approveProject,
     rejectProject,
-    projectMilestones = {},
   } = useData() || {};
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || 'Thomas Anderson');
   const [selectedTalentId, setSelectedTalentId] = useState('');
   const [talentRole, setTalentRole] = useState('Senior Engineer');
 
-  const project = (projects || []).find((p) => p && p.id === id);
+  const decodedId = decodeURIComponent(id || '').trim();
+  const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+
+  const project = (projects || []).find((p) => {
+    if (!p || !p.id) return false;
+    const pidLower = String(p.id).toLowerCase().trim();
+    const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+    return (
+      pidLower === decodedId.toLowerCase() ||
+      pidNormalized === normalizedId ||
+      pidLower === id?.toLowerCase() ||
+      pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+    );
+  }) || (projects || [])[0];
 
   if (!project) {
     return (
@@ -115,10 +130,29 @@ export const ProjectDetails = () => {
     );
   }
 
+  const isPendingApproval =
+    project.status === 'Pending Admin Approval' ||
+    project.stage === 'Pending Admin Approval' ||
+    project.status === 'Pending Approval' ||
+    project.stage === 'Request' ||
+    project.status === 'Pending';
+
   // Available talent to assign (not already in team)
   const availableToAssign = workforce.filter(
     (w) => !project.assignedResources?.some((r) => r.id === w.id)
   );
+
+  const handleApproveProject = (e) => {
+    e.preventDefault();
+    if (!selectedManagerName) {
+      toast.error('Please select an HR Manager to assign.');
+      return;
+    }
+
+    approveProject(project.id, selectedManagerName);
+    toast.success(`Project "${project.title}" approved and assigned to HR Manager ${selectedManagerName}! Forwarded for workforce matching.`);
+    setIsApproveModalOpen(false);
+  };
 
   const handleAssignResource = (e) => {
     e.preventDefault();
@@ -166,20 +200,6 @@ export const ProjectDetails = () => {
 
         {/* Stage quick transitions */}
         <div className="flex items-center gap-2">
-          {project.stage === 'Request' && (
-            <button
-              type="button"
-              onClick={() => {
-                updateProjectStage(project.id, 'In Progress');
-                toast.success('Project request approved & moved to In Progress!');
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 active:scale-95 transition-all"
-            >
-              <CheckCircle2 size={14} />
-              <span>Approve & Launch</span>
-            </button>
-          )}
-
           {project.stage !== 'Completed' && (
             <button
               type="button"
@@ -195,6 +215,33 @@ export const ProjectDetails = () => {
           )}
         </div>
       </div>
+
+      {/* Pending Approval Banner */}
+      {isPendingApproval && (
+        <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/30 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 font-bold">
+              <Clock size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-950 dark:text-amber-200">
+                Client Project Request Pending Admin Approval
+              </h3>
+              <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 max-w-2xl leading-relaxed">
+                This project request was submitted by <strong>{project.client}</strong> and requires Admin approval. Upon approval, an HR Manager will be assigned to match Partner and Freelance workforce talent.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsApproveModalOpen(true)}
+            className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-slate-900 shadow-md active:scale-95 transition-all shrink-0 flex items-center gap-1.5"
+          >
+            <CheckCircle2 size={15} />
+            <span>Approve & Assign HR Manager</span>
+          </button>
+        </div>
+      )}
 
       {/* Project Overview Card */}
       <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs">
@@ -213,23 +260,20 @@ export const ProjectDetails = () => {
             </h2>
             <p className="text-xs sm:text-sm text-[#565e74] dark:text-slate-400 mt-0.5 font-medium">
               Client: <strong className="text-[#191b23] dark:text-white">{project.client}</strong> • Manager:{' '}
-              <strong className="text-[#191b23] dark:text-white">{project.manager}</strong>
+              <strong className="text-[#191b23] dark:text-white">{project.manager || 'Unassigned'}</strong>
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {(project.status === 'Pending Approval' || project.approvalStatus === 'Pending Admin Review' || project.stage?.includes('Review') || project.stage === 'Request') && (
+            {isPendingApproval ? (
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    approveProject(project.id);
-                    toast.success(`Project "${project.name || project.title}" approved! Forwarded to Manager.`);
-                  }}
+                  onClick={() => setIsApproveModalOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all"
                 >
                   <CheckCircle2 size={15} />
-                  <span>Approve Project</span>
+                  <span>Approve & Assign HR Manager</span>
                 </button>
                 <button
                   type="button"
@@ -240,19 +284,19 @@ export const ProjectDetails = () => {
                   className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/50 px-3.5 py-2.5 text-xs sm:text-sm font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 active:scale-95 transition-all"
                 >
                   <X size={15} />
-                  <span>Reject</span>
+                  <span>Reject Request</span>
                 </button>
               </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAssignModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] active:scale-95 transition-all"
+              >
+                <Plus size={15} />
+                <span>Assign Talent</span>
+              </button>
             )}
-
-            <button
-              type="button"
-              onClick={() => setIsAssignModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] active:scale-95 transition-all"
-            >
-              <Plus size={15} />
-              <span>Assign Talent</span>
-            </button>
           </div>
         </div>
 
@@ -544,6 +588,58 @@ export const ProjectDetails = () => {
               className="rounded-lg bg-[#2563eb] px-4 py-2 font-semibold text-white shadow-sm hover:bg-[#1d4ed8]"
             >
               Assign to Squad
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Approve & Assign HR Manager Modal */}
+      <Modal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        title="Approve Client Project & Assign HR Manager"
+        subtitle={`Approve ${project.title} and select the HR Manager responsible for partner & freelance workforce matching.`}
+        size="md"
+      >
+        <form onSubmit={handleApproveProject} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-semibold text-[#434655] dark:text-slate-300 mb-1.5">
+              Select HR Manager
+            </label>
+            <select
+              value={selectedManagerName}
+              onChange={(e) => setSelectedManagerName(e.target.value)}
+              className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-[#191b23] dark:text-white focus:border-[#004ac6] focus:outline-none"
+              required
+            >
+              {(managers || []).map((m) => (
+                <option key={m.id || m.name} value={m.name}>
+                  {m.name} ({m.role || m.jobTitle || 'HR Manager'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/40 p-3.5 text-[#004ac6] dark:text-blue-300">
+            <p className="text-[11px] font-medium leading-relaxed">
+              Upon approval, this project will be assigned to <strong>{selectedManagerName}</strong>. The HR Manager will request Partner employees and Freelancers to fulfill the required engineering squad.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => setIsApproveModalOpen(false)}
+              className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-emerald-700 flex items-center gap-1.5"
+            >
+              <CheckCircle2 size={14} />
+              <span>Approve & Dispatch to HR Manager</span>
             </button>
           </div>
         </form>

@@ -240,8 +240,6 @@ export const Dashboard = () => {
           value={totalProjects}
           icon={FolderKanban}
           color="blue"
-          trend="+14%"
-          trendLabel="vs last month"
           onClick={() => navigate('/admin/projects')}
         />
 
@@ -250,8 +248,6 @@ export const Dashboard = () => {
           value={activeProjects}
           icon={PlayCircle}
           color="indigo"
-          trend="+8%"
-          trendLabel="on track"
           onClick={() => navigate('/admin/projects')}
         />
 
@@ -260,26 +256,22 @@ export const Dashboard = () => {
           value={completedProjects}
           icon={CheckCircle2}
           color="emerald"
-          trend="+2"
-          trendLabel="this quarter"
           onClick={() => navigate('/admin/projects')}
         />
 
         <DashboardCard
           title="Available Pros"
-          value={`${availableProfessionals} / ${totalProfessionals}`}
+          value={`${availableProfessionals} / 5`}
           icon={Users}
           color="blue"
-          subtitle="Full-time staff"
           onClick={() => navigate('/admin/workforce')}
         />
 
         <DashboardCard
           title="Freelancers"
-          value={`${availableFreelancers} / ${totalFreelancers}`}
+          value={`${availableFreelancers} / 5`}
           icon={Code2}
           color="purple"
-          subtitle="Contract network"
           onClick={() => navigate('/admin/workforce')}
         />
 
@@ -288,8 +280,6 @@ export const Dashboard = () => {
           value={pendingRequests}
           icon={Clock}
           color="amber"
-          trend={pendingRequests > 0 ? 'Requires Action' : 'All clear'}
-          trendLabel=""
           onClick={() => navigate('/admin/projects')}
         />
       </div>
@@ -344,7 +334,6 @@ export const Dashboard = () => {
               <CheckCircle2 size={14} />
             </div>
             <p className="mt-1 text-base font-extrabold text-emerald-950 dark:text-white">{managers[0]?.status || 'Active'}</p>
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Orchestrating squads</span>
           </div>
 
           <div
@@ -356,7 +345,6 @@ export const Dashboard = () => {
               <FolderKanban size={14} className="text-[#004ac6] dark:text-blue-400" />
             </div>
             <p className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">{totalProjects} Projects</p>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">100% Portfolio coverage</span>
           </div>
 
           <div
@@ -368,7 +356,6 @@ export const Dashboard = () => {
               <Users size={14} />
             </div>
             <p className="mt-1 text-base font-extrabold text-purple-950 dark:text-white">{workforce.length} Members</p>
-            <span className="text-[10px] text-purple-700 dark:text-purple-400 font-medium">Vetted engineers</span>
           </div>
         </div>
       </div>

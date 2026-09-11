@@ -1419,27 +1419,43 @@ export const DataProvider = ({ children }) => {
       return null;
     }
 
-    // Availability validation: ensure talent is available and not already doing a project
-    const availLower = (cand.availability || '').toLowerCase();
-    const workingLower = (cand.workingStatus || '').toLowerCase();
-    const prjLower = (cand.currentProject || cand.assignedProject || '').toLowerCase();
+    // Availability & Candidate Project Limit Validation (Up to 5 Projects allowed per candidate)
     const isGone = cand.status === 'Terminated' || cand.status === 'Suspended' || cand.accountStatus === 'Suspended' || cand.status === 'Inactive';
-    const isDoingProject = workingLower === 'working' || availLower === 'assigned' || (prjLower && prjLower !== 'none' && prjLower !== 'unassigned');
-    const isUnavailable = availLower === 'unavailable' || availLower === 'paused' || availLower === 'busy';
+    const availLower = (cand.availability || '').toLowerCase();
+    const isUnavailable = availLower === 'unavailable' || availLower === 'paused';
 
-    // Check if candidate is already in manager assignments queue for an active sprint
-    const isAlreadyQueued = (managerAssignments || []).some(
+    const candActiveAssignments = (managerAssignments || []).filter(
       (a) =>
         (a.professionalId === cand.id || a.professionalName?.toLowerCase() === (cand.name || cand.pseudonym)?.toLowerCase()) &&
-        (a.status === 'Pending Assignment Approval' ||
-         a.status === 'Awaiting Workforce Response' ||
-         a.status === 'Accepted' ||
-         a.status === 'Working' ||
-         a.status === 'In Progress')
+        a.status !== 'Rejected' &&
+        a.status !== 'Declined'
     );
 
-    if (isGone || isDoingProject || isUnavailable || isAlreadyQueued || (availLower !== 'available' && availLower !== 'immediate')) {
-      toast.error(`Cannot assign ${cand.name || 'candidate'}: Talent is currently active on another project or unavailable.`);
+    if (isGone || isUnavailable) {
+      toast.error(`Cannot assign ${cand.name || 'candidate'}: Talent account is inactive or unavailable.`);
+      return null;
+    }
+
+    if (candActiveAssignments.length >= 5) {
+      toast.error(`Cannot assign ${cand.name || 'candidate'}: Maximum limit of 5 project assignments reached for this candidate (5/5 allowed).`);
+      return null;
+    }
+
+    // Per-Project Workforce Limit: Max 5 Partner Employees and Max 5 Freelancers
+    const projectAssignments = (managerAssignments || []).filter(
+      (a) => a.projectId === projectId && a.status !== 'Rejected' && a.status !== 'Declined'
+    );
+    const isCandFreelancer = cand.roleType === 'Freelancer' || cand.source === 'Freelancer' || cand.professionalType === 'FREELANCER';
+    const sameTypeCount = projectAssignments.filter((a) => {
+      const member = workforce.find((w) => w.id === a.professionalId);
+      const isMemberFreelancer = member
+        ? (member.roleType === 'Freelancer' || member.source === 'Freelancer' || member.professionalType === 'FREELANCER')
+        : a.roleType === 'Freelancer';
+      return isCandFreelancer ? isMemberFreelancer : !isMemberFreelancer;
+    }).length;
+
+    if (sameTypeCount >= 5) {
+      toast.error(`Cannot assign candidate: Maximum limit of 5 ${isCandFreelancer ? 'Freelancers' : 'Partner Employees'} per project reached (5/5 allowed).`);
       return null;
     }
 
@@ -1671,8 +1687,19 @@ export const DataProvider = ({ children }) => {
   // MANAGER: CREATE & SUBMIT ASSIGNMENT REQUEST (MAX 3 WORKFORCE MEMBERS)
   // =========================================================================
   const submitAssignmentRequest = (projectId, selectedWorkforceList = [], notes = '') => {
-    if (selectedWorkforceList.length > 3) {
-      toast.error('Maximum 3 workforce members can be assigned to a project.');
+    const profsCount = selectedWorkforceList.filter(
+      (w) => w.roleType === 'Professional' || w.source === 'Partner Company' || Boolean(w.partnerCompany || w.partner)
+    ).length;
+    const freeCount = selectedWorkforceList.filter(
+      (w) => w.roleType === 'Freelancer' || w.source === 'Freelancer' || (!w.partnerCompany && !w.partner)
+    ).length;
+
+    if (profsCount > 5) {
+      toast.error('Maximum 5 Partner Employees can be assigned per project.');
+      return false;
+    }
+    if (freeCount > 5) {
+      toast.error('Maximum 5 Freelancers can be assigned per project.');
       return false;
     }
     if (selectedWorkforceList.length === 0) {
@@ -1707,7 +1734,7 @@ export const DataProvider = ({ children }) => {
         hourlyRate: cand.hourlyRate || '$95/hr',
         workload: cand.workload || 0,
         assignedDate: new Date().toISOString().split('T')[0],
-        status: 'Pending Admin Approval',
+        status: 'Pending Assignment Approval',
         notes: notes,
         progress: 0,
         currentTask: 'Assignment Request created by Manager. Awaiting Company Admin sign-off.',
@@ -1768,8 +1795,10 @@ export const DataProvider = ({ children }) => {
         if (a.id === assignmentId) {
           targetAsg = {
             ...a,
-            status: 'Awaiting Workforce Response',
-            currentTask: 'Approved by Admin. Awaiting candidate response.',
+            status: 'Accepted',
+            progress: 15,
+            currentTask: 'Approved by Admin. Active project execution started.',
+            acceptedDate: new Date().toISOString().split('T')[0],
           };
           return targetAsg;
         }
@@ -1777,11 +1806,69 @@ export const DataProvider = ({ children }) => {
       })
     );
 
-    // Notify Workforce Member (Professional or Freelancer)
+    if (!targetAsg) return;
+
+    // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
+    setWorkforce((prev) =>
+      prev.map((w) =>
+        w.id === targetAsg.professionalId
+          ? {
+              ...w,
+              availability: 'Assigned',
+              workingStatus: 'Working',
+              currentProject: targetAsg.projectName,
+              assignedProject: targetAsg.projectName,
+            }
+          : w
+      )
+    );
+    setPartnerWorkforce((prev) =>
+      prev.map((w) =>
+        w.id === targetAsg.professionalId
+          ? {
+              ...w,
+              availability: 'Assigned',
+              workingStatus: 'Working',
+              currentProject: targetAsg.projectName,
+              assignedProject: targetAsg.projectName,
+            }
+          : w
+      )
+    );
+
+    // 2. Update project status to 'In Progress' and stage to 'In Progress'
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id === targetAsg.projectId) {
+          const nextAssigned = Math.max(1, (p.workforceAssigned || 0) + 1);
+          const newResources = [
+            ...(p.assignedResources || []).filter((r) => r.id !== targetAsg.professionalId),
+            {
+              id: targetAsg.professionalId,
+              name: targetAsg.professionalName,
+              role: targetAsg.role,
+              avatar: targetAsg.avatar,
+              roleType: targetAsg.roleType || 'Professional',
+              hoursPerWeek: 40,
+            },
+          ];
+          return {
+            ...p,
+            status: 'In Progress',
+            stage: 'In Progress',
+            workforceAssigned: nextAssigned,
+            assignedResources: newResources,
+          };
+        }
+        return p;
+      })
+    );
+
+    // 3. Notify Workforce Member, Manager & Client
     const wfNotif = {
       id: `wnotif-${Date.now()}`,
-      title: 'New Project Assignment Offer',
-      message: `You have received an assignment offer for "${targetAsg?.projectName || 'Project'}" as ${targetAsg?.role || 'Specialist'}. Please review and respond.`,
+      title: 'Project Assignment Approved by Admin',
+      message: `Your assignment on "${targetAsg.projectName}" as ${targetAsg.role} was approved by Admin. Project is now In Progress.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -1789,17 +1876,27 @@ export const DataProvider = ({ children }) => {
     };
     setWorkforceNotifications((prev) => [wfNotif, ...prev]);
 
-    // Notify Manager
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
       title: 'Assignment Proposal Approved by Admin',
-      message: `Admin approved the assignment of ${targetAsg?.professionalName} for "${targetAsg?.projectName}". Invitation routed to talent.`,
+      message: `Admin approved the assignment of ${targetAsg.professionalName} for "${targetAsg.projectName}". Project execution started!`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
       link: '/manager/assignments',
     };
     setManagerNotifications((prev) => [mgrNotif, ...prev]);
+
+    const clientNotif = {
+      id: `cnotif-${Date.now()}`,
+      title: 'Workforce Approved & Project Started',
+      message: `${targetAsg.professionalName} (${targetAsg.role}) was approved by Admin for "${targetAsg.projectName}". Project is now In Progress!`,
+      type: 'project',
+      unread: true,
+      time: 'Just now',
+      link: `/client/projects/${targetAsg.projectId}`,
+    };
+    setClientNotifications((prev) => [clientNotif, ...prev]);
   };
 
   const rejectWorkforceAssignment = (assignmentId, reason = 'Candidate rate or allocation mismatch with client SLA.') => {
@@ -2055,6 +2152,14 @@ export const DataProvider = ({ children }) => {
   // FREELANCER REGISTRATION & VERIFICATION (COMMON PROFESSIONAL POOL)
   // =========================================================================
   const registerFreelancer = (formData) => {
+    const freelancers = (workforce || []).filter(
+      (w) => w.roleType === 'Freelancer' || w.source === 'Freelancer Registration' || w.professionalType === 'FREELANCER'
+    );
+    if (freelancers.length >= 5) {
+      toast.error('Maximum limit of 5 Freelance workforce members reached (5/5 allowed).');
+      return null;
+    }
+
     const nextIdNum = 1000 + (workforce.length || 0) + 1;
     const newProfessionalId = `PRO-${nextIdNum}`;
 
@@ -2630,8 +2735,14 @@ export const DataProvider = ({ children }) => {
     return newFreelancer;
   };
 
-  // Partner Company adds a new Professional with full details
   const addPartnerProfessional = (profData) => {
+    const partnerEmployees = (partnerWorkforce || []).filter(
+      (w) => w.roleType === 'Professional' || w.source === 'Partner Company' || Boolean(w.partnerCompany || w.partner) || w.professionalType === 'PARTNER_EMPLOYEE'
+    );
+    if (partnerEmployees.length >= 5) {
+      toast.error('Maximum limit of 5 Partner Employee workforce members reached (5/5 allowed). Registration is blocked.');
+      return null;
+    }
     const newId = `WF-${Date.now().toString().slice(-4)}`;
     const skillsList = Array.isArray(profData.skills)
       ? profData.skills

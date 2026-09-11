@@ -10,12 +10,12 @@ import { motion, AnimatePresence } from 'framer-motion';
  */
 export const WorkforceCounter = ({
   count = 0,
-  max = 3,
+  max = 10,
   professionalsCount = 0,
   freelancersCount = 0,
   className = '',
 }) => {
-  const isMaxReached = count >= max;
+  const isMaxReached = count >= max || (professionalsCount >= 5 && freelancersCount >= 5);
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -42,21 +42,20 @@ export const WorkforceCounter = ({
           </div>
           <div>
             <span className="text-xs font-extrabold tracking-tight">
-              Workforce Selected: {count} / {max}
+              Workforce Selected: {count} Member{count === 1 ? '' : 's'}
             </span>
             <p className="text-[11px] text-slate-500 font-medium">
-              {professionalsCount} Professional{professionalsCount === 1 ? '' : 's'} +{' '}
-              {freelancersCount} Freelancer{freelancersCount === 1 ? '' : 's'}
+              {professionalsCount} / 5 Partner Employees + {freelancersCount} / 5 Freelancers
             </p>
           </div>
         </div>
 
         {/* Visual Dots */}
         <div className="flex items-center gap-1.5">
-          {Array.from({ length: max }).map((_, idx) => (
+          {Array.from({ length: Math.min(max, 10) }).map((_, idx) => (
             <div
               key={idx}
-              className={`w-3 h-3 rounded-full transition-all ${
+              className={`w-2.5 h-2.5 rounded-full transition-all ${
                 idx < count
                   ? isMaxReached
                     ? 'bg-amber-500 ring-2 ring-amber-200'
@@ -77,7 +76,7 @@ export const WorkforceCounter = ({
             className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-900 text-xs font-bold"
           >
             <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-            <span>Maximum 3 workforce members can be assigned to a project.</span>
+            <span>Maximum capacity reached (Up to 5 Partner Employees and 5 Freelancers allowed per project).</span>
           </motion.div>
         )}
       </AnimatePresence>

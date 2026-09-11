@@ -86,8 +86,21 @@ export const ManagerMatching = () => {
 
   // Current active project
   const currentProject = useMemo(() => {
+    const decodedId = decodeURIComponent(selectedProjectId || '').trim();
+    const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+
     return (
-      availableProjects.find((p) => p.id === selectedProjectId) ||
+      availableProjects.find((p) => {
+        if (!p || !p.id) return false;
+        const pidLower = String(p.id).toLowerCase().trim();
+        const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+        return (
+          pidLower === decodedId.toLowerCase() ||
+          pidNormalized === normalizedId ||
+          pidLower === selectedProjectId?.toLowerCase() ||
+          pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+        );
+      }) ||
       availableProjects[0] || {
         id: selectedProjectId || 'PRJ-NEW',
         name: 'Project Workspace',
@@ -144,7 +157,7 @@ export const ManagerMatching = () => {
     return combined;
   }, [partnerWorkforce, workforce]);
 
-  // Toggle selection with strict 3-member limit
+  // Toggle selection with strict capacity limits (5 Partner Employees + 5 Freelancers)
   const handleToggleSelect = (candidate) => {
     const alreadySelected = selectedSquad.some((s) => s.id === candidate.id);
 
@@ -154,8 +167,16 @@ export const ManagerMatching = () => {
       return;
     }
 
-    if (selectedSquad.length >= 3) {
-      toast.error('Maximum 3 workforce members can be assigned to a project.');
+    const isCandPartner = candidate.roleType === 'Professional' || candidate.source === 'Partner Company' || Boolean(candidate.partnerCompany || candidate.partner);
+    const partnerCount = selectedSquad.filter((s) => s.roleType === 'Professional' || s.source === 'Partner Company' || Boolean(s.partnerCompany || s.partner)).length;
+    const freelancerCount = selectedSquad.filter((s) => s.roleType === 'Freelancer' || s.source === 'Freelancer' || (!s.partnerCompany && !s.partner)).length;
+
+    if (isCandPartner && partnerCount >= 5) {
+      toast.error('Maximum 5 Partner Employees allowed per project squad.');
+      return;
+    }
+    if (!isCandPartner && freelancerCount >= 5) {
+      toast.error('Maximum 5 Freelancers allowed per project squad.');
       return;
     }
 
@@ -165,12 +186,19 @@ export const ManagerMatching = () => {
 
   // Submit Assignment Request to Company Admin
   const handleSubmitAssignmentRequest = (notes) => {
+    const partnerCount = selectedSquad.filter((s) => s.roleType === 'Professional' || s.source === 'Partner Company' || Boolean(s.partnerCompany || s.partner)).length;
+    const freelancerCount = selectedSquad.filter((s) => s.roleType === 'Freelancer' || s.source === 'Freelancer' || (!s.partnerCompany && !s.partner)).length;
+
     if (selectedSquad.length === 0) {
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (selectedSquad.length > 3) {
-      toast.error('Maximum 3 workforce members can be assigned to a project.');
+    if (partnerCount > 5) {
+      toast.error('Maximum 5 Partner Employees allowed per project squad.');
+      return;
+    }
+    if (freelancerCount > 5) {
+      toast.error('Maximum 5 Freelancers allowed per project squad.');
       return;
     }
 
@@ -199,7 +227,7 @@ export const ManagerMatching = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Request Professionals from Partner Companies or Freelancers from the independent pool. Select up to 3 specialists and submit an Assignment Request to Company Admin.
+            Request Professionals from Partner Companies or Freelancers from the independent pool. Select proposed talent (up to 5 Partner Employees and 5 Freelancers) and submit an Assignment Request to Company Admin.
           </p>
         </div>
 

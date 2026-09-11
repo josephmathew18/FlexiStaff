@@ -28,8 +28,21 @@ export const ManagerProjectDetails = () => {
   // Find project
   const project = useMemo(() => {
     const all = [...projects, ...partnerProjects];
+    const decodedId = decodeURIComponent(id || '').trim();
+    const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+
     return (
-      all.find((p) => p.id === id) || {
+      all.find((p) => {
+        if (!p || !p.id) return false;
+        const pidLower = String(p.id).toLowerCase().trim();
+        const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+        return (
+          pidLower === decodedId.toLowerCase() ||
+          pidNormalized === normalizedId ||
+          pidLower === id?.toLowerCase() ||
+          pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+        );
+      }) || all[0] || {
         id: id || 'PRJ-PARTNER-101',
         name: 'E-Commerce Platform Development',
         client: 'Client Organization',

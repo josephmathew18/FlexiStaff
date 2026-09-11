@@ -1061,7 +1061,7 @@ export const ManagerManagement = () => {
           {managerProjects.slice(0, 6).map((proj) => (
             <Link
               key={proj.id}
-              to={`/projects/${proj.id}`}
+              to={`/admin/projects/${proj.id}`}
               className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#004ac6]/40 dark:hover:border-blue-500/40 hover:shadow-md transition-all group flex flex-col justify-between"
             >
               <div>

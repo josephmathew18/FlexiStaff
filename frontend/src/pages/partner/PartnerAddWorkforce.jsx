@@ -59,7 +59,7 @@ const PRESET_SKILLS = [
 ];
 
 export const PartnerAddWorkforce = () => {
-  const { addPartnerProfessional, partnerProfile } = useData() || {};
+  const { addPartnerProfessional, partnerProfile, workforce = [] } = useData() || {};
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
@@ -178,6 +178,15 @@ export const PartnerAddWorkforce = () => {
         partner: partnerProfile?.name || 'Partner Organization',
         partnerCompany: partnerProfile?.name || 'Partner Organization',
       };
+
+      const partnerEmployees = (workforce || []).filter(
+        (w) => w.roleType === 'Professional' || w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE'
+      );
+      if (partnerEmployees.length >= 5) {
+        toast.error('Maximum limit of 5 Partner Employee workforce members reached (5/5 allowed). Registration is blocked.');
+        setIsSubmitting(false);
+        return;
+      }
 
       if (typeof addPartnerProfessional === 'function') {
         addPartnerProfessional(payload);

@@ -408,7 +408,7 @@ export const ProjectManagement = () => {
     reset();
     setIsAddModalOpen(false);
     if (newPrj?.id) {
-      navigate(`/projects/${newPrj.id}`);
+      navigate(`/admin/projects/${newPrj.id}`);
     }
   };
 
@@ -747,7 +747,7 @@ export const ProjectManagement = () => {
             <ProjectCard
               key={prj.id}
               project={prj}
-              onClick={(p) => navigate(`/projects/${p.id}`)}
+              onClick={(p) => navigate(`/admin/projects/${p.id}`)}
               onStageChange={(newStage) => updateProjectStage(prj.id, newStage)}
             />
           ))}
@@ -757,7 +757,7 @@ export const ProjectManagement = () => {
           columns={columns}
           data={filteredProjects}
           keyField="id"
-          onRowClick={(p) => navigate(`/projects/${p.id}`)}
+          onRowClick={(p) => navigate(`/admin/projects/${p.id}`)}
           emptyTitle="No projects match your filter"
           emptyDescription="Try clearing filters or create a new staffing request."
         />

@@ -30,7 +30,6 @@ export const WorkforceSelectionPanel = ({
   const [profileModalCandidate, setProfileModalCandidate] = useState(null);
 
   const selectedCount = selectedWorkforce.length;
-  const isMaxReached = selectedCount >= 3;
 
   const profCount = selectedWorkforce.filter(
     (w) => w.roleType === 'Professional' || w.source === 'Partner Company' || Boolean(w.partnerCompany || w.partner)
@@ -39,13 +38,19 @@ export const WorkforceSelectionPanel = ({
     (w) => w.roleType === 'Freelancer' || w.source === 'Freelancer' || (!w.partnerCompany && !w.partner)
   ).length;
 
+  const isMaxReached = profCount >= 5 && freeCount >= 5;
+
   const handleOpenAssignmentModal = () => {
     if (selectedCount === 0) {
       toast.error('Please select at least 1 workforce member to create an assignment request.');
       return;
     }
-    if (selectedCount > 3) {
-      toast.error('Maximum 3 workforce members can be assigned to a project.');
+    if (profCount > 5) {
+      toast.error('Maximum 5 Partner Employees allowed per project squad.');
+      return;
+    }
+    if (freeCount > 5) {
+      toast.error('Maximum 5 Freelancers allowed per project squad.');
       return;
     }
     setIsAssignmentModalOpen(true);
@@ -66,7 +71,7 @@ export const WorkforceSelectionPanel = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Select proposed talent (Professionals & Freelancers). Then generate an Assignment Request for Admin approval.
+              Select proposed talent (Up to 5 Partner Employees & 5 Freelancers). Then generate an Assignment Request for Admin approval.
             </p>
           </div>
 
@@ -84,7 +89,7 @@ export const WorkforceSelectionPanel = ({
         {/* Dynamic Counter with Exact Wording */}
         <WorkforceCounter
           count={selectedCount}
-          max={3}
+          max={10}
           professionalsCount={profCount}
           freelancersCount={freeCount}
         />
@@ -95,7 +100,7 @@ export const WorkforceSelectionPanel = ({
         <div className="p-4 rounded-3xl bg-blue-50/50 border border-blue-200 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-extrabold text-blue-950">
-              Selected Team ({selectedCount} / 3)
+              Selected Team ({profCount}/5 Professionals + {freeCount}/5 Freelancers)
             </span>
             <span className="text-[11px] text-blue-700 font-semibold">
               Ready for Assignment Request

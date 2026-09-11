@@ -42,8 +42,12 @@ export const AssignmentRequestModal = ({
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (totalCount > 3) {
-      toast.error('Maximum 3 workforce members can be assigned to a project.');
+    if (professionals.length > 5) {
+      toast.error('Maximum 5 Partner Employees can be assigned per project.');
+      return;
+    }
+    if (freelancers.length > 5) {
+      toast.error('Maximum 5 Freelancers can be assigned per project.');
       return;
     }
 
@@ -98,85 +102,94 @@ export const AssignmentRequestModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+              className="p-1 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <X size={18} />
             </button>
           </div>
 
-          <form onSubmit={handleFormSubmit} className="p-6 space-y-4 text-xs text-slate-700 max-h-[72vh] overflow-y-auto">
-            {/* Project Summary */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between font-bold text-slate-900">
-                <span>{project.name || project.title}</span>
-                <span className="text-[#004ac6]">{project.duration || '6 Months'}</span>
+          <form onSubmit={handleFormSubmit} className="p-6 space-y-5">
+            {/* Squad Summary */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-500 uppercase block">
+                Selected Candidate Squad ({totalCount})
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-2xl bg-blue-50/60 border border-blue-100 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                    <Building2 size={16} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-extrabold text-slate-900 block">
+                      {professionals.length} / 5 Partner Employees
+                    </span>
+                    <span className="text-[10px] text-slate-500">Provided by Partner</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-purple-50/60 border border-purple-100 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs">
+                    <User size={16} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-extrabold text-slate-900 block">
+                      {freelancers.length} / 5 Freelancers
+                    </span>
+                    <span className="text-[10px] text-slate-500">Independent talent</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Client: <strong className="text-slate-700">{project.client || 'Enterprise Client'}</strong> | Required Skills: {project.requiredSkills?.join(', ') || project.techStack}
-              </p>
-            </div>
 
-            {/* Selected Candidates Summary */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between font-bold text-slate-900">
-                <span>Selected Workforce Squad ({totalCount} / 3)</span>
-                <span className="text-[11px] text-slate-500">
-                  {professionals.length} Professional(s) + {freelancers.length} Freelancer(s)
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {selectedWorkforce.map((cand) => {
-                  const isProf = cand.roleType === 'Professional' || cand.source === 'Partner Company' || Boolean(cand.partnerCompany || cand.partner);
-                  return (
-                    <div
-                      key={cand.id}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-200 shadow-2xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={cand.avatar}
-                          alt={cand.name}
-                          className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200"
-                        />
-                        <div>
-                          <h5 className="font-bold text-slate-900 text-xs">
-                            {cand.name || cand.pseudonym}
-                          </h5>
-                          <p className="text-[11px] text-blue-600 font-semibold">{cand.role || cand.title}</p>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {isProf ? `Partner: ${cand.partnerCompany || cand.partner || 'Apex'}` : 'Independent Freelancer'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="font-bold text-slate-900 text-xs block">{cand.hourlyRate || '$95/hr'}</span>
-                        <span className="text-[10px] text-slate-500 font-medium">Workload: {cand.workload || 0}%</span>
+              {/* List of candidates */}
+              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                {selectedWorkforce.map((cand) => (
+                  <div
+                    key={cand.id}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={
+                          cand.avatar ||
+                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'
+                        }
+                        alt={cand.name || cand.pseudonym}
+                        className="w-7 h-7 rounded-lg object-cover ring-1 ring-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 block truncate">
+                          {cand.name || cand.pseudonym}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block truncate">
+                          {cand.role || cand.assignedRole}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border text-slate-700">
+                      {cand.source === 'Partner Company' || cand.partnerCompany ? 'Partner' : 'Freelancer'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Assignment Notes */}
+            {/* Notes Textarea */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Assignment Details & Allocation Justification
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Matching Rationale & Manager Notes (Optional)
               </label>
               <textarea
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Detail the sprint architecture alignment, milestone assignments, and expected start date..."
-                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+                placeholder="Explain skill match justification, rate agreement, or start date preferences for Company Admin review..."
+                className="w-full rounded-2xl border border-slate-300 bg-white p-3 text-xs text-slate-900 outline-none focus:border-[#004ac6] focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
-            {/* Notice */}
-            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100 flex items-center gap-2 text-[11px] text-blue-900">
-              <ShieldCheck size={16} className="text-blue-600 shrink-0" />
+            <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 text-[11px] font-medium flex items-start gap-2">
+              <ShieldCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
               <span>
                 Once submitted, Company Admin will review the assignment proposal. Upon approval, offers will be sent to the talent.
               </span>
@@ -194,7 +207,7 @@ export const AssignmentRequestModal = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || totalCount === 0 || totalCount > 3}
+                disabled={isSubmitting || totalCount === 0 || professionals.length > 5 || freelancers.length > 5}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white text-xs font-bold shadow-md shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Send size={14} />

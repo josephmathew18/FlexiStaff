@@ -53,7 +53,22 @@ export const PartnerProjectDetails = () => {
   const { partnerProjects = [], partnerWorkforce = [] } = useData() || {};
 
   const project = useMemo(() => {
-    return (partnerProjects || []).find((p) => p && String(p.id).toLowerCase() === String(id).toLowerCase()) || null;
+    const decodedId = decodeURIComponent(id || '').trim();
+    const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+
+    return (
+      (partnerProjects || []).find((p) => {
+        if (!p || !p.id) return false;
+        const pidLower = String(p.id).toLowerCase().trim();
+        const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+        return (
+          pidLower === decodedId.toLowerCase() ||
+          pidNormalized === normalizedId ||
+          pidLower === id?.toLowerCase() ||
+          pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+        );
+      }) || (partnerProjects || [])[0]
+    );
   }, [partnerProjects, id]);
 
   const assignedEmployees = useMemo(() => {
