@@ -34,30 +34,7 @@ export const initialCompanyProfile = {
 };
 
 export const initialClients = [];
-export const initialPartners = [
-  {
-    id: 'prt-001',
-    name: 'Infosys Technologies',
-    companyName: 'Infosys Technologies',
-    contactPerson: 'Joseph Mathew',
-    email: 'infosys@gmail.com',
-    loginEmail: 'infosys',
-    phone: '+91 98765 43210',
-    status: 'Active',
-    tier: 'Tier-1 Strategic Partner',
-    location: 'Bengaluru, India',
-    city: 'Bengaluru, India',
-    specialties: ['Cloud Computing', 'Enterprise IT', 'Full Stack Development'],
-    website: 'https://infosys.com',
-    description: 'Enterprise IT Services & Strategic Talent Partner on FlexiStaff.',
-    joinedDate: '2025-01-15',
-    suppliedProfessionals: 12,
-    activePlacements: 8,
-    availabilityRate: '98.5%',
-    rating: 4.9,
-    role: 'Partner Company',
-  },
-];
+export const initialPartners = [];
 export const initialManagers = [];
 export const initialWorkforce = [];
 export const initialProjects = [];

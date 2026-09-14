@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -55,30 +55,11 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
-
   // Status & Modal states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
-
   const passwordInputRef = useRef(null);
-
-  // Quick Demo Accounts list (for developer / evaluation testing)
-  const demoAccounts = [
-    { role: 'Admin', email: 'admin@gmail.com', pass: 'admin123' },
-    { role: 'Client', email: 'client@gmail.com', pass: 'client123' },
-    { role: 'Manager', email: 'manager@gmail.com', pass: 'manager123' },
-    { role: 'Partner', email: 'partner@gmail.com', pass: 'partner123' },
-    { role: 'Workforce', email: 'workforce@gmail.com', pass: 'workforce123' },
-  ];
-
-  const handleFillDemo = (acc) => {
-    setEmail(acc.email);
-    setPassword(acc.pass);
-    setErrorMessage('');
-    toast.info(`Loaded ${acc.role} demo credentials`);
-  };
 
   // Generalized Form Submit Handler
   const handleSubmit = async (e) => {
@@ -292,44 +273,7 @@ export const Login = () => {
             </motion.button>
           </form>
 
-          {/* Quick Demo Helper (Collapsible) */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-              className="w-full text-center text-[11px] font-semibold text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 transition-colors py-1"
-            >
-              <span>Need test credentials?</span>
-              {showDemoAccounts ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
 
-            <AnimatePresence>
-              {showDemoAccounts && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-2 p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1.5 overflow-hidden"
-                >
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-center">
-                    Click any account to fill demo login:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 justify-center">
-                    {demoAccounts.map((acc) => (
-                      <button
-                        key={acc.role}
-                        type="button"
-                        onClick={() => handleFillDemo(acc)}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-purple-500/20 hover:border-purple-500/40 border border-white/10 text-[11px] font-medium text-slate-200 hover:text-white transition-all"
-                      >
-                        {acc.role}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
 
           {/* Registration Link */}
           <div className="pt-4 border-t border-white/10 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">

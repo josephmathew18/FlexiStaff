@@ -106,15 +106,14 @@ export default function ClientDashboard() {
     return clientProjects.reduce((sum, p) => {
       const assigned = p.workforceAssigned || (p.assignedResources ? p.assignedResources.length : 0) || 0;
       return sum + assigned;
-    }, 0) || 48;
+    }, 0);
   }, [clientProjects]);
 
   const STATS = [
     {
       title: "Active Contractors",
       value: totalContractors.toString(),
-      change: "+12%",
-      subtext: "Across active project pods",
+      change: totalContractors > 0 ? "+12%" : undefined,
       icon: Users,
       color: "from-emerald-500 to-teal-600",
       badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -123,16 +122,14 @@ export default function ClientDashboard() {
       title: "Active SOW Projects",
       value: activeCount.toString(),
       total: `/ ${clientProjects.length} Total`,
-      subtext: `${pendingCount} pending admin review`,
       icon: Rocket,
       color: "from-blue-600 to-indigo-600",
       badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
     },
     {
       title: "Sprint Velocity",
-      value: "94.8%",
-      change: "+3.2%",
-      subtext: "Milestones met on schedule",
+      value: clientProjects.length > 0 ? "94.8%" : "0%",
+      change: clientProjects.length > 0 ? "+3.2%" : undefined,
       icon: Zap,
       color: "from-amber-500 to-orange-600",
       badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
@@ -140,8 +137,6 @@ export default function ClientDashboard() {
     {
       title: "Open SOW Requests",
       value: pendingCount.toString(),
-      badge: pendingCount > 0 ? "Reviewing" : "All Clear",
-      subtext: "Avg. match SLA: < 24 hours",
       icon: UserCheck,
       color: "from-purple-600 to-violet-600",
       badgeColor: "bg-purple-50 text-purple-700 border-purple-200",

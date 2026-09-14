@@ -12,32 +12,29 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
   }
 
   // Normalize role matching
-  const currentRole = role || user.role;
-  const isInfosys =
-    (user?.name || '').toLowerCase().includes('infosys') ||
-    (user?.companyName || '').toLowerCase().includes('infosys') ||
-    (user?.email || '').toLowerCase().includes('infosys');
+  const currentRole = (role || user?.role || '').toLowerCase();
 
   const isAuthorized =
     allowedRoles.length === 0 ||
-    allowedRoles.some(
-      (r) =>
-        r.toLowerCase() === (currentRole || '').toLowerCase() ||
-        (r === 'Admin' && currentRole?.toLowerCase() === 'admin') ||
-        (r === 'Partner Company' && (currentRole?.toLowerCase().includes('partner') || isInfosys)) ||
-        (r === 'Client' && currentRole?.toLowerCase().includes('client') && !isInfosys) ||
-        (r === 'Manager' && currentRole?.toLowerCase().includes('manager')) ||
-        (r === 'Workforce' && (currentRole?.toLowerCase().includes('workforce') || currentRole?.toLowerCase().includes('professional') || currentRole?.toLowerCase().includes('freelancer') || currentRole?.toLowerCase().includes('talent')))
-    );
+    allowedRoles.some((r) => {
+      const target = r.toLowerCase();
+      if (target === currentRole) return true;
+      if (target === 'admin' && currentRole.includes('admin')) return true;
+      if (target === 'partner company' && currentRole.includes('partner')) return true;
+      if (target === 'client' && currentRole.includes('client')) return true;
+      if (target === 'manager' && currentRole.includes('manager')) return true;
+      if (target === 'workforce' && (currentRole.includes('workforce') || currentRole.includes('professional') || currentRole.includes('freelancer') || currentRole.includes('talent'))) return true;
+      return false;
+    });
 
   if (!isAuthorized) {
     // Determine proper redirect for user's actual role
     let correctPath = '/dashboard';
-    if (currentRole?.toLowerCase().includes('admin')) correctPath = '/admin/dashboard';
-    else if (currentRole?.toLowerCase().includes('partner') || isInfosys) correctPath = '/partner/dashboard';
-    else if (currentRole?.toLowerCase().includes('client')) correctPath = '/client/dashboard';
-    else if (currentRole?.toLowerCase().includes('manager')) correctPath = '/manager/dashboard';
-    else if (currentRole?.toLowerCase().includes('workforce') || currentRole?.toLowerCase().includes('professional') || currentRole?.toLowerCase().includes('freelancer')) correctPath = '/workforce/dashboard';
+    if (currentRole.includes('admin')) correctPath = '/admin/dashboard';
+    else if (currentRole.includes('partner')) correctPath = '/partner/dashboard';
+    else if (currentRole.includes('client')) correctPath = '/client/dashboard';
+    else if (currentRole.includes('manager')) correctPath = '/manager/dashboard';
+    else if (currentRole.includes('workforce') || currentRole.includes('professional') || currentRole.includes('freelancer') || currentRole.includes('talent')) correctPath = '/workforce/dashboard';
 
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">

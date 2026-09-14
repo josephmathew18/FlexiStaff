@@ -8,42 +8,28 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem('flexistaff_user');
-      if (savedUser) return JSON.parse(savedUser);
-      return {
-        id: 'usr-admin-01',
-        name: 'System Administrator',
-        fullName: 'System Administrator',
-        email: 'admin@flexistaff.com',
-        role: 'Admin',
-        portalPath: '/admin/dashboard',
-      };
-    } catch {
-      return {
-        id: 'usr-admin-01',
-        name: 'System Administrator',
-        fullName: 'System Administrator',
-        email: 'admin@flexistaff.com',
-        role: 'Admin',
-        portalPath: '/admin/dashboard',
-      };
-    }
+      if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return null;
   });
 
   const [role, setRole] = useState(() => {
     try {
-      return localStorage.getItem('flexistaff_role') || user?.role || 'Admin';
-    } catch {
-      return 'Admin';
-    }
+      const r = localStorage.getItem('flexistaff_role');
+      if (r && r !== 'undefined' && r !== 'null') return r;
+    } catch {}
+    return user?.role || '';
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     try {
       const auth = localStorage.getItem('flexistaff_auth');
-      return auth !== null ? auth === 'true' : true;
-    } catch {
-      return true;
-    }
+      if (auth !== null) return auth === 'true';
+    } catch {}
+    return Boolean(user);
   });
 
   // Sync to localStorage
@@ -73,6 +59,22 @@ export const AuthProvider = ({ children }) => {
     if (!trimmedPassword) {
       return { success: false, error: 'Please enter your password.' };
     }
+
+    // Check if account has been explicitly deleted
+    const deletedAdminEmails = ['admin@gmail.com', 'admin@flexistaff.ai'];
+    try {
+      const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
+      const deletedList = deletedAccountsStr ? JSON.parse(deletedAccountsStr) : [];
+      if (
+        deletedAdminEmails.includes(trimmedEmail) ||
+        (Array.isArray(deletedList) && deletedList.includes(trimmedEmail))
+      ) {
+        return {
+          success: false,
+          error: `Account not found: The account "${trimmedEmail}" has been permanently deleted.`,
+        };
+      }
+    } catch {}
 
     // Check if partner organization account is deactivated by Admin
     try {
@@ -159,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       if (stored) registeredUsers = JSON.parse(stored);
     } catch {}
 
-    // Flexible multi-field lookup helper
+    // Strict and safe multi-field lookup helper
     const matchesInput = (obj) => {
       if (!obj) return false;
       const email = (obj.email || '').toLowerCase().trim();
@@ -167,23 +169,28 @@ export const AuthProvider = ({ children }) => {
       const name = (obj.name || obj.fullName || obj.contactPerson || '').toLowerCase().trim();
       const companyName = (obj.companyName || obj.company || '').toLowerCase().trim();
       const empId = (obj.employeeId || '').toLowerCase().trim();
-      const firstWord = name.split(' ')[0];
-      const firstWordCompany = companyName.split(' ')[0];
 
-      return (
-        (email && email === trimmedEmail) ||
-        (loginEmail && loginEmail === trimmedEmail) ||
-        (name && name === trimmedEmail) ||
-        (companyName && companyName === trimmedEmail) ||
-        (empId && empId === trimmedEmail) ||
-        (firstWord && firstWord === trimmedEmail) ||
-        (firstWordCompany && firstWordCompany === trimmedEmail) ||
-        (email && email.split('@')[0] === trimmedEmail) ||
-        (name && name.includes(trimmedEmail)) ||
-        (companyName && companyName.includes(trimmedEmail)) ||
-        (trimmedEmail && name && trimmedEmail.includes(name)) ||
-        (trimmedEmail && companyName && trimmedEmail.includes(companyName))
-      );
+      // Exact email / loginEmail match
+      if (email && email === trimmedEmail) return true;
+      if (loginEmail && loginEmail === trimmedEmail) return true;
+
+      // Exact username prefix match (e.g. sharon === sharon)
+      const inputUser = trimmedEmail.split('@')[0];
+      const objUser = email.split('@')[0];
+      if (inputUser && objUser && inputUser === objUser && inputUser !== 'admin' && inputUser !== 'manager' && inputUser !== 'client' && inputUser !== 'partner') {
+        return true;
+      }
+
+      if (name && name === trimmedEmail) return true;
+      if (companyName && companyName === trimmedEmail) return true;
+      if (empId && empId === trimmedEmail) return true;
+
+      const firstWordName = name.split(' ')[0];
+      if (firstWordName && inputUser && firstWordName === inputUser && firstWordName.length > 2) {
+        return true;
+      }
+
+      return false;
     };
 
     let matchedUser = registeredUsers.find(matchesInput);
@@ -238,14 +245,42 @@ export const AuthProvider = ({ children }) => {
       }
     } catch {}
 
+    // Check if account has been explicitly deleted
+    try {
+      const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
+      if (deletedAccountsStr) {
+        const deletedList = JSON.parse(deletedAccountsStr);
+        if (Array.isArray(deletedList) && (deletedList.includes(trimmedEmail) || (trimmedEmail.includes('sharon') && deletedList.some(e => e.includes('sharon'))))) {
+          return {
+            success: false,
+            error: 'Account not found: This account has been permanently deleted by Admin.',
+          };
+        }
+      }
+    } catch {}
+
     const isWorkforceUser =
       Boolean(matchedWorkforceOrg) ||
-      (matchedUser && (matchedUser.role === 'Workforce' || matchedUser.role === 'Freelancer' || matchedUser.role === 'ROLE_WORKFORCE' || matchedUser.role === 'ROLE_PROFESSIONAL'));
+      trimmedEmail.includes('workforce') ||
+      trimmedEmail.includes('freelancer') ||
+      trimmedEmail.includes('professional') ||
+      selectedRole === 'Workforce' ||
+      selectedRole === 'Freelancer' ||
+      (matchedUser && (
+        matchedUser.role === 'Workforce' ||
+        matchedUser.role === 'Freelancer' ||
+        matchedUser.role === 'Professional' ||
+        matchedUser.role === 'Talent' ||
+        matchedUser.role === 'ROLE_WORKFORCE' ||
+        matchedUser.role === 'ROLE_PROFESSIONAL'
+      ));
 
     const isPartnerUser =
       !isWorkforceUser &&
       (Boolean(matchedPartnerOrg) ||
       trimmedEmail.includes('partner') ||
+      selectedRole === 'Partner Company' ||
+      selectedRole === 'Partner' ||
       (matchedUser && (
         matchedUser.role === 'Partner Company' ||
         matchedUser.role === 'Partner' ||
@@ -258,16 +293,16 @@ export const AuthProvider = ({ children }) => {
         userRole = 'Workforce';
       } else if (isPartnerUser) {
         userRole = 'Partner Company';
-      } else if (matchedManagerOrg || trimmedEmail.includes('manager') || (matchedUser && matchedUser.role === 'Manager')) {
+      } else if (matchedManagerOrg || trimmedEmail.includes('manager') || selectedRole === 'Manager' || (matchedUser && matchedUser.role === 'Manager')) {
         userRole = 'Manager';
-      } else if (matchedClientOrg || trimmedEmail.includes('client') || (matchedUser && matchedUser.role === 'Client')) {
+      } else if (matchedClientOrg || trimmedEmail.includes('client') || selectedRole === 'Client' || (matchedUser && matchedUser.role === 'Client')) {
         userRole = 'Client';
-      } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin' || (matchedUser && matchedUser.role === 'Admin')) {
+      } else if (trimmedEmail.includes('admin') || trimmedEmail === 'admin' || selectedRole === 'Admin' || (matchedUser && matchedUser.role === 'Admin')) {
         userRole = 'Admin';
       } else if (matchedUser && matchedUser.role) {
         userRole = matchedUser.role;
       } else {
-        userRole = 'Client';
+        userRole = 'Workforce';
       }
     }
 
@@ -292,7 +327,6 @@ export const AuthProvider = ({ children }) => {
       matchedManagerOrg?.name ||
       matchedPartnerOrg?.name ||
       matchedClientOrg?.name ||
-      matchedWorkforceOrg?.name ||
       trimmedEmail.split('@')[0];
 
     const partnerCompany =
@@ -301,11 +335,6 @@ export const AuthProvider = ({ children }) => {
       matchedWorkforceOrg?.partner ||
       matchedUser?.partnerCompany ||
       matchedUser?.partnerName ||
-      matchedUser?.companyName ||
-      matchedUser?.company ||
-      matchedPartnerOrg?.name ||
-      matchedClientOrg?.companyName ||
-      matchedClientOrg?.company ||
       '';
 
     const companyName = partnerCompany || (userRole === 'Client' ? 'Enterprise Client' : userRole === 'Partner Company' ? 'Partner Company' : userRole === 'Manager' ? 'Enterprise Resource Allocation' : '');
@@ -368,6 +397,11 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(true);
     localStorage.setItem('flexistaff_user', JSON.stringify(localUser));
     localStorage.setItem('flexistaff_role', userRole);
+
+    try {
+      window.dispatchEvent(new CustomEvent('auth_change', { detail: localUser }));
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
 
     // Save to registered users list for persistence
     try {
@@ -446,6 +480,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('flexistaff_role', userRole);
     localStorage.setItem('flexistaff_auth', 'true');
 
+    try {
+      window.dispatchEvent(new CustomEvent('auth_change', { detail: registeredUser }));
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
+
     // Also persist in flexistaff_registered_users array
     try {
       const existingListStr = localStorage.getItem('flexistaff_registered_users');
@@ -473,6 +512,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('flexistaff_role');
     localStorage.removeItem('flexistaff_token');
     localStorage.setItem('flexistaff_auth', 'false');
+
+    try {
+      window.dispatchEvent(new CustomEvent('auth_change', { detail: null }));
+      window.dispatchEvent(new Event('storage'));
+    } catch {}
   };
 
   return (

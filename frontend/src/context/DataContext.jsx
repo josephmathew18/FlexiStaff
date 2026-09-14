@@ -72,13 +72,15 @@ export const DataProvider = ({ children }) => {
   });
 
   const [workforce, setWorkforce] = useState(() => {
+    let list = [];
     try {
       const saved = localStorage.getItem('flexistaff_workforce');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // Ignore
-    }
-    return initialWorkforce || [];
+      if (saved) list = JSON.parse(saved);
+    } catch {}
+    if (!list || list.length === 0) list = initialWorkforce || [];
+    return list.filter(
+      (w) => w && !(w.email || '').toLowerCase().includes('sharon') && !(w.name || '').toLowerCase().includes('sharon')
+    );
   });
 
   const [projects, setProjects] = useState(() => {
@@ -97,7 +99,44 @@ export const DataProvider = ({ children }) => {
     return list.map((p) => {
       if (!p) return p;
       const cleanId = typeof p.id === 'number' ? p.id : (Number(String(p.id).replace(/\D/g, '')) || p.id);
-      return { ...p, id: cleanId };
+      let stage = p.stage;
+      let status = p.status;
+      const numProg = Number(p.progress) || 0;
+      if (numProg < 100 && (stage === 'Completed' || status === 'Completed')) {
+        stage = numProg > 0 ? 'In Progress' : 'Approved';
+        status = numProg > 0 ? 'In Progress' : 'Approved';
+      }
+
+      let workforceRequired = p.workforceRequired;
+      let workforceAssigned = p.workforceAssigned;
+      let requirements = p.requirements;
+      const isPetrolPump = String(p.id).includes('7142') || String(p.name || p.title || '').toLowerCase().includes('petrol pump');
+      if (isPetrolPump) {
+        workforceRequired = 5;
+        workforceAssigned = 5;
+        if (Array.isArray(requirements) && requirements.length > 0) {
+          requirements = requirements.map((r, idx) => (idx === 0 ? { ...r, required: 5, assigned: 5 } : r));
+        } else {
+          requirements = [
+            {
+              role: p.category || 'Enterprise Software Engineering',
+              required: 5,
+              assigned: 5,
+              skills: p.techStack || 'React.js, Java, Python',
+            },
+          ];
+        }
+      }
+
+      return {
+        ...p,
+        id: cleanId,
+        stage,
+        status,
+        workforceRequired: isPetrolPump ? 5 : (workforceRequired || 5),
+        workforceAssigned: isPetrolPump ? 5 : (workforceAssigned || 0),
+        requirements,
+      };
     });
   });
 
@@ -129,11 +168,71 @@ export const DataProvider = ({ children }) => {
     } catch {}
   }, [partners]);
 
+  // Cleanup deleted accounts (Sharon Tomy, admin@gmail.com, admin@flexistaff.ai)
+  useEffect(() => {
+    try {
+      const deletedStr = localStorage.getItem('flexistaff_deleted_accounts') || '[]';
+      let deletedList = JSON.parse(deletedStr);
+      if (!Array.isArray(deletedList)) deletedList = [];
+
+      const targetDeleted = ['sharon@flexistaff.com', 'sharon.tomy@flexistaff.com', 'sharon', 'admin@gmail.com', 'admin@flexistaff.ai'];
+      let listChanged = false;
+      targetDeleted.forEach((email) => {
+        if (!deletedList.includes(email)) {
+          deletedList.push(email);
+          listChanged = true;
+        }
+      });
+
+      if (listChanged) {
+        localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(deletedList));
+      }
+
+      // Clear active session if logged in as deleted user
+      const currentUserStr = localStorage.getItem('flexistaff_user');
+      if (currentUserStr) {
+        const u = JSON.parse(currentUserStr);
+        const emailLower = (u?.email || '').toLowerCase();
+        const nameLower = (u?.name || '').toLowerCase();
+
+        if (
+          emailLower.includes('sharon') ||
+          nameLower.includes('sharon') ||
+          emailLower === 'admin@gmail.com' ||
+          emailLower === 'admin@flexistaff.ai'
+        ) {
+          localStorage.removeItem('flexistaff_user');
+          localStorage.removeItem('flexistaff_role');
+          localStorage.removeItem('flexistaff_token');
+          window.dispatchEvent(new CustomEvent('auth_change', { detail: null }));
+        }
+      }
+
+      // Purge registered users list
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        if (Array.isArray(regList)) {
+          const updatedReg = regList.filter((u) => {
+            if (!u) return false;
+            const uEmail = (u.email || '').toLowerCase().trim();
+            const uName = (u.name || '').toLowerCase().trim();
+            if (uEmail.includes('sharon') || uName.includes('sharon')) return false;
+            if (uEmail === 'admin@gmail.com' || uEmail === 'admin@flexistaff.ai') return false;
+            return true;
+          });
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+        }
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_managers', JSON.stringify(managers));
     } catch {}
   }, [managers]);
+
 
   // Client Registration helper
   const addClient = (clientData) => {
@@ -425,7 +524,11 @@ export const DataProvider = ({ children }) => {
 
     syncPartnerProfileData();
     window.addEventListener('storage', syncPartnerProfileData);
-    return () => window.removeEventListener('storage', syncPartnerProfileData);
+    window.addEventListener('auth_change', syncPartnerProfileData);
+    return () => {
+      window.removeEventListener('storage', syncPartnerProfileData);
+      window.removeEventListener('auth_change', syncPartnerProfileData);
+    };
   }, [partners]);
 
   const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
@@ -497,9 +600,57 @@ export const DataProvider = ({ children }) => {
     return initialManagerProfile;
   });
 
-  const [managerAssignments, setManagerAssignments] = useState(initialManagerAssignments);
+  const [managerAssignments, setManagerAssignments] = useState(() => {
+    let list = [];
+    try {
+      const saved = localStorage.getItem('flexistaff_manager_assignments');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+      }
+    } catch {}
+    if (list.length === 0) list = initialManagerAssignments || [];
+
+    const uniqueList = [];
+    const seen = new Set();
+    list.forEach((a) => {
+      if (!a) return;
+      const projKey = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const profKey = String(a.professionalId || a.professionalName || '').toLowerCase().trim();
+      const key = `${projKey}_${profKey}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueList.push(a);
+      }
+    });
+
+    return uniqueList;
+  });
+
   const [managerNotifications, setManagerNotifications] = useState(initialManagerNotifications);
-  const [freelancerRequests, setFreelancerRequests] = useState([]);
+
+  const [freelancerRequests, setFreelancerRequests] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_freelancer_requests');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(managerAssignments));
+    } catch {}
+  }, [managerAssignments]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(freelancerRequests));
+    } catch {}
+  }, [freelancerRequests]);
 
   // Sync Manager Profile with registered user data
   useEffect(() => {
@@ -577,7 +728,11 @@ export const DataProvider = ({ children }) => {
 
     syncManagerProfileData();
     window.addEventListener('storage', syncManagerProfileData);
-    return () => window.removeEventListener('storage', syncManagerProfileData);
+    window.addEventListener('auth_change', syncManagerProfileData);
+    return () => {
+      window.removeEventListener('storage', syncManagerProfileData);
+      window.removeEventListener('auth_change', syncManagerProfileData);
+    };
   }, [managers]);
 
   // Workforce Portal State
@@ -662,17 +817,9 @@ export const DataProvider = ({ children }) => {
             const isPartnerEmployee =
               Boolean(partnerCompany) ||
               matchedWf?.source === 'Partner Company' ||
-              matchedWf?.roleType === 'Professional' ||
               matchedWf?.professionalType === 'PARTNER_EMPLOYEE' ||
-              matchedWf?.userType === 'PARTNER_EMPLOYEE' ||
               savedUser?.role === 'Partner Employee' ||
-              savedUser?.roleType === 'Professional' ||
-              savedUser?.professionalType === 'PARTNER_EMPLOYEE' ||
-              savedUser?.userType === 'PARTNER_EMPLOYEE';
-
-            if (isPartnerEmployee && !partnerCompany) {
-              partnerCompany = 'Infosys Technologies';
-            }
+              savedUser?.professionalType === 'PARTNER_EMPLOYEE';
 
             setWorkforceUserProfile({
               id: matchedWf?.id || savedUser.id || 'wf-101',
@@ -724,7 +871,11 @@ export const DataProvider = ({ children }) => {
 
     syncWorkforceProfileData();
     window.addEventListener('storage', syncWorkforceProfileData);
-    return () => window.removeEventListener('storage', syncWorkforceProfileData);
+    window.addEventListener('auth_change', syncWorkforceProfileData);
+    return () => {
+      window.removeEventListener('storage', syncWorkforceProfileData);
+      window.removeEventListener('auth_change', syncWorkforceProfileData);
+    };
   }, [workforce]);
 
   // Sync Client Profile with registered user data
@@ -777,7 +928,11 @@ export const DataProvider = ({ children }) => {
 
     syncClientProfileData();
     window.addEventListener('storage', syncClientProfileData);
-    return () => window.removeEventListener('storage', syncClientProfileData);
+    window.addEventListener('auth_change', syncClientProfileData);
+    return () => {
+      window.removeEventListener('storage', syncClientProfileData);
+      window.removeEventListener('auth_change', syncClientProfileData);
+    };
   }, [clients]);
 
   // Freelancer Applications State (Submitted via Form for Freelancer)
@@ -1487,10 +1642,20 @@ export const DataProvider = ({ children }) => {
       return null;
     }
 
-    // Per-Project Workforce Limit: Max 5 total workforce members per project squad
-    const projectAssignments = (managerAssignments || []).filter(
-      (a) => a.projectId === projectId && a.status !== 'Rejected' && a.status !== 'Declined'
+    // Check if candidate is ALREADY assigned or proposed to THIS project
+    const alreadyAssignedToThisProject = (managerAssignments || []).some(
+      (a) =>
+        a &&
+        String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim() === String(prj.id || projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim() &&
+        (String(a.professionalId || '') === String(cand.id || '') || String(a.professionalName || '').toLowerCase().trim() === String(cand.name || cand.pseudonym || '').toLowerCase().trim()) &&
+        a.status !== 'Rejected' &&
+        a.status !== 'Declined'
     );
+
+    if (alreadyAssignedToThisProject) {
+      toast.info(`${cand.name || cand.pseudonym || 'Candidate'} is already assigned to this project.`);
+      return null;
+    }
 
     if (projectAssignments.length >= 5) {
       toast.error('Cannot assign candidate: Maximum limit of 5 workforce members per project reached (5/5 assigned).');
@@ -2405,6 +2570,21 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
+  const updateProjectHeadcount = (projectId, newHeadcount) => {
+    const num = Math.max(1, Number(newHeadcount) || 1);
+    setProjects((prev) =>
+      prev.map((p) => {
+        if (p.id === projectId || String(p.id) === String(projectId) || (typeof p.id === 'number' && Number(projectId) === p.id)) {
+          const reqs = Array.isArray(p.requirements) && p.requirements.length > 0
+            ? p.requirements.map((r, idx) => (idx === 0 ? { ...r, required: num } : r))
+            : [{ role: p.category || 'Enterprise Software Engineering', required: num, assigned: p.workforceAssigned || 0, skills: p.techStack || '' }];
+          return { ...p, workforceRequired: num, requirements: reqs };
+        }
+        return p;
+      })
+    );
+  };
+
   const updateWorkforceUserProfile = (data) => {
     setWorkforceUserProfile((prev) => ({ ...prev, ...data }));
   };
@@ -2554,7 +2734,7 @@ export const DataProvider = ({ children }) => {
     addActivity({
       user: userProfile?.name || user?.name || 'System Admin',
       action: 'Registered new Organization Manager',
-      target: `${newManager.name} (Manager #${newManager.employeeId})`,
+      target: `${newManager.name} (ID: #${newManager.employeeId})`,
       targetType: 'manager',
     });
 
@@ -2626,6 +2806,42 @@ export const DataProvider = ({ children }) => {
     setManagers([]);
     try {
       localStorage.removeItem('flexistaff_managers');
+    } catch {}
+  };
+
+  const resetAllData = () => {
+    setClients([]);
+    setPartners([]);
+    setManagers([]);
+    setWorkforce([]);
+    setProjects([]);
+    setActivities([]);
+    setNotifications([]);
+    setPartnerProjects([]);
+    setPartnerWorkforce([]);
+    setPartnerWorkforceRequests([]);
+    setPartnerNotifications([]);
+    setPartnerActivities([]);
+    setPartnerSupportTickets([]);
+    setManagerAssignments([]);
+    setManagerNotifications([]);
+    setFreelancerRequests([]);
+    setWorkforceNotifications([]);
+    setClientNotifications([]);
+    setSupportTickets([]);
+    setFreelancerApplications([]);
+
+    try {
+      localStorage.removeItem('flexistaff_clients');
+      localStorage.removeItem('flexistaff_partners');
+      localStorage.removeItem('flexistaff_managers');
+      localStorage.removeItem('flexistaff_workforce');
+      localStorage.removeItem('flexistaff_projects');
+      localStorage.removeItem('flexistaff_partner_projects');
+      localStorage.removeItem('flexistaff_partner_workforce');
+      localStorage.removeItem('flexistaff_manager_assignments');
+      localStorage.removeItem('flexistaff_support_tickets');
+      localStorage.removeItem('flexistaff_freelancer_applications');
     } catch {}
   };
 
@@ -3042,8 +3258,166 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteWorkforceMember = (id) => {
-    setWorkforce((prev) => prev.filter((w) => w.id !== id));
-    setPartnerWorkforce((prev) => prev.filter((w) => w.id !== id));
+    // 1. Locate the target workforce member
+    const targetWf =
+      (workforce || []).find((w) => w && (w.id === id || String(w.id) === String(id))) ||
+      (partnerWorkforce || []).find((w) => w && (w.id === id || String(w.id) === String(id)));
+
+    const targetIdStr = String(id || '').trim();
+    const targetNameLower = targetWf ? String(targetWf.name || targetWf.pseudonym || '').toLowerCase().trim() : '';
+    const targetEmailLower = targetWf ? String(targetWf.email || '').toLowerCase().trim() : '';
+
+    // 2. Remove from workforce pool & sync localStorage
+    setWorkforce((prev) => {
+      const updated = (prev || []).filter((w) => {
+        if (!w) return false;
+        const wIdStr = String(w.id || '').trim();
+        const wNameLower = String(w.name || w.pseudonym || '').toLowerCase().trim();
+        const wEmailLower = String(w.email || '').toLowerCase().trim();
+        if (wIdStr === targetIdStr) return false;
+        if (targetNameLower && wNameLower === targetNameLower) return false;
+        if (targetEmailLower && wEmailLower === targetEmailLower) return false;
+        return true;
+      });
+      try {
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 3. Remove from partnerWorkforce pool & sync localStorage
+    setPartnerWorkforce((prev) => {
+      const updated = (prev || []).filter((w) => {
+        if (!w) return false;
+        const wIdStr = String(w.id || '').trim();
+        const wNameLower = String(w.name || w.pseudonym || '').toLowerCase().trim();
+        const wEmailLower = String(w.email || '').toLowerCase().trim();
+        if (wIdStr === targetIdStr) return false;
+        if (targetNameLower && wNameLower === targetNameLower) return false;
+        if (targetEmailLower && wEmailLower === targetEmailLower) return false;
+        return true;
+      });
+      try {
+        localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 4. Remove from managerAssignments & sync localStorage
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).filter((a) => {
+        if (!a) return false;
+        const profIdStr = String(a.professionalId || a.id || '').trim();
+        const profNameLower = String(a.professionalName || '').toLowerCase().trim();
+        if (profIdStr === targetIdStr) return false;
+        if (targetNameLower && profNameLower === targetNameLower) return false;
+        return true;
+      });
+      try {
+        localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 5. Clean up projects & partnerProjects (remove from assignedResources & update headcount counts)
+    const cleanupProjectObj = (p) => {
+      if (!p) return p;
+      const rawResources = p.assignedResources || [];
+      const updatedResources = rawResources.filter((r) => {
+        if (!r) return false;
+        const rIdStr = String(r.id || '').trim();
+        const rNameLower = String(r.name || '').toLowerCase().trim();
+        if (rIdStr === targetIdStr) return false;
+        if (targetNameLower && rNameLower === targetNameLower) return false;
+        return true;
+      });
+
+      const nextAssignedCount = updatedResources.length;
+
+      const updatedRequirements = (p.requirements || []).map((req) => {
+        if (!req) return req;
+        const reqRoleLower = String(req.role || '').toLowerCase();
+        const targetRoleLower = targetWf ? String(targetWf.role || targetWf.title || '').toLowerCase() : '';
+        if (targetRoleLower && reqRoleLower.includes(targetRoleLower)) {
+          return { ...req, assigned: Math.max(0, (req.assigned || 0) - 1) };
+        }
+        return req;
+      });
+
+      return {
+        ...p,
+        workforceAssigned: nextAssignedCount,
+        assignedResources: updatedResources,
+        requirements: updatedRequirements,
+      };
+    };
+
+    setProjects((prev) => {
+      const updated = (prev || []).map(cleanupProjectObj);
+      try {
+        localStorage.setItem('flexistaff_projects', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    setPartnerProjects((prev) => {
+      const updated = (prev || []).map(cleanupProjectObj);
+      try {
+        localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 6. Clean up freelancerRequests
+    setFreelancerRequests((prev) => {
+      const updated = (prev || []).filter((r) => {
+        if (!r) return false;
+        const flIdStr = String(r.freelancerId || '').trim();
+        const flNameLower = String(r.freelancerName || '').toLowerCase().trim();
+        if (flIdStr === targetIdStr) return false;
+        if (targetNameLower && flNameLower === targetNameLower) return false;
+        return true;
+      });
+      try {
+        localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 7. Clean up partnerWorkforceRequests
+    setPartnerWorkforceRequests((prev) =>
+      (prev || []).map((r) => {
+        if (!r || !Array.isArray(r.proposedProfessionals)) return r;
+        const filteredProfs = r.proposedProfessionals.filter((p) => {
+          if (!p) return false;
+          const pIdStr = String(p.id || '').trim();
+          const pNameLower = String(p.name || p.pseudonym || '').toLowerCase().trim();
+          if (pIdStr === targetIdStr) return false;
+          if (targetNameLower && pNameLower === targetNameLower) return false;
+          return true;
+        });
+        return { ...r, proposedProfessionals: filteredProfs };
+      })
+    );
+
+    // 8. Clean up registered users in localStorage if applicable
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        if (Array.isArray(regList)) {
+          const updatedReg = regList.filter((u) => {
+            if (!u) return false;
+            const uIdStr = String(u.id || '').trim();
+            const uEmailLower = String(u.email || '').toLowerCase().trim();
+            if (uIdStr === targetIdStr) return false;
+            if (targetEmailLower && uEmailLower === targetEmailLower) return false;
+            return true;
+          });
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+        }
+      }
+    } catch {}
   };
 
   // Project Actions
@@ -3086,18 +3460,36 @@ export const DataProvider = ({ children }) => {
 
   const updateProject = (id, updatedData) => {
     setProjects((prev) =>
-      prev.map((prj) => (prj.id === id ? { ...prj, ...updatedData } : prj))
+      prev.map((prj) => {
+        if (prj.id === id || String(prj.id) === String(id)) {
+          const merged = { ...prj, ...updatedData };
+          const numProg = Number(merged.progress) || 0;
+          if (numProg < 100 && (merged.stage === 'Completed' || merged.status === 'Completed')) {
+            merged.stage = numProg > 0 ? 'In Progress' : 'Approved';
+            merged.status = numProg > 0 ? 'In Progress' : 'Approved';
+          } else if (numProg === 100) {
+            merged.stage = 'Completed';
+            merged.status = 'Completed';
+          }
+          return merged;
+        }
+        return prj;
+      })
     );
   };
 
   const updateProjectStage = (id, newStage) => {
     setProjects((prev) =>
       prev.map((prj) => {
-        if (prj.id !== id) return prj;
-        const newStatus =
-          newStage === 'Completed' ? 'Completed' : newStage === 'Request' ? 'Pending' : 'Active';
-        const newProgress =
-          newStage === 'Completed' ? 100 : newStage === 'Request' ? 10 : prj.progress;
+        if (prj.id !== id && String(prj.id) !== String(id)) return prj;
+        const isCompleted = newStage === 'Completed';
+        const isRequest = newStage === 'Request' || newStage === 'Pending Admin Approval';
+        const newStatus = isCompleted ? 'Completed' : isRequest ? 'Pending Admin Approval' : newStage;
+        let newProgress = prj.progress;
+        if (isCompleted) newProgress = 100;
+        else if (isRequest) newProgress = 0;
+        else if (prj.progress === 100) newProgress = 50;
+
         return {
           ...prj,
           stage: newStage,
@@ -3111,8 +3503,8 @@ export const DataProvider = ({ children }) => {
   const toggleMilestone = (projectId, milestoneId) => {
     setProjects((prev) =>
       prev.map((prj) => {
-        if (prj.id !== projectId) return prj;
-        const updatedMilestones = prj.milestones.map((m) =>
+        if (prj.id !== projectId && String(prj.id) !== String(projectId)) return prj;
+        const updatedMilestones = (prj.milestones || []).map((m) =>
           m.id === milestoneId ? { ...m, completed: !m.completed } : m
         );
         const completedCount = updatedMilestones.filter((m) => m.completed).length;
@@ -3120,12 +3512,15 @@ export const DataProvider = ({ children }) => {
           updatedMilestones.length > 0
             ? Math.round((completedCount / updatedMilestones.length) * 100)
             : prj.progress;
+        const isCompleted = computedProgress === 100;
+        const isProgressing = computedProgress > 0 && computedProgress < 100;
+
         return {
           ...prj,
           milestones: updatedMilestones,
           progress: computedProgress,
-          stage: computedProgress === 100 ? 'Completed' : prj.stage,
-          status: computedProgress === 100 ? 'Completed' : prj.status,
+          stage: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.stage === 'Completed' ? 'In Progress' : prj.stage)),
+          status: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.status === 'Completed' ? 'In Progress' : prj.status)),
         };
       })
     );
@@ -3156,6 +3551,7 @@ export const DataProvider = ({ children }) => {
         updateManagerStatus,
         deleteManager,
         clearManagers,
+        resetAllData,
         reassignProjectManager,
         workforce,
         addWorkforceMember,
@@ -3217,6 +3613,7 @@ export const DataProvider = ({ children }) => {
         // Universal Workflow Actions
         approveProject,
         rejectProject,
+        updateProjectHeadcount,
         sendPartnerWorkforceRequest,
         respondPartnerWorkforceRequest,
         rejectPartnerWorkforceRequest,

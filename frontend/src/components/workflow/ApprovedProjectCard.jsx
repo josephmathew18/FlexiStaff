@@ -78,7 +78,7 @@ export const ApprovedProjectCard = ({ project, onRequestWorkforce, className = '
           <div className="p-2.5 rounded-2xl bg-blue-50/60 border border-blue-100">
             <span className="block text-[10px] font-bold text-blue-500 uppercase">Workforce Limit</span>
             <span className="block font-black text-slate-900 text-sm mt-0.5">
-              {project.workforceAssigned || 0} / {Math.min(3, project.workforceRequired || 3)}
+              {project.workforceAssigned || 0} / {project.workforceRequired || 5}
             </span>
           </div>
 

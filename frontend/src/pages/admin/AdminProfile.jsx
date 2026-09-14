@@ -28,7 +28,7 @@ export const AdminProfile = () => {
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
     name: adminProfile?.name || 'System Administrator',
-    email: adminProfile?.email || 'admin@gmail.com',
+    email: adminProfile?.email || 'admin@flexistaff.com',
     phone: adminProfile?.phone || '+91 98765 43210',
     companyName: adminProfile?.companyName || 'FlexiStaff Global Technologies Inc.',
     jobTitle: adminProfile?.jobTitle || 'Super Administrator',

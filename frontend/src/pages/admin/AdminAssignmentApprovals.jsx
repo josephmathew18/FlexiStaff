@@ -77,8 +77,8 @@ export const AdminAssignmentApprovals = () => {
     const seenKeys = new Set();
     rawList.forEach((a, idx) => {
       if (!a) return;
-      const normProjId = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-      const normName = (a.professionalName || '').toLowerCase().trim();
+      const normProjId = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const normName = String(a.professionalName || '').toLowerCase().trim();
       const key = `${normProjId}_${normName || a.id || idx}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
@@ -92,6 +92,12 @@ export const AdminAssignmentApprovals = () => {
   const handleApprove = (asg) => {
     approveWorkforceAssignment(asg.id);
     toast.success(`Approved assignment for ${asg.professionalName}. Project is now In Progress and started!`);
+    setSelectedAsg(null);
+  };
+
+  const handleReject = (asg) => {
+    rejectWorkforceAssignment(asg.id, 'Assignment rejected by Admin.');
+    toast.info(`Rejected assignment for ${asg.professionalName}. Returned to manager.`);
     setSelectedAsg(null);
   };
 
@@ -137,7 +143,7 @@ export const AdminAssignmentApprovals = () => {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
             <XCircle size={12} className="text-rose-600 dark:text-rose-400" />
-            <span>Rejected by Admin</span>
+            <span>Rejected</span>
           </span>
         );
       case 'Declined':
@@ -258,13 +264,12 @@ export const AdminAssignmentApprovals = () => {
                 <th className="py-3.5 px-4">Target Project & Client</th>
                 <th className="py-3.5 px-4">Rate & Workload</th>
                 <th className="py-3.5 px-4">Assignment Status</th>
-                <th className="py-3.5 px-4 text-right">Decision Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/10">
               {filteredAssignments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-400">
+                  <td colSpan={5} className="py-10 text-center text-slate-400">
                     No workforce assignment proposals found.
                   </td>
                 </tr>
@@ -315,44 +320,6 @@ export const AdminAssignmentApprovals = () => {
 
                     <td className="py-3.5 px-4">
                       {getStatusBadge(asg.status)}
-                      {asg.rejectionReason && (
-                        <p className="text-[10px] text-rose-600 mt-1 font-medium max-w-[220px]">
-                          Reason: {asg.rejectionReason}
-                        </p>
-                      )}
-                      {asg.declineReason && (
-                        <p className="text-[10px] text-slate-500 mt-1 font-medium max-w-[220px]">
-                          Reason: {asg.declineReason}
-                        </p>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4 text-right">
-                      {asg.status === 'Pending Assignment Approval' || asg.status === 'Pending Admin Approval' ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleApprove(asg)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs active:scale-95 transition-all"
-                          >
-                            <Check size={13} />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedAsg(asg);
-                              setIsRejectModalOpen(true);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 active:scale-95 transition-all"
-                          >
-                            <X size={13} />
-                            <span>Reject</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 font-medium">Decided</span>
-                      )}
                     </td>
                   </tr>
                 ))

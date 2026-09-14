@@ -58,7 +58,7 @@ export const WorkforceDashboard = () => {
       const isPartnerMatch = Boolean(wfCompany && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
 
       if (isDirectMatch || isPartnerMatch) {
-        const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
         const key = `asg_${normProj}_${a.id || aName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -75,7 +75,7 @@ export const WorkforceDashboard = () => {
       const isMatch = (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) || (wfId && rId && wfId === rId);
 
       if (isMatch) {
-        const normProj = (r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const normProj = String(r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
         const key = `fl_${normProj}_${r.id || rName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -102,7 +102,7 @@ export const WorkforceDashboard = () => {
         if (!pr) return;
         const prCompany = (pr.partnerName || '').toLowerCase().trim();
         if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
-          const normProj = (pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const normProj = String(pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
           const key = `prt_${normProj}_${pr.id}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);

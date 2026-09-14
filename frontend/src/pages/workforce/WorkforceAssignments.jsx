@@ -32,6 +32,7 @@ import { toast } from 'react-toastify';
 export const WorkforceAssignments = () => {
   const {
     workforceUserProfile,
+    projects = [],
     managerAssignments = [],
     freelancerRequests = [],
     partnerWorkforceRequests = [],
@@ -66,9 +67,26 @@ export const WorkforceAssignments = () => {
 
   // Find all assignments & requests for this talent
   const myAssignments = useMemo(() => {
-    const wfName = (workforceUserProfile?.name || '').toLowerCase().trim();
-    const wfId = String(workforceUserProfile?.id || '').trim();
-    const wfCompany = (workforceUserProfile?.partnerCompany || workforceUserProfile?.partnerName || '').toLowerCase().trim();
+    const savedUserStr = localStorage.getItem('flexistaff_user');
+    let savedUser = null;
+    if (savedUserStr) {
+      try { savedUser = JSON.parse(savedUserStr); } catch {}
+    }
+
+    const wfName = (workforceUserProfile?.name || savedUser?.name || savedUser?.fullName || '').toLowerCase().trim();
+    const wfEmail = (workforceUserProfile?.email || savedUser?.email || '').toLowerCase().trim();
+    const wfId = String(workforceUserProfile?.id || savedUser?.id || '').trim();
+    const wfCompany = (
+      workforceUserProfile?.partnerCompany ||
+      workforceUserProfile?.partnerName ||
+      workforceUserProfile?.companyName ||
+      workforceUserProfile?.company ||
+      savedUser?.partnerCompany ||
+      savedUser?.partnerName ||
+      savedUser?.companyName ||
+      savedUser?.company ||
+      ''
+    ).toLowerCase().trim();
 
     const results = [];
     const seenKeys = new Set();
@@ -81,10 +99,10 @@ export const WorkforceAssignments = () => {
       const aCompany = (a.partnerName || '').toLowerCase().trim();
 
       const isDirectMatch = (wfName && aName && (aName === wfName || aName.includes(wfName) || wfName.includes(aName))) || (wfId && aId && wfId === aId);
-      const isPartnerMatch = Boolean(wfCompany && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
+      const isPartnerMatch = Boolean(wfCompany && wfCompany !== 'enterprise client' && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
 
       if (isDirectMatch || isPartnerMatch) {
-        const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
         const key = `asg_${normProj}_${a.id || aName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -93,7 +111,49 @@ export const WorkforceAssignments = () => {
       }
     });
 
-    // 2. From freelancerRequests
+    // 2. From projects array (assignedResources & active project allocations)
+    (projects || []).forEach((p) => {
+      if (!p) return;
+      const assignedList = p.assignedResources || [];
+      const isAssignedToUser = assignedList.some((res) => {
+        if (!res) return false;
+        const rName = (res.name || res.professionalName || '').toLowerCase().trim();
+        const rId = String(res.id || res.professionalId || '').trim();
+        return (
+          (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) ||
+          (wfId && rId && wfId === rId) ||
+          (wfEmail && res.email && res.email.toLowerCase() === wfEmail)
+        );
+      });
+
+      const pClient = (p.client || '').toLowerCase().trim();
+      const isCompanyProj = wfCompany && wfCompany !== 'enterprise client' && (pClient === wfCompany || pClient.includes(wfCompany) || wfCompany.includes(pClient));
+
+      if (isAssignedToUser || (isCompanyProj && p.status !== 'Rejected' && p.stage !== 'Rejected')) {
+        const normProj = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const key = `prj_${normProj}_${p.id}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          results.push({
+            id: `prj-asg-${p.id}`,
+            projectId: p.id,
+            projectName: p.title || p.name || 'Enterprise Project',
+            client: p.client || 'Client Organization',
+            role: p.requiredSkills?.[0] ? `${p.requiredSkills[0]} Developer` : 'Specialist Software Engineer',
+            hourlyRate: '$95/hr',
+            workload: 40,
+            skills: p.requiredSkills || ['React.js', 'JavaScript'],
+            status: p.status === 'Completed' || p.stage === 'Completed' ? 'Completed' : 'Working',
+            assignedDate: p.startDate || new Date().toISOString().split('T')[0],
+            notes: p.description || 'Assigned to active enterprise project squad.',
+            currentTask: p.recentUpdate || 'Active project milestone deliverables in progress.',
+            progress: p.progress || 0,
+          });
+        }
+      }
+    });
+
+    // 3. From freelancerRequests
     (freelancerRequests || []).forEach((r) => {
       if (!r) return;
       const rName = (r.freelancerName || '').toLowerCase().trim();
@@ -102,13 +162,13 @@ export const WorkforceAssignments = () => {
       const isMatch = (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) || (wfId && rId && wfId === rId);
 
       if (isMatch) {
-        const normProj = (r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const normProj = String(r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
         const key = `fl_${normProj}_${r.id || rName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           results.push({
             id: r.id,
-            projectId: r.projectId || 7142,
+            projectId: r.projectId || 'PRJ-REQ-7142',
             projectName: r.projectName || 'Enterprise Project',
             client: r.client || 'Client Organization',
             role: r.role || 'Specialist',
@@ -124,19 +184,19 @@ export const WorkforceAssignments = () => {
       }
     });
 
-    // 3. From partnerWorkforceRequests (for Partner Employees)
-    if (wfCompany) {
+    // 4. From partnerWorkforceRequests (for Partner Employees)
+    if (wfCompany && wfCompany !== 'enterprise client') {
       (partnerWorkforceRequests || []).forEach((pr) => {
         if (!pr) return;
         const prCompany = (pr.partnerName || '').toLowerCase().trim();
         if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
-          const normProj = (pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const normProj = String(pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
           const key = `prt_${normProj}_${pr.id}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
             results.push({
               id: pr.id,
-              projectId: pr.projectId || 7142,
+              projectId: pr.projectId || 'PRJ-REQ-7142',
               projectName: pr.projectName || 'Enterprise Project',
               client: pr.client || 'Partner Client',
               role: pr.role || 'Partner Specialist',
@@ -154,7 +214,7 @@ export const WorkforceAssignments = () => {
     }
 
     return results;
-  }, [managerAssignments, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
+  }, [managerAssignments, projects, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
 
   const isPendingStatus = (st) => {
     const s = String(st || '').toLowerCase();

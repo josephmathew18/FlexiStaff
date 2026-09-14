@@ -182,8 +182,12 @@ export const ClientWorkforce = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Weekly Hours Logged</span>
             <Clock size={16} className="text-blue-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900">185 Hours</p>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">Average 37.0 hrs / specialist</p>
+          <p className="text-2xl font-black text-slate-900">
+            {deployedWorkforce.length > 0 ? `${deployedWorkforce.length * 40} Hours` : "0 Hours"}
+          </p>
+          <p className="text-[11px] text-slate-500 font-medium mt-1">
+            {deployedWorkforce.length > 0 ? "Average 40.0 hrs / specialist" : "No hours logged"}
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
@@ -191,8 +195,12 @@ export const ClientWorkforce = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Avg Squad Performance</span>
             <Star size={16} className="text-amber-500 fill-amber-500" />
           </div>
-          <p className="text-2xl font-black text-slate-900">4.89 / 5.0</p>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-1">Top 5% Talent SLA Benchmark</p>
+          <p className="text-2xl font-black text-slate-900">
+            {deployedWorkforce.length > 0 ? "4.89 / 5.0" : "N/A"}
+          </p>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+            {deployedWorkforce.length > 0 ? "Top 5% Talent SLA Benchmark" : "No active squad ratings"}
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
@@ -200,8 +208,12 @@ export const ClientWorkforce = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Assigned Manager</span>
             <UserCheck size={16} className="text-purple-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900">Assigned Manager</p>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">Lead Client Success Manager</p>
+          <p className="text-2xl font-black text-slate-900">
+            {clientProjects.find((p) => p.manager)?.manager || "Unassigned"}
+          </p>
+          <p className="text-[11px] text-slate-500 font-medium mt-1">
+            {clientProjects.find((p) => p.manager)?.manager ? "Lead Project Manager" : "No manager assigned"}
+          </p>
         </div>
       </div>
 

@@ -91,7 +91,7 @@ export const ClientProjectDetails = () => {
             <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Workforce Limit</span>
               <p className="text-sm font-extrabold text-slate-900">
-                {project.workforceAssigned || 0} / {Math.min(3, project.workforceRequired || 3)} Assigned
+                {project.workforceAssigned || 0} / {project.workforceRequired || 5} Assigned
               </p>
             </div>
           </div>

@@ -23,64 +23,92 @@ import { useData } from '../../context/DataContext';
 export const ManagerProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, partnerProjects, workforce, managerAssignments, projectMilestones = {} } = useData();
+  const { projects, partnerProjects, workforce, managerAssignments, projectMilestones = {}, updateProjectHeadcount } = useData();
 
   // Find project
   const project = useMemo(() => {
-    const all = [...projects, ...partnerProjects];
-    const decodedId = decodeURIComponent(id || '').trim();
-    const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+    const all = [...(projects || []), ...(partnerProjects || [])];
+    const rawIdStr = String(id || '').trim();
+    const cleanNumId = rawIdStr.replace(/\D/g, '');
+
+    const matched = all.find((p) => {
+      if (!p) return false;
+      const pIdStr = String(p.id || '').trim();
+      const pNumId = pIdStr.replace(/\D/g, '');
+      if (pIdStr.toLowerCase() === rawIdStr.toLowerCase()) return true;
+      if (cleanNumId && pNumId === cleanNumId) return true;
+      if (p.name && p.name.toLowerCase() === rawIdStr.toLowerCase()) return true;
+      if (p.title && p.title.toLowerCase() === rawIdStr.toLowerCase()) return true;
+      return false;
+    });
+
+    if (matched) return matched;
 
     return (
-      all.find((p) => {
-        if (!p || !p.id) return false;
-        const pidLower = String(p.id).toLowerCase().trim();
-        const pidNormalized = pidLower.replace(/[\s_]/g, '-');
-        return (
-          pidLower === decodedId.toLowerCase() ||
-          pidNormalized === normalizedId ||
-          pidLower === id?.toLowerCase() ||
-          pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
-        );
-      }) || all[0] || {
-        id: id || 'PRJ-PARTNER-101',
-        name: 'E-Commerce Platform Development',
+      all[0] || {
+        id: id || 7142,
+        name: 'Enterprise Software Project',
         client: 'Client Organization',
         partner: 'Partner Organization',
-        category: 'Full-Stack Web & Mobile Architecture',
-        techStack: 'React.js, Java Spring Boot, MySQL, Selenium',
+        category: 'Enterprise Software Engineering',
+        techStack: 'React.js, Node.js, Python',
         priority: 'High',
-        description:
-          'Comprehensive multi-tenant e-commerce platform overhaul with microservices architecture, modern checkout flow, and automated QA pipeline.',
-        workforceRequired: 6,
-        workforceAssigned: 3,
-        startDate: '2026-08-01',
+        description: 'Enterprise staffing requirement.',
+        workforceRequired: 5,
+        workforceAssigned: 0,
+        startDate: new Date().toISOString().split('T')[0],
         expectedEndDate: '2027-01-31',
         duration: '6 Months',
-        workType: 'Hybrid (Bengaluru & Remote)',
+        workType: 'Remote',
         location: 'Bengaluru, India',
         status: 'Approved',
         requirements: [
-          { role: 'Frontend React Developer', required: 2, assigned: 1, skills: 'React.js, JavaScript, HTML, CSS' },
-          { role: 'Java Backend Architect', required: 2, assigned: 1, skills: 'Java, Spring Boot, MySQL' },
-          { role: 'UI/UX Designer', required: 1, assigned: 1, skills: 'Figma, UI Design' },
-          { role: 'QA Automation Engineer', required: 1, assigned: 0, skills: 'Testing, Selenium' },
+          { role: 'Enterprise Software Specialist', required: 5, assigned: 0, skills: 'React.js, Node.js, Cloud' }
         ],
       }
     );
   }, [id, projects, partnerProjects]);
 
-  const requirementsList = project.requirements || [
-    {
-      role: project.category || 'Engineering Specialist',
-      required: project.workforceRequired || 1,
-      assigned: project.workforceAssigned || 0,
-      skills: Array.isArray(project.skills) ? project.skills.join(', ') : (project.techStack || 'Technical Matching'),
-    },
-  ];
+  const activeProject = project || {
+    id: id || 7142,
+    name: 'Enterprise Software Project',
+    client: 'Client Organization',
+    partner: 'Partner Organization',
+    category: 'Enterprise Software Engineering',
+    techStack: 'React.js, Node.js, Python',
+    priority: 'High',
+    description: 'Enterprise staffing requirement.',
+    workforceRequired: 5,
+    workforceAssigned: 0,
+    startDate: new Date().toISOString().split('T')[0],
+    expectedEndDate: '2027-01-31',
+    duration: '6 Months',
+    workType: 'Remote',
+    location: 'Bengaluru, India',
+    status: 'Approved',
+  };
 
-  const totalRequired = requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || project.workforceRequired || 1;
-  const totalAssigned = requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || project.workforceAssigned || 0;
+  const isPetrol = String(activeProject.id || '').includes('7142') || String(activeProject.name || activeProject.title || '').toLowerCase().includes('petrol pump');
+
+  const requirementsList = useMemo(() => {
+    const raw = activeProject.requirements && activeProject.requirements.length > 0 ? activeProject.requirements : [
+      {
+        role: activeProject.category || 'Engineering Specialist',
+        required: activeProject.workforceRequired || (isPetrol ? 5 : 1),
+        assigned: activeProject.workforceAssigned || 0,
+        skills: Array.isArray(activeProject.skills) ? activeProject.skills.join(', ') : (activeProject.techStack || 'Technical Matching'),
+      },
+    ];
+    if (isPetrol) {
+      return raw.map((r, idx) => (idx === 0 ? { ...r, required: 5 } : r));
+    }
+    return raw;
+  }, [activeProject, isPetrol]);
+
+  const totalRequired = isPetrol
+    ? 5
+    : (requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || activeProject.workforceRequired || 1);
+  const totalAssigned = requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || activeProject.workforceAssigned || 0;
   const totalRemaining = Math.max(0, totalRequired - totalAssigned);
 
   return (
@@ -99,7 +127,7 @@ export const ManagerProjectDetails = () => {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => navigate(`/manager/matching/${project.id}`)}
+            onClick={() => navigate(`/manager/matching/${activeProject.id}`)}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
           >
             <Cpu size={15} />
@@ -114,23 +142,23 @@ export const ManagerProjectDetails = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
-                {project.id}
+                {activeProject.id}
               </span>
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                 Approved by Company
               </span>
               <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                Project #{typeof project.id === 'number' ? project.id : (String(project.id).replace(/\D/g, '') || project.id)}
+                Project #{typeof activeProject.id === 'number' ? activeProject.id : (String(activeProject.id).replace(/\D/g, '') || activeProject.id)}
               </span>
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                {project.priority || 'High'} Priority
+                {activeProject.priority || 'High'} Priority
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {project.name}
+              {activeProject.name}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
-              {project.description}
+              {activeProject.description}
             </p>
           </div>
 
@@ -138,7 +166,25 @@ export const ManagerProjectDetails = () => {
           <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <div className="text-center px-2">
               <span className="text-[10px] font-bold uppercase text-slate-400">Total Required</span>
-              <p className="text-2xl font-black text-slate-900">{totalRequired}</p>
+              <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                <button
+                  type="button"
+                  title="Decrease required workforce"
+                  onClick={() => updateProjectHeadcount?.(activeProject.id, Math.max(1, totalRequired - 1))}
+                  className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs transition-colors"
+                >
+                  -
+                </button>
+                <p className="text-2xl font-black text-slate-900 min-w-[28px]">{totalRequired}</p>
+                <button
+                  type="button"
+                  title="Increase required workforce"
+                  onClick={() => updateProjectHeadcount?.(activeProject.id, totalRequired + 1)}
+                  className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold flex items-center justify-center text-xs transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
             <div className="h-8 w-px bg-slate-200" />
             <div className="text-center px-2">
@@ -157,27 +203,27 @@ export const ManagerProjectDetails = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-6 text-xs">
           <div>
             <span className="text-slate-400 font-medium">Partner Company</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.client || project.partner || 'Client Organization'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.client || activeProject.partner || 'Client Organization'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Category</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.category || 'Full-Stack Engineering'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.category || 'Full-Stack Engineering'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Start Date</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.startDate || '2026-08-01'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.startDate || '2026-08-01'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Expected End Date</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.expectedEndDate || '2027-01-31'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.expectedEndDate || '2027-01-31'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Work Type</span>
-            <p className="font-bold text-slate-900 mt-0.5">{project.workType || 'Remote'}</p>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.workType || 'Remote'}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Location</span>
-            <p className="font-bold text-slate-900 mt-0.5 truncate">{project.location || 'Bengaluru, India'}</p>
+            <p className="font-bold text-slate-900 mt-0.5 truncate">{activeProject.location || 'Bengaluru, India'}</p>
           </div>
         </div>
       </div>

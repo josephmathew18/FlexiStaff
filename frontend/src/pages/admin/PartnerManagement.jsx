@@ -327,7 +327,6 @@ const partnerSchema = yup.object().shape({
   contactPerson: yup.string().required('Contact person is required'),
   email: yup.string().email('Invalid email address').required('Email is required'),
   phone: yup.string().required('Phone number is required'),
-  tier: yup.string().required('Partnership tier is required'),
   suppliedProfessionals: yup
     .number()
     .typeError('Enter a valid number')
@@ -348,7 +347,6 @@ const editPartnerSchema = yup.object().shape({
   contactPerson: yup.string().required('Contact person is required'),
   email: yup.string().email('Invalid email address').required('Email is required'),
   phone: yup.string().required('Phone number is required'),
-  tier: yup.string().required('Partnership tier is required'),
   suppliedProfessionals: yup
     .number()
     .typeError('Enter a valid number')
@@ -364,7 +362,6 @@ export const PartnerManagement = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [tierFilter, setTierFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
   // Modals
@@ -387,7 +384,6 @@ export const PartnerManagement = () => {
       contactPerson: '',
       email: '',
       phone: '',
-      tier: 'Tier-1 Strategic Partner',
       suppliedProfessionals: 0,
       status: 'Active',
       location: '',
@@ -414,7 +410,6 @@ export const PartnerManagement = () => {
     setEditValue('contactPerson', partner.contactPerson || '');
     setEditValue('email', partner.email || '');
     setEditValue('phone', partner.phone || '');
-    setEditValue('tier', partner.tier || 'Tier-1 Strategic Partner');
     setEditValue('suppliedProfessionals', partner.suppliedProfessionals || 0);
     setEditValue('status', partner.status || 'Active');
     setEditValue('location', partner.location || '');
@@ -473,12 +468,9 @@ export const PartnerManagement = () => {
       const matchesStatus =
         statusFilter === 'all' || p.status.toLowerCase() === statusFilter.toLowerCase();
 
-      const matchesTier =
-        tierFilter === 'all' || (p.tier || '').toLowerCase().includes(tierFilter.toLowerCase());
-
-      return matchesSearch && matchesStatus && matchesTier;
+      return matchesSearch && matchesStatus;
     });
-  }, [partners, searchQuery, statusFilter, tierFilter]);
+  }, [partners, searchQuery, statusFilter]);
 
   // Aggregate Partner Metrics
   const totalSuppliedStaff = useMemo(() => {
@@ -607,18 +599,6 @@ export const PartnerManagement = () => {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <FilterDropdown
-            label="Tier"
-            value={tierFilter}
-            onChange={setTierFilter}
-            options={[
-              { value: 'all', label: 'All Tiers' },
-              { value: 'Tier-1', label: 'Tier-1 Strategic' },
-              { value: 'Tier-2', label: 'Tier-2 Preferred' },
-              { value: 'Tier-3', label: 'Tier-3 Certified' },
-            ]}
-          />
-
-          <FilterDropdown
             label="Status"
             value={statusFilter}
             onChange={setStatusFilter}
@@ -680,11 +660,9 @@ export const PartnerManagement = () => {
                 className="flex flex-col justify-between rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 sm:p-6 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-md transition-all space-y-4"
               >
                 <div>
-                  {/* Top Bar: Tier Badge & Status */}
-                  <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-white/10">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-200/60 dark:border-indigo-800/40">
-                      {partner.tier}
-                    </span>
+                  {/* Top Bar: Status */}
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-white/10">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Partner Organization</span>
                     <StatusBadge status={partner.status} />
                   </div>
 
@@ -809,10 +787,7 @@ export const PartnerManagement = () => {
                 {filteredPartners.map((partner) => (
                   <tr key={partner.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                     <td className="py-3 px-4">
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{partner.name}</p>
-                        <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">{partner.tier}</p>
-                      </div>
+                      <p className="font-bold text-slate-900 dark:text-white">{partner.name}</p>
                     </td>
                     <td className="py-3 px-4">
                       <p className="font-semibold text-slate-800 dark:text-white">{partner.contactPerson}</p>
@@ -893,22 +868,6 @@ export const PartnerManagement = () => {
               required
             />
             <FormInput
-              label="Partnership Tier"
-              name="tier"
-              type="select"
-              register={register}
-              error={errors.tier}
-              required
-              options={[
-                { value: 'Tier-1 Strategic Partner', label: 'Strategic Partner' },
-                { value: 'Tier-2 Preferred Partner', label: 'Preferred Partner' },
-                { value: 'Tier-3 Certified Partner', label: 'Certified Partner' },
-              ]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormInput
               label="Corporate Email"
               name="email"
               type="email"
@@ -917,6 +876,9 @@ export const PartnerManagement = () => {
               error={errors.email}
               required
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <FormInput
               label="Phone Number"
               name="phone"
@@ -1041,22 +1003,6 @@ export const PartnerManagement = () => {
               required
             />
             <FormInput
-              label="Partnership Tier"
-              name="tier"
-              type="select"
-              register={registerEdit}
-              error={editErrors.tier}
-              required
-              options={[
-                { value: 'Tier-1 Strategic Partner', label: 'Strategic Partner' },
-                { value: 'Tier-2 Preferred Partner', label: 'Preferred Partner' },
-                { value: 'Tier-3 Certified Partner', label: 'Certified Partner' },
-              ]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormInput
               label="Corporate Email"
               name="email"
               type="email"
@@ -1065,6 +1011,9 @@ export const PartnerManagement = () => {
               error={editErrors.email}
               required
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <FormInput
               label="Phone Number"
               name="phone"
@@ -1141,7 +1090,7 @@ export const PartnerManagement = () => {
         isOpen={Boolean(selectedPartner)}
         onClose={() => setSelectedPartner(null)}
         title={selectedPartner?.name}
-        subtitle={selectedPartner?.tier}
+        subtitle={selectedPartner?.location || 'Verified Partner Organization'}
       >
         {selectedPartner && (
           <div className="space-y-5">

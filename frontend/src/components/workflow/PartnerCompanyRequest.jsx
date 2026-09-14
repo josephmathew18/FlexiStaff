@@ -51,7 +51,7 @@ export const PartnerCompanyRequest = ({ project, onClose, onRequestSent }) => {
     defaultValues: {
       partnerName: partners[0]?.name || 'Partner Organization',
       role: project?.requirements?.[0]?.role || 'Senior Frontend React Developer',
-      required: Math.min(3, Math.max(1, (project?.workforceRequired || 3) - (project?.workforceAssigned || 0))),
+      required: Math.max(1, (project?.workforceRequired || 5) - (project?.workforceAssigned || 0)),
       experience: '3+ years',
       availability: 'Immediate / Available',
       duration: project?.duration || '6 Months',

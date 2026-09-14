@@ -50,9 +50,9 @@ export const ManagerAssignments = () => {
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesProf = asg.professionalName?.toLowerCase().includes(q);
-        const matchesRole = asg.role?.toLowerCase().includes(q);
-        const matchesProject = asg.projectName?.toLowerCase().includes(q);
+        const matchesProf = String(asg.professionalName || '').toLowerCase().includes(q);
+        const matchesRole = String(asg.role || '').toLowerCase().includes(q);
+        const matchesProject = String(asg.projectName || '').toLowerCase().includes(q);
         if (!matchesProf && !matchesRole && !matchesProject) return false;
       }
       return true;
@@ -62,8 +62,8 @@ export const ManagerAssignments = () => {
     const seenKeys = new Set();
     rawList.forEach((a, idx) => {
       if (!a) return;
-      const normProjId = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-      const normName = (a.professionalName || '').toLowerCase().trim();
+      const normProjId = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const normName = String(a.professionalName || '').toLowerCase().trim();
       const key = `${normProjId}_${normName || a.id || idx}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);

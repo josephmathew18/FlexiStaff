@@ -44,12 +44,16 @@ const StatusBadge = ({ status = 'Active', type = 'status', size = 'sm' }) => {
       bg = 'bg-slate-50 text-slate-600 border-slate-200';
     }
   } else {
-    if (['completed', 'approved'].includes(normalized)) {
+    if (['completed'].includes(normalized)) {
       bg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    } else if (['in progress', 'planning'].includes(normalized)) {
+    } else if (['approved'].includes(normalized)) {
+      bg = 'bg-teal-50 text-teal-700 border-teal-200';
+    } else if (['in progress', 'planning', 'development'].includes(normalized)) {
       bg = 'bg-indigo-50 text-[#004ac6] border-indigo-200';
-    } else if (['request', 'pending'].includes(normalized)) {
+    } else if (['request', 'pending', 'pending admin approval'].includes(normalized)) {
       bg = 'bg-amber-50 text-amber-700 border-amber-200';
+    } else if (['rejected'].includes(normalized)) {
+      bg = 'bg-rose-50 text-rose-700 border-rose-200';
     }
   }
 
@@ -158,6 +162,13 @@ const DataTable = ({ columns = [], data = [], keyField = 'id', onRowClick }) => 
 
 const ProjectCard = ({ project, onClick }) => {
   const { id, title, client, stage, status, priority, budget, progress = 0, deadline, requiredSkills = [] } = project;
+  const numProg = Number(progress) || 0;
+  let displayStage = stage || status || 'In Progress';
+  if (numProg > 0 && numProg < 100 && (displayStage === 'Completed' || status === 'Completed')) {
+    displayStage = 'In Progress';
+  } else if (numProg === 100) {
+    displayStage = 'Completed';
+  }
 
   return (
     <div onClick={() => onClick?.(project)} className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all cursor-pointer">
@@ -168,7 +179,7 @@ const ProjectCard = ({ project, onClick }) => {
           </span>
           <div className="flex items-center gap-1.5">
             <StatusBadge status={priority} type="priority" />
-            <StatusBadge status={stage || status} />
+            <StatusBadge status={displayStage} />
           </div>
         </div>
         <h4 className="text-sm font-bold text-[#191b23] dark:text-white group-hover:text-[#004ac6] dark:group-hover:text-blue-400 transition-colors line-clamp-1">{title}</h4>
@@ -317,10 +328,32 @@ export const ProjectManagement = () => {
   });
 
 
+  const getProjectStageCategory = (prj) => {
+    if (!prj) return 'Request';
+    const numProg = Number(prj.progress) || 0;
+    const st = prj.status || prj.stage || '';
+    const sg = prj.stage || prj.status || '';
+
+    if (st === 'Pending Admin Approval' || sg === 'Pending Admin Approval' || sg === 'Request' || st === 'Pending') {
+      return 'Pending Admin Approval';
+    }
+    if (st === 'Rejected' || sg === 'Rejected') {
+      return 'Rejected';
+    }
+    if (numProg >= 100) {
+      return 'Completed';
+    }
+    if (numProg > 0 || sg === 'In Progress' || st === 'In Progress' || sg === 'Completed' || st === 'Completed') {
+      return 'In Progress';
+    }
+    if (st === 'Approved' || sg === 'Approved') {
+      return 'Approved';
+    }
+    return sg || st || 'In Progress';
+  };
+
   const pendingApprovalCount = useMemo(() => {
-    return (projects || []).filter(
-      (p) => p?.status === 'Pending Admin Approval' || p?.stage === 'Pending Admin Approval' || p?.stage === 'Request'
-    ).length;
+    return (projects || []).filter((p) => getProjectStageCategory(p) === 'Pending Admin Approval').length;
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -328,10 +361,8 @@ export const ProjectManagement = () => {
       if (!prj) return false;
       let matchesTab = true;
       if (stageTab === 'all') matchesTab = true;
-      else if (stageTab === 'Pending Admin Approval') {
-        matchesTab = prj.status === 'Pending Admin Approval' || prj.stage === 'Pending Admin Approval' || prj.stage === 'Request';
-      } else {
-        matchesTab = prj.status === stageTab || prj.stage === stageTab;
+      else {
+        matchesTab = getProjectStageCategory(prj) === stageTab;
       }
 
       const matchesSearch =
@@ -638,7 +669,7 @@ export const ProjectManagement = () => {
         >
           <CheckCircle2 size={15} />
           <span>
-            Approved ({(projects || []).filter((p) => p?.status === 'Approved' || p?.stage === 'Approved').length})
+            Approved ({(projects || []).filter((p) => getProjectStageCategory(p) === 'Approved').length})
           </span>
         </button>
 
@@ -652,7 +683,7 @@ export const ProjectManagement = () => {
         >
           <PlayCircle size={15} />
           <span>
-            In Progress ({(projects || []).filter((p) => p?.status === 'In Progress' || p?.stage === 'In Progress').length})
+            In Progress ({(projects || []).filter((p) => getProjectStageCategory(p) === 'In Progress').length})
           </span>
         </button>
 
@@ -666,7 +697,7 @@ export const ProjectManagement = () => {
         >
           <X size={15} />
           <span>
-            Rejected ({(projects || []).filter((p) => p?.status === 'Rejected' || p?.stage === 'Rejected').length})
+            Rejected ({(projects || []).filter((p) => getProjectStageCategory(p) === 'Rejected').length})
           </span>
         </button>
 
@@ -680,7 +711,7 @@ export const ProjectManagement = () => {
         >
           <CheckCircle2 size={15} />
           <span>
-            Completed ({(projects || []).filter((p) => p?.status === 'Completed' || p?.stage === 'Completed').length})
+            Completed ({(projects || []).filter((p) => getProjectStageCategory(p) === 'Completed').length})
           </span>
         </button>
       </div>
