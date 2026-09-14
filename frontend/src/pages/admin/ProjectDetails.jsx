@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   Building2,
   X,
+  Check,
   Flame,
+  User,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -83,34 +85,107 @@ export const ProjectDetails = () => {
   const {
     projects = [],
     workforce = [],
+    partnerWorkforce = [],
     managers = [],
+    managerAssignments = [],
+    projectMilestones = {},
     updateProjectStage,
     toggleMilestone,
     updateProject,
     approveProject,
     rejectProject,
+    approveWorkforceAssignment,
+    rejectWorkforceAssignment,
   } = useData() || {};
 
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || 'Thomas Anderson');
-  const [selectedTalentId, setSelectedTalentId] = useState('');
-  const [talentRole, setTalentRole] = useState('Senior Engineer');
+
+  // Rejection modal state for candidate squad proposals
+  const [rejectSquadModal, setRejectSquadModal] = useState({ isOpen: false, member: null, reason: '' });
 
   const decodedId = decodeURIComponent(id || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+  const targetNumId = decodedId.replace(/\D/g, '');
 
   const project = (projects || []).find((p) => {
-    if (!p || !p.id) return false;
+    if (!p || p.id === undefined || p.id === null) return false;
     const pidLower = String(p.id).toLowerCase().trim();
     const pidNormalized = pidLower.replace(/[\s_]/g, '-');
-    return (
-      pidLower === decodedId.toLowerCase() ||
-      pidNormalized === normalizedId ||
-      pidLower === id?.toLowerCase() ||
-      pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
-    );
+    const pNumId = pidLower.replace(/\D/g, '');
+
+    const isDirectMatch = pidLower === decodedId.toLowerCase() || pidNormalized === normalizedId;
+    const isNumMatch = Boolean(targetNumId && pNumId && targetNumId === pNumId);
+
+    return isDirectMatch || isNumMatch;
   }) || (projects || [])[0];
+
+  // Normalized Project Workforce Assignments Filter
+  const currentProjectAssignments = useMemo(() => {
+    if (!project) return [];
+    const normProjId = (val) => String(val || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetNormId = normProjId(project.id);
+    const targetTitle = (project.title || project.name || '').toLowerCase().trim();
+
+    const rawList = (managerAssignments || []).filter((a) => {
+      if (!a) return false;
+      const aProjId = normProjId(a.projectId);
+      const aProjName = (a.projectName || '').toLowerCase().trim();
+      const isIdMatch = targetNormId && (aProjId === targetNormId || aProjId.replace(/-/g, '') === targetNormId.replace(/-/g, ''));
+      const isTitleMatch = targetTitle && (aProjName === targetTitle || aProjName.includes(targetTitle) || targetTitle.includes(aProjName));
+      return isIdMatch || isTitleMatch;
+    });
+
+    const unique = [];
+    const seen = new Set();
+    rawList.forEach((a) => {
+      const key = `${a.id || a.professionalId || a.professionalName}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(a);
+      }
+    });
+    return unique;
+  }, [managerAssignments, project]);
+
+  const pendingSquadMembers = useMemo(() => {
+    return currentProjectAssignments.filter((a) =>
+      String(a.status || '').toLowerCase().includes('pending')
+    );
+  }, [currentProjectAssignments]);
+
+  const activeSquadFromAssignments = useMemo(() => {
+    return currentProjectAssignments.filter((a) =>
+      a.status === 'Accepted' || a.status === 'Working' || a.status === 'Approved'
+    );
+  }, [currentProjectAssignments]);
+
+  // Combine active assignments with project.assignedResources if present
+  const combinedActiveResources = useMemo(() => {
+    const list = [...activeSquadFromAssignments];
+    const seenIds = new Set(list.map((item) => String(item.professionalId || item.id)));
+
+    (project?.assignedResources || []).forEach((res) => {
+      const rId = String(res.id);
+      if (!seenIds.has(rId)) {
+        seenIds.add(rId);
+        list.push({
+          id: res.id,
+          professionalId: res.id,
+          professionalName: res.name,
+          avatar: res.avatar,
+          role: res.role,
+          roleType: res.roleType || 'Professional',
+          partnerName: res.partnerName || 'FlexiStaff Partner',
+          hourlyRate: res.hourlyRate || '$95/hr',
+          workload: res.hoursPerWeek ? `${res.hoursPerWeek}h/wk` : '40h/wk',
+          status: 'Accepted',
+        });
+      }
+    });
+
+    return list;
+  }, [activeSquadFromAssignments, project]);
 
   if (!project) {
     return (
@@ -137,10 +212,7 @@ export const ProjectDetails = () => {
     project.stage === 'Request' ||
     project.status === 'Pending';
 
-  // Available talent to assign (not already in team)
-  const availableToAssign = workforce.filter(
-    (w) => !project.assignedResources?.some((r) => r.id === w.id)
-  );
+  const pendingSquadApprovalCount = pendingSquadMembers.length;
 
   const handleApproveProject = (e) => {
     e.preventDefault();
@@ -154,36 +226,33 @@ export const ProjectDetails = () => {
     setIsApproveModalOpen(false);
   };
 
-  const handleAssignResource = (e) => {
-    e.preventDefault();
-    if (!selectedTalentId) {
-      toast.error('Please select a talent member');
-      return;
-    }
-
-    const talentObj = workforce.find((w) => w.id === selectedTalentId);
-    if (!talentObj) return;
-
-    const newResource = {
-      id: talentObj.id,
-      name: talentObj.name,
-      role: talentRole,
-      avatar: talentObj.avatar,
-      roleType: talentObj.roleType,
-      hoursPerWeek: 40,
-    };
-
-    const updatedResources = [...(project.assignedResources || []), newResource];
-    updateProject(project.id, { assignedResources: updatedResources });
-
-    toast.success(`Assigned ${talentObj.name} to ${project.title}!`);
-    setIsAssignModalOpen(false);
-    setSelectedTalentId('');
-  };
-
   const handleMilestoneToggle = (milestoneId) => {
     toggleMilestone(project.id, milestoneId);
     toast.info('Milestone status updated.');
+  };
+
+  const handleApproveCandidate = (assignmentId, candidateName) => {
+    approveWorkforceAssignment(assignmentId);
+    toast.success(`Approved squad member "${candidateName}". Project status updated to In Progress!`);
+  };
+
+  const handleApproveAllPendingSquad = () => {
+    pendingSquadMembers.forEach((mem) => {
+      approveWorkforceAssignment(mem.id);
+    });
+    toast.success(`Approved all ${pendingSquadMembers.length} proposed squad member(s)! Project status updated to In Progress.`);
+  };
+
+  const handleRejectCandidateSubmit = (e) => {
+    e.preventDefault();
+    if (!rejectSquadModal.member) return;
+    if (!rejectSquadModal.reason.trim()) {
+      toast.error('Please enter a reason for rejecting this candidate proposal.');
+      return;
+    }
+    rejectWorkforceAssignment(rejectSquadModal.member.id, rejectSquadModal.reason);
+    toast.info(`Rejected candidate proposal for "${rejectSquadModal.member.professionalName || rejectSquadModal.member.name}".`);
+    setRejectSquadModal({ isOpen: false, member: null, reason: '' });
   };
 
   return (
@@ -197,23 +266,6 @@ export const ProjectDetails = () => {
           <ArrowLeft size={14} />
           <span>Back to Projects & Requests</span>
         </Link>
-
-        {/* Stage quick transitions */}
-        <div className="flex items-center gap-2">
-          {project.stage !== 'Completed' && (
-            <button
-              type="button"
-              onClick={() => {
-                updateProjectStage(project.id, 'Completed');
-                toast.success('Project marked as completed!');
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#1d4ed8] active:scale-95 transition-all"
-            >
-              <CheckCircle2 size={14} />
-              <span>Mark Completed</span>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Pending Approval Banner */}
@@ -249,14 +301,14 @@ export const ProjectDetails = () => {
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
               <span className="font-mono text-xs font-bold text-[#737686] dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                {project.id}
+                Project #{typeof project.id === 'number' ? project.id : (String(project.id).replace(/\D/g, '') || project.id)}
               </span>
               <StatusBadge status={project.stage || project.status} size="md" />
               <StatusBadge status={project.priority} type="priority" size="md" />
             </div>
 
             <h2 className="text-xl sm:text-2xl font-bold text-[#191b23] dark:text-white tracking-tight">
-              {project.title}
+              {project.title || project.name}
             </h2>
             <p className="text-xs sm:text-sm text-[#565e74] dark:text-slate-400 mt-0.5 font-medium">
               Client: <strong className="text-[#191b23] dark:text-white">{project.client}</strong> • Manager:{' '}
@@ -287,15 +339,23 @@ export const ProjectDetails = () => {
                   <span>Reject Request</span>
                 </button>
               </>
-            ) : (
+            ) : pendingSquadApprovalCount > 0 ? (
               <button
                 type="button"
-                onClick={() => setIsAssignModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] active:scale-95 transition-all"
+                onClick={handleApproveAllPendingSquad}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm active:scale-95 transition-all animate-pulse"
               >
-                <Plus size={15} />
-                <span>Assign Talent</span>
+                <ShieldCheck size={15} />
+                <span>Approve All {pendingSquadApprovalCount} Pending Squad Member(s)</span>
               </button>
+            ) : (
+              <Link
+                to="/admin/assignment-approvals"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-[#004ac6] dark:text-blue-400 border border-indigo-200 dark:border-indigo-800/40 px-3.5 py-2.5 text-xs font-bold hover:bg-indigo-100 transition-all"
+              >
+                <ShieldCheck size={15} />
+                <span>Squad Approvals Gate</span>
+              </Link>
             )}
           </div>
         </div>
@@ -356,11 +416,17 @@ export const ProjectDetails = () => {
               Team Headcount
             </span>
             <span className="text-xl font-bold text-[#191b23] dark:text-white mt-1 block">
-              {project.assignedResources?.length || 0} Staffed
+              {combinedActiveResources.length} Active / {combinedActiveResources.length + pendingSquadMembers.length} Total
             </span>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
-              ✓ Active Engagement
-            </span>
+            {pendingSquadMembers.length > 0 ? (
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-1 block">
+                {pendingSquadMembers.length} Staged Pending Sign-off
+              </span>
+            ) : (
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
+                ✓ Active Engagement
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -410,9 +476,9 @@ export const ProjectDetails = () => {
 
             <div className="divide-y divide-slate-100 dark:divide-white/10 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50">
               {(project.milestones || []).map((m) => {
-                const pId = project.id || 'PRJ-2026-001';
-                const pMsList = projectMilestones[pId] || [];
-                const matchedMs = pMsList.find((item) => item.title?.includes(m.title) || item.id === m.id) || m;
+                const pId = project?.id || 'PRJ-2026-001';
+                const pMsList = (projectMilestones && projectMilestones[pId]) ? projectMilestones[pId] : [];
+                const matchedMs = pMsList.find((item) => item?.title?.includes(m.title) || item?.id === m.id) || m;
                 const msCommits = matchedMs.commits || [];
 
                 return (
@@ -480,118 +546,207 @@ export const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* Right Column: Assigned Team Resources */}
+        {/* Right Column: Proposed & Staffed Engineering Squad Details */}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
-                Staffed Engineering Squad
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAssignModalOpen(true)}
-                className="text-xs font-semibold text-[#004ac6] dark:text-blue-400 hover:underline flex items-center gap-1"
-              >
-                <Plus size={13} />
-                <span>Add</span>
-              </button>
+          {/* Pending Sign-off Proposed Squad */}
+          {pendingSquadMembers.length > 0 && (
+            <div className="rounded-2xl border border-amber-300 dark:border-amber-700/50 bg-amber-50/60 dark:bg-amber-950/20 p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Clock size={16} className="text-amber-600 dark:text-amber-400" />
+                    <span>Proposed Workforce Squad</span>
+                  </h3>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                    Staged by HR Manager. Pending Admin authorization.
+                  </p>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-extrabold border border-amber-300 dark:border-amber-800/40 animate-pulse">
+                  {pendingSquadMembers.length} Pending Sign-off
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {pendingSquadMembers.map((member) => {
+                  const isPartner =
+                    member.source === 'Partner Company' ||
+                    (member.roleType && member.roleType !== 'Freelancer') ||
+                    (member.partnerName && member.partnerName !== 'Independent Freelancer');
+                  const partnerLabel =
+                    member.partnerName && member.partnerName !== 'Independent Freelancer'
+                      ? member.partnerName
+                      : isPartner
+                      ? 'Partner Employee'
+                      : 'Independent Freelancer';
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-white dark:bg-[#14132b] p-4 shadow-xs space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
+                            alt={member.professionalName || member.name}
+                            className="h-11 w-11 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
+                          />
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                              {member.professionalName || member.name}
+                            </h4>
+                            <p className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400">
+                              {member.role}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              {isPartner ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/40">
+                                  <Building2 size={10} />
+                                  <span>{partnerLabel}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
+                                  <Users size={10} />
+                                  <span>Freelancer Pool</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800/40 shrink-0">
+                          Pending Sign-off
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-[#1c1a36] p-2.5 rounded-xl border border-slate-100 dark:border-white/5">
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Billing Rate</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{member.hourlyRate || '$95/hr'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Experience</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{member.experience || '3+ years'}</span>
+                        </div>
+                      </div>
+
+                      {member.skills && (Array.isArray(member.skills) ? member.skills.length > 0 : String(member.skills).trim().length > 0) && (
+                        <div className="flex flex-wrap gap-1">
+                          {(Array.isArray(member.skills) ? member.skills : String(member.skills).split(/[,+]/)).slice(0, 3).map((s, idx) => (
+                            <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+                              {String(s).trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {member.notes && (
+                        <p className="text-[10px] text-slate-600 dark:text-slate-400 italic bg-amber-50/50 dark:bg-amber-950/30 p-2 rounded-lg border border-amber-200/50 dark:border-amber-900/30">
+                          Manager Note: "{member.notes}"
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100 dark:border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => handleApproveCandidate(member.id, member.professionalName || member.name)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 shadow-xs active:scale-95 transition-all"
+                        >
+                          <Check size={14} />
+                          <span>Approve Squad Member</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRejectSquadModal({ isOpen: true, member, reason: '' })}
+                          className="inline-flex items-center justify-center gap-1 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40 text-xs font-bold px-3 py-2 active:scale-95 transition-all"
+                        >
+                          <X size={14} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Staffed Engineering Squad Card */}
+          <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
+                  Staffed Engineering Squad
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Active authorized team members assigned to project execution.
+                </p>
+              </div>
+              <span className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800/40">
+                {combinedActiveResources.length} Staffed
+              </span>
             </div>
 
             <div className="space-y-3">
-              {project.assignedResources?.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#1c1a36] rounded-xl border border-dashed border-slate-200 dark:border-white/10">
-                  No resources assigned yet. Click "Assign Talent" to staff this project.
+              {combinedActiveResources.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#1c1a36] rounded-xl border border-dashed border-slate-200 dark:border-white/10 leading-relaxed">
+                  {pendingSquadMembers.length > 0
+                    ? 'Workforce squad is selected by HR Manager and pending Admin approval above.'
+                    : 'No resources assigned yet. HR Manager will stage workforce squad and submit for Admin approval.'}
                 </div>
               ) : (
-                project.assignedResources?.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-3 rounded-xl border border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36]/70 p-3"
-                  >
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-bold text-[#191b23] dark:text-white truncate">
-                        {member.name}
-                      </h4>
-                      <p className="text-[11px] text-[#565e74] dark:text-slate-400 truncate">{member.role}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={member.roleType} type="role" size="sm" />
-                        <span className="text-[10px] text-[#737686] dark:text-slate-400">
-                          {member.hoursPerWeek}h/wk
+                combinedActiveResources.map((member) => {
+                  const isPartner =
+                    member.source === 'Partner Company' ||
+                    (member.roleType && member.roleType !== 'Freelancer') ||
+                    (member.partnerName && member.partnerName !== 'Independent Freelancer');
+                  const partnerLabel =
+                    member.partnerName && member.partnerName !== 'Independent Freelancer'
+                      ? member.partnerName
+                      : isPartner
+                      ? 'Partner Employee'
+                      : 'Independent Freelancer';
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36]/70 p-3.5 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'}
+                            alt={member.professionalName || member.name}
+                            className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                          />
+                          <div>
+                            <h4 className="text-xs font-bold text-[#191b23] dark:text-white">
+                              {member.professionalName || member.name}
+                            </h4>
+                            <p className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400">{member.role}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                              {partnerLabel}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+                          <CheckCircle2 size={10} />
+                          <span>Active</span>
                         </span>
                       </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200/60 dark:border-white/5 font-medium">
+                        <span>Rate: <strong>{member.hourlyRate || '$95/hr'}</strong></span>
+                        <span>Workload: <strong>{member.workload || '40h/wk'}</strong></span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Assign Resource Modal */}
-      <Modal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        title="Assign Talent to Project"
-        subtitle={`Select an available professional or freelancer for ${project.title}.`}
-        size="md"
-      >
-        <form onSubmit={handleAssignResource} className="space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-[#434655] dark:text-slate-300 mb-1.5">
-              Select Talent Resource
-            </label>
-            <select
-              value={selectedTalentId}
-              onChange={(e) => setSelectedTalentId(e.target.value)}
-              className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-[#191b23] dark:text-white focus:border-[#004ac6] focus:outline-none"
-              required
-            >
-              <option value="">-- Choose talent from workforce pool --</option>
-              {availableToAssign.map((talent) => (
-                <option key={talent.id} value={talent.id}>
-                  {talent.name} ({talent.title} • {talent.roleType} • {talent.availability})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-[#434655] dark:text-slate-300 mb-1.5">
-              Assigned Project Role / Title
-            </label>
-            <input
-              type="text"
-              value={talentRole}
-              onChange={(e) => setTalentRole(e.target.value)}
-              placeholder="Enter role title"
-              className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-[#191b23] dark:text-white focus:border-[#004ac6] focus:outline-none"
-              required
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-white/10">
-            <button
-              type="button"
-              onClick={() => setIsAssignModalOpen(false)}
-              className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-[#2563eb] px-4 py-2 font-semibold text-white shadow-sm hover:bg-[#1d4ed8]"
-            >
-              Assign to Squad
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Approve & Assign HR Manager Modal */}
       <Modal
@@ -599,7 +754,7 @@ export const ProjectDetails = () => {
         onClose={() => setIsApproveModalOpen(false)}
         title="Approve Client Project & Assign HR Manager"
         subtitle={`Approve ${project.title} and select the HR Manager responsible for partner & freelance workforce matching.`}
-        size="md"
+        maxWidth="max-w-lg"
       >
         <form onSubmit={handleApproveProject} className="space-y-4 text-xs">
           <div>
@@ -614,7 +769,7 @@ export const ProjectDetails = () => {
             >
               {(managers || []).map((m) => (
                 <option key={m.id || m.name} value={m.name}>
-                  {m.name} ({m.role || m.jobTitle || 'HR Manager'})
+                  {m.name} (Manager #{m.employeeId || m.id}) - {m.role || m.jobTitle || 'HR Manager'}
                 </option>
               ))}
             </select>
@@ -640,6 +795,47 @@ export const ProjectDetails = () => {
             >
               <CheckCircle2 size={14} />
               <span>Approve & Dispatch to HR Manager</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Reject Candidate Squad Proposal Modal */}
+      <Modal
+        isOpen={rejectSquadModal.isOpen}
+        onClose={() => setRejectSquadModal({ isOpen: false, member: null, reason: '' })}
+        title="Reject Proposed Squad Candidate"
+        subtitle={rejectSquadModal.member ? `Reject assignment proposal for ${rejectSquadModal.member.professionalName || rejectSquadModal.member.name}` : ''}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleRejectCandidateSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Rejection Reason *
+            </label>
+            <textarea
+              rows={4}
+              value={rejectSquadModal.reason}
+              onChange={(e) => setRejectSquadModal((prev) => ({ ...prev, reason: e.target.value }))}
+              placeholder="Provide detailed feedback to the HR Manager regarding why this candidate assignment is not approved..."
+              required
+              className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setRejectSquadModal({ isOpen: false, member: null, reason: '' })}
+              className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 active:scale-95 transition-all"
+            >
+              Confirm Rejection
             </button>
           </div>
         </form>

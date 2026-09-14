@@ -41,16 +41,26 @@ export const AdminAssignmentApprovals = () => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  const isPendingStatus = (st) => {
+    const s = String(st || '').toLowerCase();
+    return s.includes('pending');
+  };
+
   const pendingCount = (managerAssignments || []).filter(
-    (a) => a && (a.status === 'Pending Assignment Approval' || a.status === 'Pending Admin Approval')
+    (a) => a && isPendingStatus(a.status)
   ).length;
 
   const filteredAssignments = useMemo(() => {
-    return (managerAssignments || []).filter((a) => {
+    const rawList = (managerAssignments || []).filter((a) => {
       if (!a) return false;
       if (statusFilter !== 'all') {
-        const matchPending = statusFilter === 'Pending Assignment Approval' && (a.status === 'Pending Assignment Approval' || a.status === 'Pending Admin Approval');
-        if (!matchPending && a.status !== statusFilter) return false;
+        const isFilterPending = isPendingStatus(statusFilter);
+        const isAsgPending = isPendingStatus(a.status);
+        if (isFilterPending) {
+          if (!isAsgPending) return false;
+        } else if (a.status !== statusFilter) {
+          return false;
+        }
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -62,6 +72,21 @@ export const AdminAssignmentApprovals = () => {
       }
       return true;
     });
+
+    const uniqueList = [];
+    const seenKeys = new Set();
+    rawList.forEach((a, idx) => {
+      if (!a) return;
+      const normProjId = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const normName = (a.professionalName || '').toLowerCase().trim();
+      const key = `${normProjId}_${normName || a.id || idx}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        uniqueList.push(a);
+      }
+    });
+
+    return uniqueList;
   }, [managerAssignments, statusFilter, searchQuery]);
 
   const handleApprove = (asg) => {

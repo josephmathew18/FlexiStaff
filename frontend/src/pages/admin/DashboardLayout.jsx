@@ -708,6 +708,54 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
   );
 };
 
+class PageErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("DashboardLayout ErrorBoundary caught error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 text-center space-y-4 my-6 shadow-xs max-w-2xl mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+            <AlertCircle size={24} />
+          </div>
+          <h3 className="text-lg font-extrabold text-slate-900">View Workspace Updated</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Click below to return to the admin dashboard or reload the page.
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                this.setState({ hasError: false });
+                window.location.href = '/admin/projects';
+              }}
+              className="px-4 py-2 rounded-xl bg-[#004ac6] text-white text-xs font-bold shadow-xs hover:bg-[#003da6]"
+            >
+              Back to Projects
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ====================================================================
 // MASTER EXPORT: DashboardLayout Component
 // ====================================================================
@@ -793,7 +841,9 @@ export const DashboardLayout = () => {
 
         {/* Page Viewport */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
-          <Outlet />
+          <PageErrorBoundary key={location.pathname}>
+            <Outlet />
+          </PageErrorBoundary>
         </main>
 
         <footer className={`border-t py-3 px-6 text-center text-xs font-medium shrink-0 transition-colors ${

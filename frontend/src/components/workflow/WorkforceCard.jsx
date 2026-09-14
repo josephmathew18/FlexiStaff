@@ -20,6 +20,8 @@ import StatusBadge from './StatusBadge';
 export const WorkforceCard = ({
   candidate,
   isSelected = false,
+  isAlreadyQueued = false,
+  alreadyQueuedStatus = '',
   onToggleSelect,
   onViewProfile,
   disableSelection = false,
@@ -50,7 +52,9 @@ export const WorkforceCard = ({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       className={`rounded-3xl border p-5 transition-all flex flex-col justify-between space-y-4 ${
-        isSelected
+        isAlreadyQueued
+          ? 'bg-amber-50/20 border-amber-200'
+          : isSelected
           ? 'bg-blue-50/40 border-[#004ac6] shadow-sm'
           : 'bg-white border-slate-200 hover:border-blue-200 hover:shadow-xs'
       } ${className}`}
@@ -90,7 +94,7 @@ export const WorkforceCard = ({
             </div>
           </div>
 
-          <StatusBadge status={candidate.availability || 'Available'} size="sm" />
+          <StatusBadge status={isAlreadyQueued ? 'Staged' : candidate.availability || 'Available'} size="sm" />
         </div>
 
         {/* Metrics Grid */}
@@ -133,6 +137,18 @@ export const WorkforceCard = ({
         </div>
       </div>
 
+      {/* Already Queued / Pending Informative Alert Banner */}
+      {isAlreadyQueued && (
+        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-amber-100/70 text-amber-900 border border-amber-300 text-[10px] font-bold">
+          <Clock size={12} className="text-amber-700 shrink-0" />
+          <span>
+            {alreadyQueuedStatus === 'Accepted' || alreadyQueuedStatus === 'Working' || alreadyQueuedStatus === 'In Progress'
+              ? 'Candidate is active on this project. Cannot assign again.'
+              : 'Candidate recruitment request pending sign-off for this project.'}
+          </span>
+        </div>
+      )}
+
       {/* Footer Controls */}
       <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
         {onViewProfile && (
@@ -146,7 +162,21 @@ export const WorkforceCard = ({
           </button>
         )}
 
-        {onToggleSelect && (
+        {isAlreadyQueued ? (
+          <button
+            type="button"
+            onClick={() => onToggleSelect && onToggleSelect(candidate)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 active:scale-95 transition-all"
+            title="This candidate already has a pending or active assignment for this project"
+          >
+            <Clock size={13} className="text-amber-600 shrink-0" />
+            <span>
+              {alreadyQueuedStatus === 'Accepted' || alreadyQueuedStatus === 'Working' || alreadyQueuedStatus === 'In Progress'
+                ? 'Assigned to Project'
+                : 'Pending Sign-off'}
+            </span>
+          </button>
+        ) : onToggleSelect ? (
           <button
             type="button"
             onClick={() => onToggleSelect(candidate)}
@@ -169,7 +199,7 @@ export const WorkforceCard = ({
               </>
             )}
           </button>
-        )}
+        ) : null}
       </div>
     </motion.div>
   );

@@ -261,7 +261,7 @@ export const Dashboard = () => {
 
         <DashboardCard
           title="Available Pros"
-          value={`${availableProfessionals} / 5`}
+          value={availableProfessionals}
           icon={Users}
           color="blue"
           onClick={() => navigate('/admin/workforce')}
@@ -269,7 +269,7 @@ export const Dashboard = () => {
 
         <DashboardCard
           title="Freelancers"
-          value={`${availableFreelancers} / 5`}
+          value={availableFreelancers}
           icon={Code2}
           color="purple"
           onClick={() => navigate('/admin/workforce')}
@@ -321,7 +321,7 @@ export const Dashboard = () => {
             </div>
             <div>
               <p className="font-bold text-slate-900 dark:text-white">{managers[0]?.name || 'Assigned Manager'}</p>
-              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">{managers[0]?.employeeId || 'MNG-001'}</p>
+              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">Manager #{managers[0]?.employeeId || managers[0]?.id || 1}</p>
             </div>
           </div>
 

@@ -26,17 +26,18 @@ export const ClientProjectDetails = () => {
 
   const decodedId = decodeURIComponent(projectId || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+  const targetNumId = decodedId.replace(/\D/g, '');
 
   const project = (projects || []).find((p) => {
-    if (!p || !p.id) return false;
+    if (!p || p.id === undefined || p.id === null) return false;
     const pidLower = String(p.id).toLowerCase().trim();
     const pidNormalized = pidLower.replace(/[\s_]/g, '-');
-    return (
-      pidLower === decodedId.toLowerCase() ||
-      pidNormalized === normalizedId ||
-      pidLower === projectId?.toLowerCase() ||
-      pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
-    );
+    const pNumId = pidLower.replace(/\D/g, '');
+
+    const isDirectMatch = pidLower === decodedId.toLowerCase() || pidNormalized === normalizedId;
+    const isNumMatch = Boolean(targetNumId && pNumId && targetNumId === pNumId);
+
+    return isDirectMatch || isNumMatch;
   }) || (projects || [])[0];
 
   if (!project) {
@@ -75,7 +76,9 @@ export const ClientProjectDetails = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-slate-400">{project.id}</span>
+              <span className="font-mono text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                Project #{typeof project.id === 'number' ? project.id : (String(project.id).replace(/\D/g, '') || project.id)}
+              </span>
               <StatusBadge status={project.status || project.stage} />
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mt-1">

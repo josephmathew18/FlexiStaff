@@ -24,18 +24,29 @@ export const ManagerAssignments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const isPendingStatus = (st) => String(st || '').toLowerCase().includes('pending');
+
   const pendingAdminCount = (managerAssignments || []).filter(
-    (a) => a.status === 'Pending Assignment Approval'
+    (a) => a && isPendingStatus(a.status)
   ).length;
 
   const filteredAssignments = useMemo(() => {
-    return (managerAssignments || []).filter((asg) => {
+    const rawList = (managerAssignments || []).filter((asg) => {
+      if (!asg) return false;
       if (statusFilter !== 'all') {
-        if (statusFilter === 'Pending Assignment Approval' && asg.status !== 'Pending Assignment Approval') return false;
-        if (statusFilter === 'Awaiting Workforce Response' && asg.status !== 'Awaiting Workforce Response') return false;
-        if (statusFilter === 'Accepted' && asg.status !== 'Accepted' && asg.status !== 'Working') return false;
-        if (statusFilter === 'Rejected' && asg.status !== 'Rejected') return false;
-        if (statusFilter === 'Declined' && asg.status !== 'Declined') return false;
+        const isFilterPending = isPendingStatus(statusFilter);
+        const isAsgPending = isPendingStatus(asg.status);
+        if (isFilterPending) {
+          if (!isAsgPending) return false;
+        } else if (statusFilter === 'Awaiting Workforce Response' && asg.status !== 'Awaiting Workforce Response') {
+          return false;
+        } else if (statusFilter === 'Accepted' && asg.status !== 'Accepted' && asg.status !== 'Working' && asg.status !== 'In Progress') {
+          return false;
+        } else if (statusFilter === 'Rejected' && asg.status !== 'Rejected') {
+          return false;
+        } else if (statusFilter === 'Declined' && asg.status !== 'Declined') {
+          return false;
+        }
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -46,6 +57,21 @@ export const ManagerAssignments = () => {
       }
       return true;
     });
+
+    const uniqueList = [];
+    const seenKeys = new Set();
+    rawList.forEach((a, idx) => {
+      if (!a) return;
+      const normProjId = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const normName = (a.professionalName || '').toLowerCase().trim();
+      const key = `${normProjId}_${normName || a.id || idx}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        uniqueList.push(a);
+      }
+    });
+
+    return uniqueList;
   }, [managerAssignments, statusFilter, searchQuery]);
 
   const getStatusBadge = (status) => {

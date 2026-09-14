@@ -51,13 +51,24 @@ export const DataProvider = ({ children }) => {
     return initialPartners || [];
   });
   const [managers, setManagers] = useState(() => {
+    let list = initialManagers || [];
     try {
       const saved = localStorage.getItem('flexistaff_managers');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter((m) => m && m.email !== 'thomas@flexistaff.com' && m.email !== 'manager@gmail.com');
+        }
+      }
     } catch {
       // Ignore
     }
-    return initialManagers || [];
+    return list.map((m, idx) => {
+      if (!m) return m;
+      const serialId = typeof m.id === 'number' ? m.id : (Number(String(m.id).replace(/\D/g, '')) || (idx + 1));
+      const empId = typeof m.employeeId === 'number' ? m.employeeId : (Number(String(m.employeeId).replace(/\D/g, '')) || serialId);
+      return { ...m, id: serialId, employeeId: empId };
+    });
   });
 
   const [workforce, setWorkforce] = useState(() => {
@@ -71,13 +82,23 @@ export const DataProvider = ({ children }) => {
   });
 
   const [projects, setProjects] = useState(() => {
+    let list = initialProjects || [];
     try {
       const saved = localStorage.getItem('flexistaff_projects');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed;
+        }
+      }
     } catch {
       // Ignore
     }
-    return initialProjects || [];
+    return list.map((p) => {
+      if (!p) return p;
+      const cleanId = typeof p.id === 'number' ? p.id : (Number(String(p.id).replace(/\D/g, '')) || p.id);
+      return { ...p, id: cleanId };
+    });
   });
 
   const [activities, setActivities] = useState(initialActivities);
@@ -569,21 +590,31 @@ export const DataProvider = ({ children }) => {
       try {
         const savedUserStr = localStorage.getItem('flexistaff_user');
         const savedWorkforceStr = localStorage.getItem('flexistaff_workforce');
-        let currentWorkforceList = workforce;
+        const savedPartnerWfStr = localStorage.getItem('flexistaff_partner_workforce');
+
+        let currentPartnerWf = partnerWorkforce || [];
+        if (savedPartnerWfStr) {
+          try { currentPartnerWf = JSON.parse(savedPartnerWfStr); } catch {}
+        }
+
+        let combinedWorkforceList = [...(workforce || []), ...(currentPartnerWf || [])];
         if (savedWorkforceStr) {
-          try { currentWorkforceList = JSON.parse(savedWorkforceStr); } catch {}
+          try {
+            const parsedWf = JSON.parse(savedWorkforceStr);
+            if (Array.isArray(parsedWf)) combinedWorkforceList = [...combinedWorkforceList, ...parsedWf];
+          } catch {}
         }
 
         if (savedUserStr) {
           const savedUser = JSON.parse(savedUserStr);
-          if (savedUser && (savedUser.role === 'Workforce' || savedUser.role === 'ROLE_PROFESSIONAL' || savedUser.role === 'ROLE_WORKFORCE' || savedUser.role === 'Freelancer')) {
+          if (savedUser && (savedUser.role === 'Workforce' || savedUser.role === 'ROLE_PROFESSIONAL' || savedUser.role === 'ROLE_WORKFORCE' || savedUser.role === 'Freelancer' || savedUser.role === 'Partner Employee')) {
             const userEmail = (savedUser.email || '').toLowerCase().trim();
             const userName = (savedUser.name || savedUser.fullName || '').toLowerCase().trim();
 
-            let matchedWf = (currentWorkforceList || []).find((w) => {
+            let matchedWf = (combinedWorkforceList || []).find((w) => {
               if (!w) return false;
               const wEmail = (w.email || '').toLowerCase().trim();
-              const wName = (w.name || '').toLowerCase().trim();
+              const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
               const wId = w.id ? String(w.id) : '';
               const uId = savedUser.id ? String(savedUser.id) : '';
               return (
@@ -613,28 +644,35 @@ export const DataProvider = ({ children }) => {
               } catch {}
             }
 
-            const wfName = matchedWf?.name || savedUser.name || savedUser.fullName || 'Workforce Specialist';
+            const wfName = matchedWf?.name || matchedWf?.pseudonym || savedUser.name || savedUser.fullName || 'Workforce Specialist';
             const emailAddr = matchedWf?.email || savedUser.email || '';
             const phoneNo = matchedWf?.phone || savedUser.phone || '+91 98765 00000';
-            const title = matchedWf?.title || matchedWf?.role || savedUser.title || savedUser.jobTitle || 'Senior Full-Stack Engineer';
-            const partnerCompany =
+            const title = matchedWf?.title || matchedWf?.role || savedUser.title || savedUser.jobTitle || 'Senior Software Engineer';
+
+            let partnerCompany =
               matchedWf?.partnerCompany ||
               matchedWf?.partner ||
               matchedWf?.partnerName ||
               savedUser.partnerCompany ||
               savedUser.partnerName ||
-              savedUser.companyName ||
-              savedUser.company ||
+              (savedUser.companyName !== 'Enterprise Client' ? savedUser.companyName : '') ||
+              (savedUser.company !== 'Enterprise Client' ? savedUser.company : '') ||
               '';
 
             const isPartnerEmployee =
               Boolean(partnerCompany) ||
+              matchedWf?.source === 'Partner Company' ||
               matchedWf?.roleType === 'Professional' ||
               matchedWf?.professionalType === 'PARTNER_EMPLOYEE' ||
               matchedWf?.userType === 'PARTNER_EMPLOYEE' ||
+              savedUser?.role === 'Partner Employee' ||
               savedUser?.roleType === 'Professional' ||
               savedUser?.professionalType === 'PARTNER_EMPLOYEE' ||
               savedUser?.userType === 'PARTNER_EMPLOYEE';
+
+            if (isPartnerEmployee && !partnerCompany) {
+              partnerCompany = 'Infosys Technologies';
+            }
 
             setWorkforceUserProfile({
               id: matchedWf?.id || savedUser.id || 'wf-101',
@@ -1252,7 +1290,13 @@ export const DataProvider = ({ children }) => {
   // CLIENT PROJECT REQUEST & SUBMISSION
   // =========================================================================
   const submitClientProjectRequest = (formData) => {
-    const newId = `PRJ-REQ-${Date.now().toString().slice(-4)}`;
+    // Generate sequential serial project ID matching PostgreSQL BIGSERIAL Primary Key standard
+    const existingNumIds = (projects || [])
+      .map((p) => Number(String(p?.id || '').replace(/\D/g, '')))
+      .filter((num) => !isNaN(num) && num > 0);
+    const nextSerialNum = existingNumIds.length > 0 ? Math.max(...existingNumIds) + 1 : 7143;
+    const newId = nextSerialNum;
+
     const skillsArr = Array.isArray(formData.requiredSkills)
       ? formData.requiredSkills
       : (formData.requiredSkills || '')
@@ -1275,6 +1319,8 @@ export const DataProvider = ({ children }) => {
 
     const newProject = {
       id: newId,
+      serialId: nextSerialNum,
+      dbId: nextSerialNum,
       name: formData.title || formData.name || 'Custom Enterprise Project',
       title: formData.title || formData.name || 'Custom Enterprise Project',
       client: clientProfile?.company || 'Client Organization',
@@ -1441,21 +1487,13 @@ export const DataProvider = ({ children }) => {
       return null;
     }
 
-    // Per-Project Workforce Limit: Max 5 Partner Employees and Max 5 Freelancers
+    // Per-Project Workforce Limit: Max 5 total workforce members per project squad
     const projectAssignments = (managerAssignments || []).filter(
       (a) => a.projectId === projectId && a.status !== 'Rejected' && a.status !== 'Declined'
     );
-    const isCandFreelancer = cand.roleType === 'Freelancer' || cand.source === 'Freelancer' || cand.professionalType === 'FREELANCER';
-    const sameTypeCount = projectAssignments.filter((a) => {
-      const member = workforce.find((w) => w.id === a.professionalId);
-      const isMemberFreelancer = member
-        ? (member.roleType === 'Freelancer' || member.source === 'Freelancer' || member.professionalType === 'FREELANCER')
-        : a.roleType === 'Freelancer';
-      return isCandFreelancer ? isMemberFreelancer : !isMemberFreelancer;
-    }).length;
 
-    if (sameTypeCount >= 5) {
-      toast.error(`Cannot assign candidate: Maximum limit of 5 ${isCandFreelancer ? 'Freelancers' : 'Partner Employees'} per project reached (5/5 allowed).`);
+    if (projectAssignments.length >= 5) {
+      toast.error('Cannot assign candidate: Maximum limit of 5 workforce members per project reached (5/5 assigned).');
       return null;
     }
 
@@ -1687,19 +1725,8 @@ export const DataProvider = ({ children }) => {
   // MANAGER: CREATE & SUBMIT ASSIGNMENT REQUEST (MAX 3 WORKFORCE MEMBERS)
   // =========================================================================
   const submitAssignmentRequest = (projectId, selectedWorkforceList = [], notes = '') => {
-    const profsCount = selectedWorkforceList.filter(
-      (w) => w.roleType === 'Professional' || w.source === 'Partner Company' || Boolean(w.partnerCompany || w.partner)
-    ).length;
-    const freeCount = selectedWorkforceList.filter(
-      (w) => w.roleType === 'Freelancer' || w.source === 'Freelancer' || (!w.partnerCompany && !w.partner)
-    ).length;
-
-    if (profsCount > 5) {
-      toast.error('Maximum 5 Partner Employees can be assigned per project.');
-      return false;
-    }
-    if (freeCount > 5) {
-      toast.error('Maximum 5 Freelancers can be assigned per project.');
+    if (selectedWorkforceList.length > 5) {
+      toast.error('Maximum 5 workforce members can be assigned to a project.');
       return false;
     }
     if (selectedWorkforceList.length === 0) {
@@ -1707,7 +1734,10 @@ export const DataProvider = ({ children }) => {
       return false;
     }
 
-    const prj = projects.find((p) => p.id === projectId) || {
+    const normProjId = (id) => String(id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetNormId = normProjId(projectId);
+
+    const prj = projects.find((p) => normProjId(p.id) === targetNormId) || {
       id: projectId,
       name: 'Enterprise Project',
       title: 'Enterprise Project',
@@ -1715,7 +1745,28 @@ export const DataProvider = ({ children }) => {
       duration: '6 Months',
     };
 
-    const newAssignments = selectedWorkforceList.map((cand) => {
+    // Filter out candidates already submitted for this project
+    const uniqueCandidatesToSubmit = selectedWorkforceList.filter((cand) => {
+      const cName = (cand.name || cand.pseudonym || '').toLowerCase().trim();
+      const cId = cand.id ? String(cand.id).trim() : null;
+      const alreadyQueued = (managerAssignments || []).some((a) => {
+        if (!a) return false;
+        const aProjId = normProjId(a.projectId);
+        const aName = (a.professionalName || '').toLowerCase().trim();
+        const aId = a.professionalId ? String(a.professionalId).trim() : null;
+        const sameProject = aProjId === targetNormId;
+        const sameCandidate = (cId && aId && cId === aId) || (cName && aName && cName === aName);
+        return sameProject && sameCandidate && a.status !== 'Rejected' && a.status !== 'Declined';
+      });
+      return !alreadyQueued;
+    });
+
+    if (uniqueCandidatesToSubmit.length === 0) {
+      toast.info('Selected candidate(s) are already submitted for this project assignment.');
+      return false;
+    }
+
+    const newAssignments = uniqueCandidatesToSubmit.map((cand) => {
       return {
         id: `asg-req-${Date.now().toString().slice(-4)}-${cand.id || Math.random().toString().slice(-2)}`,
         professionalId: cand.id,
@@ -1741,7 +1792,15 @@ export const DataProvider = ({ children }) => {
       };
     });
 
-    setManagerAssignments((prev) => [...newAssignments, ...prev]);
+    setManagerAssignments((prev) => {
+      const existingKeys = new Set(
+        prev.map((a) => `${normProjId(a.projectId)}_${(a.professionalName || '').toLowerCase().trim()}`)
+      );
+      const uniqueNew = newAssignments.filter(
+        (a) => !existingKeys.has(`${normProjId(a.projectId)}_${(a.professionalName || '').toLowerCase().trim()}`)
+      );
+      return [...uniqueNew, ...prev];
+    });
 
     // Send notification to Admin
     const adminNotif = {
@@ -1754,6 +1813,33 @@ export const DataProvider = ({ children }) => {
       link: '/admin/assignment-approvals',
     };
     setNotifications((prev) => [adminNotif, ...prev]);
+
+    // Send recruitment notifications to targeted Workforce Members & Partner Companies
+    newAssignments.forEach((asg) => {
+      const wfNotif = {
+        id: `wnotif-${Date.now()}-${Math.random().toString().slice(-4)}`,
+        title: `Project Recruitment Offer: ${asg.role}`,
+        message: `HR Manager selected you for project "${asg.projectName}". Please review project requirements, verify your availability, and Accept or Decline the offer.`,
+        type: 'request',
+        unread: true,
+        time: 'Just now',
+        link: '/workforce/assignments',
+      };
+      setWorkforceNotifications((prev) => [wfNotif, ...prev]);
+
+      if (asg.source === 'Partner Company' || asg.roleType === 'Professional') {
+        const pNotif = {
+          id: `pnotif-${Date.now()}-${Math.random().toString().slice(-4)}`,
+          title: `Professional Selected for Project: ${asg.projectName}`,
+          message: `HR Manager selected ${asg.professionalName} (${asg.role}) for project "${asg.projectName}".`,
+          type: 'assignment',
+          unread: true,
+          time: 'Just now',
+          link: '/partner/workforce',
+        };
+        setPartnerNotifications((prev) => [pNotif, ...prev]);
+      }
+    });
 
     return newAssignments;
   };
@@ -1837,32 +1923,42 @@ export const DataProvider = ({ children }) => {
     );
 
     // 2. Update project status to 'In Progress' and stage to 'In Progress'
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id === targetAsg.projectId) {
-          const nextAssigned = Math.max(1, (p.workforceAssigned || 0) + 1);
-          const newResources = [
-            ...(p.assignedResources || []).filter((r) => r.id !== targetAsg.professionalId),
-            {
-              id: targetAsg.professionalId,
-              name: targetAsg.professionalName,
-              role: targetAsg.role,
-              avatar: targetAsg.avatar,
-              roleType: targetAsg.roleType || 'Professional',
-              hoursPerWeek: 40,
-            },
-          ];
-          return {
-            ...p,
-            status: 'In Progress',
-            stage: 'In Progress',
-            workforceAssigned: nextAssigned,
-            assignedResources: newResources,
-          };
-        }
-        return p;
-      })
-    );
+    const normProjId = (id) => String(id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetNormId = normProjId(targetAsg.projectId);
+    const targetProjName = (targetAsg.projectName || '').toLowerCase().trim();
+
+    const updateProjectObj = (p) => {
+      const pNormId = normProjId(p.id);
+      const pTitle = (p.name || p.title || '').toLowerCase().trim();
+      const isMatch = (targetNormId && pNormId === targetNormId) || (targetProjName && pTitle === targetProjName);
+
+      if (isMatch) {
+        const nextAssigned = Math.max(1, (p.workforceAssigned || 0) + 1);
+        const newResources = [
+          ...(p.assignedResources || []).filter((r) => r.id !== targetAsg.professionalId && (r.name || '').toLowerCase().trim() !== (targetAsg.professionalName || '').toLowerCase().trim()),
+          {
+            id: targetAsg.professionalId,
+            name: targetAsg.professionalName,
+            role: targetAsg.role,
+            avatar: targetAsg.avatar,
+            roleType: targetAsg.roleType || 'Professional',
+            hoursPerWeek: 40,
+          },
+        ];
+        return {
+          ...p,
+          status: 'In Progress',
+          stage: 'In Progress',
+          workforceAssigned: nextAssigned,
+          assignedResources: newResources,
+          recentUpdate: `Squad assignment approved by Company Admin. Project phase changed to "In Progress".`,
+        };
+      }
+      return p;
+    };
+
+    setProjects((prev) => prev.map(updateProjectObj));
+    setPartnerProjects((prev) => prev.map(updateProjectObj));
 
     // 3. Notify Workforce Member, Manager & Client
     const wfNotif = {
@@ -2425,12 +2521,18 @@ export const DataProvider = ({ children }) => {
 
   // Manager Lifecycle & Project Reassignment Actions
   const addManager = (managerData) => {
-    const nextNum = managers.length + 1;
-    const nextEmployeeId = managerData.employeeId || `MNG-${nextNum.toString().padStart(3, '0')}`;
+    const existingNumIds = (managers || [])
+      .map((m) => Number(typeof m?.id === 'number' ? m.id : String(m?.id || '').replace(/\D/g, '')))
+      .filter((num) => !isNaN(num) && num > 0);
+    const nextSerialNum = existingNumIds.length > 0 ? Math.max(...existingNumIds) + 1 : 1;
+    const parsedEmpId = managerData.employeeId
+      ? (Number(String(managerData.employeeId).replace(/\D/g, '')) || nextSerialNum)
+      : nextSerialNum;
+
     const newManager = {
       ...managerData,
-      id: `mng-${Date.now().toString().slice(-4)}`,
-      employeeId: nextEmployeeId,
+      id: nextSerialNum,
+      employeeId: parsedEmpId,
       role: 'Organization Manager',
       status: managerData.status || 'Active',
       assignedProjectsCount: 0,
@@ -2452,7 +2554,7 @@ export const DataProvider = ({ children }) => {
     addActivity({
       user: userProfile?.name || user?.name || 'System Admin',
       action: 'Registered new Organization Manager',
-      target: `${newManager.name} (${newManager.employeeId})`,
+      target: `${newManager.name} (Manager #${newManager.employeeId})`,
       targetType: 'manager',
     });
 
@@ -2460,18 +2562,20 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateManager = (id, updatedData) => {
+    const numId = typeof id === 'number' ? id : (Number(String(id).replace(/\D/g, '')) || id);
     setManagers((prev) => {
-      const exists = prev.some((m) => m.id === id);
+      const exists = prev.some((m) => m.id === id || m.id === numId);
       if (!exists && prev.length === 0) {
         const newMng = {
-          id: id || `mng-${Date.now().toString().slice(-4)}`,
+          id: numId || 1,
+          employeeId: numId || 1,
           role: 'Organization Manager',
           status: 'Active',
           ...updatedData,
         };
         return [newMng];
       }
-      return prev.map((mng) => (mng.id === id ? { ...mng, ...updatedData } : mng));
+      return prev.map((mng) => (mng.id === id || mng.id === numId ? { ...mng, ...updatedData } : mng));
     });
   };
 
@@ -2506,6 +2610,23 @@ export const DataProvider = ({ children }) => {
       target: affectedManagerName,
       targetType: 'manager',
     });
+  };
+
+  const deleteManager = (id) => {
+    setManagers((prev) => {
+      const updated = prev.filter((mng) => mng.id !== id && String(mng.id) !== String(id));
+      try {
+        localStorage.setItem('flexistaff_managers', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const clearManagers = () => {
+    setManagers([]);
+    try {
+      localStorage.removeItem('flexistaff_managers');
+    } catch {}
   };
 
   const reassignProjectManager = (projectId, newManagerId, reason = '') => {
@@ -3033,6 +3154,8 @@ export const DataProvider = ({ children }) => {
         addManager,
         updateManager,
         updateManagerStatus,
+        deleteManager,
+        clearManagers,
         reassignProjectManager,
         workforce,
         addWorkforceMember,

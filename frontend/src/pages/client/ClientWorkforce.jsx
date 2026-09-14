@@ -67,7 +67,7 @@ export const ClientWorkforce = () => {
     });
 
     // Merge active manager assignments for this client's projects
-    const assignedFromManager = (managerAssignments || [])
+    const assignedFromManagerRaw = (managerAssignments || [])
       .filter((a) => {
         if (!a) return false;
         const isWorkingState =
@@ -77,26 +77,37 @@ export const ClientWorkforce = () => {
           clientProjectNames.has((a.projectName || '').toLowerCase()) ||
           (clientProfile?.company && (a.client || '').toLowerCase() === clientProfile.company.toLowerCase());
         return isWorkingState && isClientProj;
-      })
-      .map((a, idx) => ({
-        id: `asg-${a.id || idx}`,
-        name: a.professionalName || 'Specialist Candidate',
-        role: a.role || 'Software Engineer',
-        projectId: a.projectId,
-        projectName: a.projectName || 'Client Project Pod',
-        manager: a.manager || 'Assigned Manager',
-        avatar: a.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-        skills: a.skills || ['React.js', 'JavaScript'],
-        experience: a.experience || '3+ years',
-        hourlyRate: a.hourlyRate || '$95/hr',
-        weeklyHours: 40,
-        status: 'Active',
-        joinedDate: a.assignedDate || '2026-08-15',
-        rating: 4.8,
-        performance: 'Active Assigned Pod Member',
-      }));
+      });
 
-    return [...clientBaseRoster, ...assignedFromManager];
+    const uniqueAssignedManager = [];
+    const seenAsgKeys = new Set();
+    assignedFromManagerRaw.forEach((a, idx) => {
+      const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const normName = (a.professionalName || '').toLowerCase().trim();
+      const key = `${normProj}_${normName}`;
+      if (!seenAsgKeys.has(key)) {
+        seenAsgKeys.add(key);
+        uniqueAssignedManager.push({
+          id: `asg-${a.id || idx}`,
+          name: a.professionalName || 'Specialist Candidate',
+          role: a.role || 'Software Engineer',
+          projectId: a.projectId,
+          projectName: a.projectName || 'Client Project Pod',
+          manager: a.manager || 'Assigned Manager',
+          avatar: a.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+          skills: a.skills || ['React.js', 'JavaScript'],
+          experience: a.experience || '3+ years',
+          hourlyRate: a.hourlyRate || '$95/hr',
+          weeklyHours: 40,
+          status: 'Active',
+          joinedDate: a.assignedDate || '2026-08-15',
+          rating: 4.8,
+          performance: 'Active Assigned Pod Member',
+        });
+      }
+    });
+
+    return [...clientBaseRoster, ...uniqueAssignedManager];
   }, [managerAssignments, clientProjects, clientProjectIds, clientProjectNames]);
 
   // Filter roster by user search/filters

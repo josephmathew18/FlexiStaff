@@ -10,12 +10,12 @@ import { motion, AnimatePresence } from 'framer-motion';
  */
 export const WorkforceCounter = ({
   count = 0,
-  max = 10,
+  max = 5,
   professionalsCount = 0,
   freelancersCount = 0,
   className = '',
 }) => {
-  const isMaxReached = count >= max || (professionalsCount >= 5 && freelancersCount >= 5);
+  const isMaxReached = count >= 5;
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -42,17 +42,17 @@ export const WorkforceCounter = ({
           </div>
           <div>
             <span className="text-xs font-extrabold tracking-tight">
-              Workforce Selected: {count} Member{count === 1 ? '' : 's'}
+              Workforce Squad Selected: {count} / 5 Members
             </span>
             <p className="text-[11px] text-slate-500 font-medium">
-              {professionalsCount} / 5 Partner Employees + {freelancersCount} / 5 Freelancers
+              {professionalsCount} Partner Professionals + {freelancersCount} Freelancers
             </p>
           </div>
         </div>
 
         {/* Visual Dots */}
         <div className="flex items-center gap-1.5">
-          {Array.from({ length: Math.min(max, 10) }).map((_, idx) => (
+          {Array.from({ length: 5 }).map((_, idx) => (
             <div
               key={idx}
               className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -76,7 +76,7 @@ export const WorkforceCounter = ({
             className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-900 text-xs font-bold"
           >
             <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-            <span>Maximum capacity reached (Up to 5 Partner Employees and 5 Freelancers allowed per project).</span>
+            <span>Maximum project capacity reached (Up to 5 workforce members allowed per project squad).</span>
           </motion.div>
         )}
       </AnimatePresence>

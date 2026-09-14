@@ -18,6 +18,7 @@ import WorkforceCard from './WorkforceCard';
 import WorkforceProfile from './WorkforceProfile';
 import AssignmentRequestModal from './AssignmentRequestModal';
 import { toast } from 'react-toastify';
+import { useData } from '../../context/DataContext';
 
 export const WorkforceSelectionPanel = ({
   project,
@@ -38,23 +39,25 @@ export const WorkforceSelectionPanel = ({
     (w) => w.roleType === 'Freelancer' || w.source === 'Freelancer' || (!w.partnerCompany && !w.partner)
   ).length;
 
-  const isMaxReached = profCount >= 5 && freeCount >= 5;
+  const isMaxReached = selectedCount >= 5;
 
   const handleOpenAssignmentModal = () => {
     if (selectedCount === 0) {
       toast.error('Please select at least 1 workforce member to create an assignment request.');
       return;
     }
-    if (profCount > 5) {
-      toast.error('Maximum 5 Partner Employees allowed per project squad.');
-      return;
-    }
-    if (freeCount > 5) {
-      toast.error('Maximum 5 Freelancers allowed per project squad.');
+    if (selectedCount > 5) {
+      toast.error('Maximum 5 workforce members can be assigned to a project squad.');
       return;
     }
     setIsAssignmentModalOpen(true);
   };
+
+  const { managerAssignments = [] } = useData() || {};
+
+  const normProjId = (id) => String(id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+  const targetProjId = normProjId(project?.id);
+  const targetProjName = (project?.name || project?.title || '').toLowerCase().trim();
 
   return (
     <div className="space-y-6">
@@ -71,7 +74,7 @@ export const WorkforceSelectionPanel = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Select proposed talent (Up to 5 Partner Employees & 5 Freelancers). Then generate an Assignment Request for Admin approval.
+              Select proposed talent (Up to 5 workforce members total per project). Then generate an Assignment Request for Admin approval.
             </p>
           </div>
 
@@ -156,12 +159,37 @@ export const WorkforceSelectionPanel = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {availableWorkforce.map((candidate) => {
-            const isSelected = selectedWorkforce.some((s) => s.id === candidate.id);
+            const candName = (candidate.name || candidate.pseudonym || '').toLowerCase().trim();
+            const candIdStr = candidate.id ? String(candidate.id).trim() : '';
+
+            const isSelected = selectedWorkforce.some((s) => {
+              const sName = (s.name || s.pseudonym || '').toLowerCase().trim();
+              const sIdStr = s.id ? String(s.id).trim() : '';
+              return (candIdStr && sIdStr && candIdStr === sIdStr) || (candName && sName && candName === sName);
+            });
+
+            const existingAssignment = (managerAssignments || []).find((a) => {
+              if (!a) return false;
+              const aProj = normProjId(a.projectId);
+              const aName = (a.professionalName || '').toLowerCase().trim();
+              const aId = a.professionalId ? String(a.professionalId).trim() : '';
+
+              const isSameProj = (targetProjId && aProj === targetProjId) || (targetProjName && a.projectName && a.projectName.toLowerCase().trim() === targetProjName);
+              const isSameCandidate = (candIdStr && aId && candIdStr === aId) || (candName && aName && candName === aName);
+
+              return isSameProj && isSameCandidate && a.status !== 'Rejected' && a.status !== 'Declined';
+            });
+
+            const isAlreadyQueued = Boolean(existingAssignment);
+            const alreadyQueuedStatus = existingAssignment?.status || '';
+
             return (
               <WorkforceCard
-                key={candidate.id}
+                key={candidate.id || candidate.name}
                 candidate={candidate}
                 isSelected={isSelected}
+                isAlreadyQueued={isAlreadyQueued}
+                alreadyQueuedStatus={alreadyQueuedStatus}
                 onToggleSelect={onToggleSelect}
                 onViewProfile={(c) => setProfileModalCandidate(c)}
                 disableSelection={isMaxReached}

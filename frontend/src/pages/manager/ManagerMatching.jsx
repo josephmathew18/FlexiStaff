@@ -126,79 +126,111 @@ export const ManagerMatching = () => {
   // Combined available talent pool (Partner Professionals + Freelancers)
   const candidatePool = useMemo(() => {
     const combined = [];
-    const seen = new Set();
+    const seenIds = new Set();
+    const seenNames = new Set();
 
-    // 1. Partner Professionals
-    (partnerWorkforce || []).forEach((p) => {
-      if (p && !seen.has(p.id)) {
-        seen.add(p.id);
-        combined.push({
-          ...p,
-          source: 'Partner Company',
-          roleType: 'Professional',
-          partnerName: p.partnerCompany || p.partner || 'Partner Organization',
-        });
-      }
-    });
+    const addCandidate = (cand, defaultSource, defaultRoleType, defaultPartner) => {
+      if (!cand) return;
+      const cid = String(cand.id || '').trim();
+      const nameKey = (cand.name || cand.pseudonym || '').toLowerCase().trim();
 
-    // 2. Freelancers
-    (workforce || []).forEach((w) => {
-      if (w && !seen.has(w.id)) {
-        seen.add(w.id);
-        combined.push({
-          ...w,
-          source: w.partnerCompany ? 'Partner Company' : 'Freelancer',
-          roleType: w.partnerCompany ? 'Professional' : 'Freelancer',
-          partnerName: w.partnerCompany || 'Independent Freelancer',
-        });
-      }
-    });
+      if (cid && seenIds.has(cid)) return;
+      if (nameKey && seenNames.has(nameKey)) return;
+
+      if (cid) seenIds.add(cid);
+      if (nameKey) seenNames.add(nameKey);
+
+      combined.push({
+        ...cand,
+        source: cand.source || defaultSource,
+        roleType: cand.roleType || defaultRoleType,
+        partnerName: cand.partnerCompany || cand.partner || cand.partnerName || defaultPartner,
+      });
+    };
+
+    (partnerWorkforce || []).forEach((p) =>
+      addCandidate(p, 'Partner Company', 'Professional', 'Partner Organization')
+    );
+    (workforce || []).forEach((w) =>
+      addCandidate(
+        w,
+        w.partnerCompany ? 'Partner Company' : 'Freelancer',
+        w.partnerCompany ? 'Professional' : 'Freelancer',
+        w.partnerCompany || 'Independent Freelancer'
+      )
+    );
 
     return combined;
   }, [partnerWorkforce, workforce]);
 
-  // Toggle selection with strict capacity limits (5 Partner Employees + 5 Freelancers)
+  // Toggle selection with strict capacity limit (Max 5 workforce members per project squad)
   const handleToggleSelect = (candidate) => {
-    const alreadySelected = selectedSquad.some((s) => s.id === candidate.id);
+    if (!candidate) return;
+    const candName = (candidate.name || candidate.pseudonym || '').toLowerCase().trim();
+    const candIdStr = candidate.id ? String(candidate.id).trim() : '';
+
+    const normProjId = (val) => String(val || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetProjId = normProjId(currentProject?.id);
+    const targetProjName = (currentProject?.name || currentProject?.title || '').toLowerCase().trim();
+
+    // Check if candidate already has a pending or active assignment request for this project
+    const existingAssignment = (managerAssignments || []).find((a) => {
+      if (!a) return false;
+      const aProj = normProjId(a.projectId);
+      const aTitle = (a.projectName || '').toLowerCase().trim();
+      const aName = (a.professionalName || '').toLowerCase().trim();
+      const aId = a.professionalId ? String(a.professionalId).trim() : '';
+
+      const isSameProj = (targetProjId && aProj === targetProjId) || (targetProjName && aTitle === targetProjName);
+      const isSameCand = (candIdStr && aId && candIdStr === aId) || (candName && aName && candName === aName);
+
+      return isSameProj && isSameCand && a.status !== 'Rejected' && a.status !== 'Declined';
+    });
+
+    if (existingAssignment) {
+      const statusLabel =
+        existingAssignment.status === 'Accepted' || existingAssignment.status === 'Working' || existingAssignment.status === 'In Progress'
+          ? 'already active on'
+          : 'has a pending recruitment request for';
+      toast.warn(
+        `Cannot select ${candidate.name || candidate.pseudonym || 'candidate'}: Candidate ${statusLabel} project "${currentProject.name || currentProject.title}".`
+      );
+      return;
+    }
+
+    const alreadySelected = selectedSquad.some((s) => {
+      const sName = (s.name || s.pseudonym || '').toLowerCase().trim();
+      const sIdStr = s.id ? String(s.id).trim() : '';
+      return (candIdStr && sIdStr && candIdStr === sIdStr) || (candName && sName && candName === sName);
+    });
 
     if (alreadySelected) {
-      setSelectedSquad(selectedSquad.filter((s) => s.id !== candidate.id));
-      toast.info(`Removed ${candidate.name || 'candidate'} from selection.`);
+      setSelectedSquad(selectedSquad.filter((s) => {
+        const sName = (s.name || s.pseudonym || '').toLowerCase().trim();
+        const sIdStr = s.id ? String(s.id).trim() : '';
+        return !((candIdStr && sIdStr && candIdStr === sIdStr) || (candName && sName && candName === sName));
+      }));
+      toast.info(`Removed ${candidate.name || candidate.pseudonym || 'candidate'} from selection.`);
       return;
     }
 
-    const isCandPartner = candidate.roleType === 'Professional' || candidate.source === 'Partner Company' || Boolean(candidate.partnerCompany || candidate.partner);
-    const partnerCount = selectedSquad.filter((s) => s.roleType === 'Professional' || s.source === 'Partner Company' || Boolean(s.partnerCompany || s.partner)).length;
-    const freelancerCount = selectedSquad.filter((s) => s.roleType === 'Freelancer' || s.source === 'Freelancer' || (!s.partnerCompany && !s.partner)).length;
-
-    if (isCandPartner && partnerCount >= 5) {
-      toast.error('Maximum 5 Partner Employees allowed per project squad.');
-      return;
-    }
-    if (!isCandPartner && freelancerCount >= 5) {
-      toast.error('Maximum 5 Freelancers allowed per project squad.');
+    if (selectedSquad.length >= 5) {
+      toast.error('Maximum 5 workforce members can be assigned to a project.');
       return;
     }
 
     setSelectedSquad([...selectedSquad, candidate]);
-    toast.success(`Added ${candidate.name || 'candidate'} to staged squad.`);
+    toast.success(`Added ${candidate.name || candidate.pseudonym || 'candidate'} to staged squad.`);
   };
 
   // Submit Assignment Request to Company Admin
   const handleSubmitAssignmentRequest = (notes) => {
-    const partnerCount = selectedSquad.filter((s) => s.roleType === 'Professional' || s.source === 'Partner Company' || Boolean(s.partnerCompany || s.partner)).length;
-    const freelancerCount = selectedSquad.filter((s) => s.roleType === 'Freelancer' || s.source === 'Freelancer' || (!s.partnerCompany && !s.partner)).length;
-
     if (selectedSquad.length === 0) {
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (partnerCount > 5) {
-      toast.error('Maximum 5 Partner Employees allowed per project squad.');
-      return;
-    }
-    if (freelancerCount > 5) {
-      toast.error('Maximum 5 Freelancers allowed per project squad.');
+    if (selectedSquad.length > 5) {
+      toast.error('Maximum 5 workforce members can be assigned to a project.');
       return;
     }
 
@@ -226,9 +258,6 @@ export const ManagerMatching = () => {
               HR Manager
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Request Professionals from Partner Companies or Freelancers from the independent pool. Select proposed talent (up to 5 Partner Employees and 5 Freelancers) and submit an Assignment Request to Company Admin.
-          </p>
         </div>
 
         {/* Project Selector Dropdown */}

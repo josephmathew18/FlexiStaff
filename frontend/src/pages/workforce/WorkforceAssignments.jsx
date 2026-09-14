@@ -33,8 +33,12 @@ export const WorkforceAssignments = () => {
   const {
     workforceUserProfile,
     managerAssignments = [],
+    freelancerRequests = [],
+    partnerWorkforceRequests = [],
     acceptWorkforceAssignment,
     declineWorkforceAssignment,
+    respondFreelancerWorkforceRequest,
+    respondPartnerWorkforceRequest,
     updateWorkforceProgress,
     projectMilestones = {},
     addMilestoneCommit,
@@ -60,30 +64,118 @@ export const WorkforceAssignments = () => {
   });
   const [isSubmittingCommit, setIsSubmittingCommit] = useState(false);
 
-  // Find all assignments for this talent
+  // Find all assignments & requests for this talent
   const myAssignments = useMemo(() => {
-    return (managerAssignments || []).filter(
-      (a) =>
-        (workforceUserProfile?.name && a.professionalName?.toLowerCase() === workforceUserProfile.name.toLowerCase()) ||
-        a.professionalId === workforceUserProfile?.id
-    );
-  }, [managerAssignments, workforceUserProfile]);
+    const wfName = (workforceUserProfile?.name || '').toLowerCase().trim();
+    const wfId = String(workforceUserProfile?.id || '').trim();
+    const wfCompany = (workforceUserProfile?.partnerCompany || workforceUserProfile?.partnerName || '').toLowerCase().trim();
+
+    const results = [];
+    const seenKeys = new Set();
+
+    // 1. From managerAssignments
+    (managerAssignments || []).forEach((a) => {
+      if (!a) return;
+      const aName = (a.professionalName || '').toLowerCase().trim();
+      const aId = String(a.professionalId || '').trim();
+      const aCompany = (a.partnerName || '').toLowerCase().trim();
+
+      const isDirectMatch = (wfName && aName && (aName === wfName || aName.includes(wfName) || wfName.includes(aName))) || (wfId && aId && wfId === aId);
+      const isPartnerMatch = Boolean(wfCompany && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
+
+      if (isDirectMatch || isPartnerMatch) {
+        const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const key = `asg_${normProj}_${a.id || aName}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          results.push(a);
+        }
+      }
+    });
+
+    // 2. From freelancerRequests
+    (freelancerRequests || []).forEach((r) => {
+      if (!r) return;
+      const rName = (r.freelancerName || '').toLowerCase().trim();
+      const rId = String(r.freelancerId || '').trim();
+
+      const isMatch = (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) || (wfId && rId && wfId === rId);
+
+      if (isMatch) {
+        const normProj = (r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const key = `fl_${normProj}_${r.id || rName}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          results.push({
+            id: r.id,
+            projectId: r.projectId || 7142,
+            projectName: r.projectName || 'Enterprise Project',
+            client: r.client || 'Client Organization',
+            role: r.role || 'Specialist',
+            hourlyRate: r.hourlyRate || '$95/hr',
+            workload: 40,
+            skills: Array.isArray(r.skills) ? r.skills : (r.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+            status: r.status === 'Pending' ? 'Awaiting Workforce Response' : r.status,
+            assignedDate: r.requestedDate || new Date().toISOString().split('T')[0],
+            notes: r.notes || 'Direct Workforce Request submitted by Organization Manager.',
+            currentTask: 'Direct request submitted by Manager. Review and respond.',
+          });
+        }
+      }
+    });
+
+    // 3. From partnerWorkforceRequests (for Partner Employees)
+    if (wfCompany) {
+      (partnerWorkforceRequests || []).forEach((pr) => {
+        if (!pr) return;
+        const prCompany = (pr.partnerName || '').toLowerCase().trim();
+        if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
+          const normProj = (pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const key = `prt_${normProj}_${pr.id}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            results.push({
+              id: pr.id,
+              projectId: pr.projectId || 7142,
+              projectName: pr.projectName || 'Enterprise Project',
+              client: pr.client || 'Partner Client',
+              role: pr.role || 'Partner Specialist',
+              hourlyRate: pr.hourlyRate || '$95/hr',
+              workload: 40,
+              skills: (pr.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+              status: pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status,
+              assignedDate: pr.createdDate || new Date().toISOString().split('T')[0],
+              notes: pr.additionalRequirements || 'Partner Company Allocation Request.',
+              currentTask: 'Partner Workforce Request assigned to your company. Awaiting response.',
+            });
+          }
+        }
+      });
+    }
+
+    return results;
+  }, [managerAssignments, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
+
+  const isPendingStatus = (st) => {
+    const s = String(st || '').toLowerCase();
+    return s.includes('pending') || s.includes('awaiting');
+  };
 
   const pendingInvitations = useMemo(() => {
-    return myAssignments.filter((a) => a.status === 'Awaiting Workforce Response');
+    return myAssignments.filter((a) => isPendingStatus(a.status));
   }, [myAssignments]);
 
   const activeAssignments = useMemo(() => {
-    return myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working');
+    return myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
   }, [myAssignments]);
 
   const filteredAssignments = useMemo(() => {
     return myAssignments.filter((asg) => {
       if (statusFilter !== 'all') {
-        if (statusFilter === 'invitations' && asg.status !== 'Awaiting Workforce Response') return false;
-        if (statusFilter === 'active' && asg.status !== 'Accepted' && asg.status !== 'Working') return false;
+        if (statusFilter === 'invitations' && !isPendingStatus(asg.status)) return false;
+        if (statusFilter === 'active' && asg.status !== 'Accepted' && asg.status !== 'Working' && asg.status !== 'In Progress') return false;
         if (statusFilter === 'completed' && asg.status !== 'Completed') return false;
-        if (statusFilter === 'declined' && asg.status !== 'Declined') return false;
+        if (statusFilter === 'declined' && asg.status !== 'Declined' && asg.status !== 'Rejected') return false;
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -97,8 +189,14 @@ export const WorkforceAssignments = () => {
   }, [myAssignments, statusFilter, searchQuery]);
 
   const handleAccept = (asg) => {
-    acceptWorkforceAssignment(asg.id);
-    toast.success(`You have accepted the assignment for "${asg.projectName}". Project is now In Progress!`);
+    if (asg.id && String(asg.id).startsWith('fl-')) {
+      if (respondFreelancerWorkforceRequest) respondFreelancerWorkforceRequest(asg.id, true);
+    } else if (asg.id && (String(asg.id).startsWith('pr-') || String(asg.id).startsWith('prt-'))) {
+      if (respondPartnerWorkforceRequest) respondPartnerWorkforceRequest(asg.id, [workforceUserProfile?.id]);
+    } else {
+      if (acceptWorkforceAssignment) acceptWorkforceAssignment(asg.id);
+    }
+    toast.success(`You have accepted the assignment for "${asg.projectName}". Project is active!`);
   };
 
   const handleDeclineSubmit = (e) => {
@@ -142,7 +240,7 @@ export const WorkforceAssignments = () => {
     setIsSubmittingCommit(true);
 
     setTimeout(() => {
-      const pId = selectedAssignmentForCommit?.projectId || 'PRJ-2026-001';
+      const pId = selectedAssignmentForCommit?.projectId || 7142;
 
       if (addMilestoneCommit) {
         addMilestoneCommit(pId, commitFormData.milestoneId, {
@@ -195,10 +293,10 @@ export const WorkforceAssignments = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-extrabold text-slate-900">
-              Company-Approved Project Invitations ({pendingInvitations.length})
+              Project Recruitment Offers ({pendingInvitations.length})
             </h2>
             <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold animate-pulse">
-              Action Required
+              Action Required – Accept or Decline Offer
             </span>
           </div>
 
@@ -206,42 +304,57 @@ export const WorkforceAssignments = () => {
             {pendingInvitations.map((inv) => (
               <div
                 key={inv.id}
-                className="p-6 rounded-3xl bg-gradient-to-br from-purple-50/60 via-indigo-50/40 to-white border-2 border-purple-300 shadow-md flex flex-col justify-between space-y-4"
+                className="p-6 rounded-3xl bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-white border-2 border-purple-300 shadow-md flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
+                    <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-200">
                       {inv.projectId}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
-                      Company Authorized
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
+                      <CheckCircle2 size={11} className="text-emerald-600" />
+                      <span>Company Authorized</span>
                     </span>
                   </div>
 
                   <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block mb-0.5">
+                      Project Recruitment Offer
+                    </span>
                     <h3 className="text-base font-extrabold text-slate-900">{inv.projectName}</h3>
-                    <p className="text-xs font-bold text-purple-700 mt-0.5">Role Offered: {inv.role}</p>
-                    <p className="text-xs text-slate-500 mt-1">Client: {inv.client || 'Enterprise Client'}</p>
+                    <p className="text-xs font-bold text-purple-700 mt-0.5">Offered Role: {inv.role}</p>
+                    <p className="text-xs text-slate-500 mt-1">Client Organization: {inv.client || 'Enterprise Client'}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-2xl border border-purple-100">
-                    <div>
+                  {/* Availability Verification Box */}
+                  <div className="p-3 rounded-2xl bg-white border border-purple-200 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
                       <span className="text-[10px] text-slate-400 font-bold uppercase">Rate</span>
                       <p className="font-extrabold text-slate-900">{inv.hourlyRate || '$95/hr'}</p>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Workload</span>
-                      <p className="font-extrabold text-slate-900">{inv.workload || 40}% Allocation</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Workload Capacity</span>
+                      <p className="font-extrabold text-slate-900">{inv.workload || 40}% Allocation (40h/wk)</p>
+                    </div>
+                    <div className="pt-2 border-t border-purple-100 flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold">
+                      <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                      <span>Availability Status: Verified Available for Project Execution</span>
                     </div>
                   </div>
 
+                  {inv.notes && (
+                    <p className="text-[11px] text-slate-600 italic bg-purple-50/60 p-2.5 rounded-xl border border-purple-100">
+                      Manager Note: "{inv.notes}"
+                    </p>
+                  )}
+
                   <div className="flex flex-wrap gap-1">
-                    {(inv.skills || []).map((s, idx) => (
+                    {(Array.isArray(inv.skills) ? inv.skills : (inv.skills || '').split(/[,+]/)).map((s, idx) => (
                       <span
                         key={idx}
                         className="px-2 py-0.5 rounded-md bg-purple-100/70 text-purple-800 text-[10px] font-semibold"
                       >
-                        {s}
+                        {String(s).trim()}
                       </span>
                     ))}
                   </div>
@@ -306,8 +419,8 @@ export const WorkforceAssignments = () => {
 
         {/* Milestone Cards for Active Assignments */}
         {myAssignments.map((asg) => {
-          const pId = asg.projectId || 'PRJ-2026-001';
-          const msList = projectMilestones[pId] || [
+          const pId = asg.projectId || 7142;
+          const msList = (projectMilestones && projectMilestones[pId]) || [
             {
               id: 'ms-01',
               title: 'Core OAuth2 & RBAC Auth Engine',

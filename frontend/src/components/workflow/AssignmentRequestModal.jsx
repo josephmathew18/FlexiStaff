@@ -42,12 +42,8 @@ export const AssignmentRequestModal = ({
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (professionals.length > 5) {
-      toast.error('Maximum 5 Partner Employees can be assigned per project.');
-      return;
-    }
-    if (freelancers.length > 5) {
-      toast.error('Maximum 5 Freelancers can be assigned per project.');
+    if (totalCount > 5) {
+      toast.error('Maximum 5 workforce members can be assigned to a project.');
       return;
     }
 
@@ -207,7 +203,7 @@ export const AssignmentRequestModal = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || totalCount === 0 || professionals.length > 5 || freelancers.length > 5}
+                disabled={isSubmitting || totalCount === 0 || totalCount > 5}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white text-xs font-bold shadow-md shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Send size={14} />

@@ -163,7 +163,9 @@ const ProjectCard = ({ project, onClick }) => {
     <div onClick={() => onClick?.(project)} className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all cursor-pointer">
       <div>
         <div className="flex items-start justify-between gap-2 mb-2">
-          <span className="text-[11px] font-mono font-semibold text-[#737686] dark:text-slate-400">{id}</span>
+          <span className="text-[11px] font-mono font-semibold text-[#737686] dark:text-slate-400">
+            #{typeof id === 'number' ? id : (String(id).replace(/\D/g, '') || id)}
+          </span>
           <div className="flex items-center gap-1.5">
             <StatusBadge status={priority} type="priority" />
             <StatusBadge status={stage || status} />
@@ -426,7 +428,9 @@ export const ProjectManagement = () => {
       sortable: true,
       render: (row) => (
         <div>
-          <span className="text-[10px] font-mono text-[#737686] dark:text-slate-400 block">{row.id}</span>
+          <span className="text-[10px] font-mono text-[#737686] dark:text-slate-400 block">
+            #{typeof row.id === 'number' ? row.id : (String(row.id).replace(/\D/g, '') || row.id)}
+          </span>
           <h4 className="font-bold text-[#191b23] dark:text-white hover:text-[#004ac6] dark:hover:text-blue-400 transition-colors line-clamp-1">
             {row.title}
           </h4>

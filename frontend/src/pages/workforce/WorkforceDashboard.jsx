@@ -22,7 +22,12 @@ import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const WorkforceDashboard = () => {
-  const { workforceUserProfile, managerAssignments = [], updateWorkforceUserProfile } = useData() || {};
+  const {
+    workforceUserProfile,
+    managerAssignments = [],
+    freelancerRequests = [],
+    partnerWorkforceRequests = [],
+  } = useData() || {};
 
   const isCompanyEmployee =
     Boolean(workforceUserProfile?.partnerCompany) ||
@@ -35,14 +40,101 @@ export const WorkforceDashboard = () => {
     workforceUserProfile?.employmentType?.includes('Partner') ||
     workforceUserProfile?.employmentType?.includes('Company');
 
-  const myAssignments = (managerAssignments || []).filter(
-    (a) =>
-      (workforceUserProfile?.name && a.professionalName?.toLowerCase() === workforceUserProfile.name.toLowerCase()) ||
-      a.professionalId === workforceUserProfile?.id
-  );
+  const myAssignments = React.useMemo(() => {
+    const wfName = (workforceUserProfile?.name || '').toLowerCase().trim();
+    const wfId = String(workforceUserProfile?.id || '').trim();
+    const wfCompany = (workforceUserProfile?.partnerCompany || workforceUserProfile?.partnerName || '').toLowerCase().trim();
 
-  const pendingOffers = myAssignments.filter((a) => a.status === 'Awaiting Workforce Response');
-  const activeAssignments = myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working');
+    const results = [];
+    const seenKeys = new Set();
+
+    (managerAssignments || []).forEach((a) => {
+      if (!a) return;
+      const aName = (a.professionalName || '').toLowerCase().trim();
+      const aId = String(a.professionalId || '').trim();
+      const aCompany = (a.partnerName || '').toLowerCase().trim();
+
+      const isDirectMatch = (wfName && aName && (aName === wfName || aName.includes(wfName) || wfName.includes(aName))) || (wfId && aId && wfId === aId);
+      const isPartnerMatch = Boolean(wfCompany && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
+
+      if (isDirectMatch || isPartnerMatch) {
+        const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const key = `asg_${normProj}_${a.id || aName}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          results.push(a);
+        }
+      }
+    });
+
+    (freelancerRequests || []).forEach((r) => {
+      if (!r) return;
+      const rName = (r.freelancerName || '').toLowerCase().trim();
+      const rId = String(r.freelancerId || '').trim();
+
+      const isMatch = (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) || (wfId && rId && wfId === rId);
+
+      if (isMatch) {
+        const normProj = (r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const key = `fl_${normProj}_${r.id || rName}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          results.push({
+            id: r.id,
+            projectId: r.projectId || 7142,
+            projectName: r.projectName || 'Enterprise Project',
+            client: r.client || 'Client Organization',
+            role: r.role || 'Specialist',
+            hourlyRate: r.hourlyRate || '$95/hr',
+            workload: 40,
+            skills: Array.isArray(r.skills) ? r.skills : (r.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+            status: r.status === 'Pending' ? 'Awaiting Workforce Response' : r.status,
+            assignedDate: r.requestedDate || new Date().toISOString().split('T')[0],
+            notes: r.notes || 'Direct Workforce Request submitted by Organization Manager.',
+            currentTask: 'Direct request submitted by Manager. Review and respond.',
+          });
+        }
+      }
+    });
+
+    if (wfCompany) {
+      (partnerWorkforceRequests || []).forEach((pr) => {
+        if (!pr) return;
+        const prCompany = (pr.partnerName || '').toLowerCase().trim();
+        if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
+          const normProj = (pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const key = `prt_${normProj}_${pr.id}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            results.push({
+              id: pr.id,
+              projectId: pr.projectId || 7142,
+              projectName: pr.projectName || 'Enterprise Project',
+              client: pr.client || 'Partner Client',
+              role: pr.role || 'Partner Specialist',
+              hourlyRate: pr.hourlyRate || '$95/hr',
+              workload: 40,
+              skills: (pr.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+              status: pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status,
+              assignedDate: pr.createdDate || new Date().toISOString().split('T')[0],
+              notes: pr.additionalRequirements || 'Partner Company Allocation Request.',
+              currentTask: 'Partner Workforce Request assigned to your company. Awaiting response.',
+            });
+          }
+        }
+      });
+    }
+
+    return results;
+  }, [managerAssignments, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
+
+  const isPendingStatus = (st) => {
+    const s = String(st || '').toLowerCase();
+    return s.includes('pending') || s.includes('awaiting');
+  };
+
+  const pendingOffers = myAssignments.filter((a) => isPendingStatus(a.status));
+  const activeAssignments = myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
   const completedAssignments = myAssignments.filter((a) => a.status === 'Completed');
 
   return (
