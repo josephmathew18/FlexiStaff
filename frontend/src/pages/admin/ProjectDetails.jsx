@@ -99,7 +99,7 @@ export const ProjectDetails = () => {
   } = useData() || {};
 
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
-  const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || 'Thomas Anderson');
+  const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || '');
 
   // Rejection modal state for candidate squad proposals
   const [rejectSquadModal, setRejectSquadModal] = useState({ isOpen: false, member: null, reason: '' });

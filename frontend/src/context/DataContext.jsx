@@ -73,7 +73,7 @@ export const DataProvider = ({ children }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          list = parsed.filter((m) => m && m.email !== 'thomas@flexistaff.com' && m.email !== 'manager@gmail.com');
+          list = parsed;
         }
       }
     } catch {
