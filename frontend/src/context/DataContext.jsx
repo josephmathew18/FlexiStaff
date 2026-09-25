@@ -763,22 +763,32 @@ export const DataProvider = ({ children }) => {
               });
             }
 
-            setPartnerProfile({
-              id: matchedPrt?.id || savedUser.id || 'prt-101',
-              name: companyDisplayName,
-              companyName: companyDisplayName,
-              contactPerson: contactDisplayName,
-              email: emailAddr,
-              phone: phoneNo,
-              tier: tierVal,
-              location: locationVal,
-              city: locationVal,
-              specialties: specsVal,
-              domain: specsVal,
-              website: webVal,
-              description: descVal,
-              logoUrl: logoVal,
-              status: matchedPrt?.status || 'Active',
+            setPartnerProfile((prev) => {
+              if (
+                prev &&
+                prev.name === companyDisplayName &&
+                prev.contactPerson === contactDisplayName &&
+                prev.email === emailAddr
+              ) {
+                return prev;
+              }
+              return {
+                id: matchedPrt?.id || savedUser.id || 'prt-101',
+                name: companyDisplayName,
+                companyName: companyDisplayName,
+                contactPerson: contactDisplayName,
+                email: emailAddr,
+                phone: phoneNo,
+                tier: tierVal,
+                location: locationVal,
+                city: locationVal,
+                specialties: specsVal,
+                domain: specsVal,
+                website: webVal,
+                description: descVal,
+                logoUrl: logoVal,
+                status: matchedPrt?.status || 'Active',
+              };
             });
           }
         }
@@ -794,7 +804,7 @@ export const DataProvider = ({ children }) => {
       window.removeEventListener('storage', syncPartnerProfileData);
       window.removeEventListener('auth_change', syncPartnerProfileData);
     };
-  }, [partners]);
+  }, []);
 
   const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
   const [partnerWorkforce, setPartnerWorkforce] = useState(initialPartnerWorkforce);
