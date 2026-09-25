@@ -538,130 +538,106 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   // Partner Portal State
-  const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);  // Sync partner profile whenever flexistaff_user or flexistaff_partners updates
+  const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);
+
+  // Sync partner profile whenever flexistaff_user or flexistaff_partners updates
   useEffect(() => {
     const syncPartnerProfileData = () => {
       try {
         const savedUserStr = localStorage.getItem('flexistaff_user');
         const savedPartnersStr = localStorage.getItem('flexistaff_partners');
-        let currentPartnersList = partners;
+        let currentPartnersList = partners || [];
         if (savedPartnersStr) {
           try {
-            currentPartnersList = JSON.parse(savedPartnersStr);
+            const parsed = JSON.parse(savedPartnersStr);
+            if (Array.isArray(parsed)) currentPartnersList = parsed;
           } catch {}
         }
 
         if (savedUserStr) {
           let savedUser = JSON.parse(savedUserStr);
-          const emailLower = (savedUser.email || '').toLowerCase();
-          const nameLower = (savedUser.name || savedUser.companyName || savedUser.company || '').toLowerCase();
-
-          // Auto-fix session role if Infosys was previously saved as Client
-          if ((emailLower.includes('infosys') || nameLower.includes('infosys')) && savedUser.role !== 'Partner Company') {
-            savedUser = {
-              ...savedUser,
-              role: 'Partner Company',
-              portalPath: '/partner/dashboard',
-            };
-            try {
-              localStorage.setItem('flexistaff_user', JSON.stringify(savedUser));
-              localStorage.setItem('flexistaff_role', 'Partner Company');
-            } catch {}
-          }
-
           if (savedUser && (savedUser.role === 'Partner Company' || savedUser.role === 'Partner' || savedUser.role === 'ROLE_PARTNER')) {
             const userEmail = (savedUser.email || '').toLowerCase().trim();
-            const userName = (savedUser.companyName || savedUser.company || (savedUser.name !== 'System Administrator' ? savedUser.name : '') || '').toLowerCase().trim();
+            const uId = savedUser.partnerCompanyId || savedUser.id ? String(savedUser.partnerCompanyId || savedUser.id) : '';
 
+            // STRICT lookup by exact ID or exact email match
             let matchedPrt = (currentPartnersList || []).find((p) => {
               if (!p) return false;
               const pEmail = (p.email || '').toLowerCase().trim();
-              const pName = (p.name || p.companyName || '').toLowerCase().trim();
               const pId = p.id ? String(p.id) : '';
-              const uId = savedUser.id ? String(savedUser.id) : '';
-
-              if (pEmail && userEmail && pEmail === userEmail) return true;
-              if (pName && userName && (pName === userName || userName.includes(pName) || pName.includes(userName))) return true;
-              if (pId && uId && pId === uId) return true;
+              if (uId && pId && pId === uId) return true;
+              if (userEmail && pEmail && pEmail === userEmail) return true;
               return false;
             });
 
-            let companyDisplayName = matchedPrt?.name || matchedPrt?.companyName;
-            if (!companyDisplayName || companyDisplayName === 'Partner Company' || companyDisplayName.toLowerCase() === 'infosys') {
-              companyDisplayName = savedUser.companyName || savedUser.name || 'Partner Company';
-            }
-
-            let contactDisplayName = matchedPrt?.contactPerson || savedUser.contactPerson || savedUser.name || 'Partner Contact';
-
+            const companyDisplayName = matchedPrt?.name || matchedPrt?.companyName || savedUser.companyName || savedUser.company || (userEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company');
+            const contactDisplayName = matchedPrt?.contactPerson || savedUser.contactPerson || savedUser.fullName || savedUser.name || 'Partner Contact';
             const emailAddr = matchedPrt?.email || savedUser.email || '';
             const phoneNo = matchedPrt?.phone || savedUser.phone || '';
             const tierVal = matchedPrt?.tier || savedUser.tier || 'Strategic Partner';
-            const locationVal = matchedPrt?.location || matchedPrt?.city || savedUser.location || savedUser.address || '';
+            const locationVal = matchedPrt?.location || matchedPrt?.city || savedUser.location || savedUser.address || 'Remote';
             const specsVal = Array.isArray(matchedPrt?.specialties) ? matchedPrt.specialties.join(', ') : (matchedPrt?.specialties || 'IT & Staffing Services');
             const webVal = matchedPrt?.website || savedUser.website || '';
             const descVal = matchedPrt?.description || savedUser.description || '';
             const logoVal = matchedPrt?.logo || matchedPrt?.avatar || matchedPrt?.logoUrl || savedUser.logoUrl || '';
+            const partnerId = matchedPrt?.id || uId || `prt-${userEmail.split('@')[0] || Date.now()}`;
 
-            // If not found in central list, seed it so Admin & Partner are in sync
-            if (!matchedPrt && (userEmail || userName)) {
-              const seededObj = {
-                id: savedUser.id || `prt-${Date.now().toString().slice(-4)}`,
-                name: companyDisplayName,
-                companyName: companyDisplayName,
-                contactPerson: contactDisplayName,
-                email: emailAddr,
-                phone: phoneNo,
-                tier: tierVal,
-                location: locationVal,
-                city: locationVal,
-                specialties: Array.isArray(matchedPrt?.specialties) ? matchedPrt.specialties : ['Enterprise Software', 'IT Staffing'],
-                website: webVal,
-                description: descVal,
-                logo: logoVal,
-                status: 'Active',
-                joinedDate: new Date().toISOString().split('T')[0],
-                suppliedProfessionals: 0,
-                activePlacements: 0,
-                availabilityRate: '100%',
-                rating: 5.0,
-              };
-
-              setPartners((prev) => {
-                if (prev.some((p) => (p.email && p.email.toLowerCase() === emailAddr.toLowerCase()) || (p.name && p.name.toLowerCase() === companyDisplayName.toLowerCase()))) {
-                  return prev;
-                }
-                return [seededObj, ...prev];
+            // Ensure this specific partner company is registered in central partners state
+            setPartners((prev) => {
+              const exists = (prev || []).some((p) => {
+                if (!p) return false;
+                const pId = String(p.id || '');
+                const pEmail = (p.email || '').toLowerCase().trim();
+                return (partnerId && pId === partnerId) || (emailAddr && pEmail === emailAddr.toLowerCase());
               });
-            }
 
-            setPartnerProfile((prev) => {
-              if (
-                prev &&
-                prev.name === companyDisplayName &&
-                prev.contactPerson === contactDisplayName &&
-                prev.email === emailAddr
-              ) {
-                return prev;
+              if (!exists) {
+                const newPartnerRecord = {
+                  id: partnerId,
+                  name: companyDisplayName,
+                  companyName: companyDisplayName,
+                  contactPerson: contactDisplayName,
+                  email: emailAddr,
+                  phone: phoneNo,
+                  tier: tierVal,
+                  location: locationVal,
+                  city: locationVal,
+                  specialties: Array.isArray(matchedPrt?.specialties) ? matchedPrt.specialties : ['Enterprise Software', 'IT Staffing'],
+                  website: webVal,
+                  description: descVal,
+                  logo: logoVal,
+                  status: 'Active',
+                  joinedDate: new Date().toISOString().split('T')[0],
+                  suppliedProfessionals: 0,
+                  activePlacements: 0,
+                  availabilityRate: '100%',
+                  rating: 5.0,
+                };
+                return [newPartnerRecord, ...(prev || [])];
               }
-              return {
-                id: matchedPrt?.id || savedUser.id || 'prt-101',
-                name: companyDisplayName,
-                companyName: companyDisplayName,
-                contactPerson: contactDisplayName,
-                email: emailAddr,
-                phone: phoneNo,
-                tier: tierVal,
-                location: locationVal,
-                city: locationVal,
-                specialties: specsVal,
-                domain: specsVal,
-                website: webVal,
-                description: descVal,
-                logoUrl: logoVal,
-                status: matchedPrt?.status || 'Active',
-              };
+              return prev;
+            });
+
+            setPartnerProfile({
+              id: partnerId,
+              name: companyDisplayName,
+              companyName: companyDisplayName,
+              contactPerson: contactDisplayName,
+              email: emailAddr,
+              phone: phoneNo,
+              tier: tierVal,
+              location: locationVal,
+              city: locationVal,
+              specialties: specsVal,
+              domain: specsVal,
+              website: webVal,
+              description: descVal,
+              logoUrl: logoVal,
+              status: matchedPrt?.status || 'Active',
             });
           }
+        } else {
+          setPartnerProfile(initialPartnerProfile);
         }
       } catch (err) {
         console.error('Error in syncPartnerProfileData:', err);
