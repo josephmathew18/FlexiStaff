@@ -20,6 +20,7 @@ public class ProjectDto {
     private Long id;
     private String title;
     private String description;
+    private String requiredSkills;
 
     private Long clientId;
     private String clientName;

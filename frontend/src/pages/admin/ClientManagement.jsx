@@ -303,6 +303,16 @@ export const ClientManagement = () => {
 
   const columns = [
     {
+      header: 'User ID',
+      accessor: 'id',
+      sortable: true,
+      render: (row) => (
+        <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
+          #{row.numericId || row.id}
+        </span>
+      ),
+    },
+    {
       header: 'Client Organization',
       accessor: 'name',
       sortable: true,

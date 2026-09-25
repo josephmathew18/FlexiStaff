@@ -184,29 +184,38 @@ export const Register = ({ onNavigateToLogin }) => {
         companyName: formData.companyName,
       });
 
+      if (!authRes.success) {
+        setLoading(false);
+        showToastNotification(authRes.error || 'Registration failed. Email address may already be registered.', 'error');
+        return;
+      }
+
+      const clientRes = await addClient({
+        companyName: formData.companyName,
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        location: 'India',
+        industry: 'Enterprise Software & Services',
+        tier: 'Enterprise Client',
+        status: 'Active',
+      });
+
       setLoading(false);
 
-      if (authRes.success) {
-        addClient({
-          companyName: formData.companyName,
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          location: 'India',
-          industry: 'Enterprise Software & Services',
-          tier: 'Enterprise Client',
-          status: 'Active',
-        });
-        showToastNotification('Client organization account registered successfully!', 'success');
-        setTimeout(() => {
-          navigate('/client/dashboard');
-        }, 800);
-      } else {
-        showToastNotification(authRes.error || 'Registration failed. Email may already be registered.', 'error');
+      if (clientRes && clientRes.success === false) {
+        showToastNotification(clientRes.error || 'Email address is already registered.', 'error');
+        return;
       }
+
+      showToastNotification('Client organization account registered successfully!', 'success');
+      setTimeout(() => {
+        navigate('/client/dashboard');
+      }, 800);
     } catch (err) {
       setLoading(false);
-      showToastNotification('Registration failed. Please try again.', 'error');
+      showToastNotification(err.message || 'Registration failed. Please try again.', 'error');
     }
   };
 

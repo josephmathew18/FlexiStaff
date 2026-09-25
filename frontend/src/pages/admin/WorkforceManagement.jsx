@@ -40,8 +40,10 @@ import {
   Download,
   FileText,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import UserAvatar from '../../components/common/UserAvatar';
 
 // ====================================================================
 // INLINE REUSABLE UI: StatusBadge
@@ -203,6 +205,7 @@ export const WorkforceManagement = () => {
     partners,
     approveWorkforceMember,
     rejectWorkforceMember,
+    updateWorkforceMember,
     deleteWorkforceMember,
     freelancerApplications = [],
     approveFreelancerApplication,
@@ -222,6 +225,70 @@ export const WorkforceManagement = () => {
   const [rejectionModalTalent, setRejectionModalTalent] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('Skill set does not match current project requirements');
 
+  // Edit Employee Modal state
+  const [editingTalent, setEditingTalent] = useState(null);
+  const [editTalentForm, setEditTalentForm] = useState({
+    name: '',
+    title: '',
+    hourlyRate: '',
+    experience: '',
+    skills: '',
+    email: '',
+    phone: '',
+    location: '',
+    availability: 'Available',
+    bio: '',
+    avatar: '',
+  });
+
+  const handleStartEditTalent = (talent) => {
+    setEditingTalent(talent);
+    setEditTalentForm({
+      name: talent.name || talent.pseudonym || '',
+      title: talent.title || talent.role || '',
+      hourlyRate: talent.hourlyRate || '$85/hr',
+      experience: talent.experience || '3+ Years',
+      skills: Array.isArray(talent.skills) ? talent.skills.join(', ') : (talent.skills || ''),
+      email: talent.email || '',
+      phone: talent.phone || '',
+      location: talent.location || 'Bengaluru, India',
+      availability: talent.availability || talent.status || 'Available',
+      bio: talent.bio || '',
+      avatar: talent.avatar || '',
+    });
+  };
+
+  const handleSaveEditTalent = (e) => {
+    e.preventDefault();
+    if (!editingTalent) return;
+    const skillsArr = editTalentForm.skills
+      ? editTalentForm.skills.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    const updatedData = {
+      name: editTalentForm.name,
+      title: editTalentForm.title,
+      role: editTalentForm.title,
+      hourlyRate: editTalentForm.hourlyRate.startsWith('$') ? editTalentForm.hourlyRate : `$${editTalentForm.hourlyRate}`,
+      experience: editTalentForm.experience,
+      skills: skillsArr,
+      email: editTalentForm.email,
+      phone: editTalentForm.phone,
+      location: editTalentForm.location,
+      availability: editTalentForm.availability,
+      status: editTalentForm.availability,
+      bio: editTalentForm.bio,
+      avatar: editTalentForm.avatar,
+    };
+    if (updateWorkforceMember) {
+      updateWorkforceMember(editingTalent.id, updatedData);
+    }
+    toast.success(`Profile for "${editTalentForm.name}" updated successfully!`);
+    setEditingTalent(null);
+    if (selectedTalent?.id === editingTalent.id) {
+      setSelectedTalent((prev) => ({ ...prev, ...updatedData }));
+    }
+  };
+
   // Extract all available skill tags
   const allSkills = useMemo(() => {
     const set = new Set();
@@ -229,31 +296,57 @@ export const WorkforceManagement = () => {
     return ['all', ...Array.from(set)];
   }, [workforce]);
 
+  // Helper to check if record is a Partner Company organization account (which belongs to Partner Companies page, not Workforce!)
+  const isPartnerCompanyOrg = (w) => {
+    if (!w) return true;
+    const roleLower = (w.role || w.title || w.category || '').toLowerCase().trim();
+    const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+    const emailLower = (w.email || '').toLowerCase().trim();
+
+    return (
+      roleLower === 'partner company' ||
+      roleLower === 'partner' ||
+      roleLower === 'role_partner' ||
+      nameLower === 'infosys' ||
+      nameLower === 'partner' ||
+      nameLower === 'partner company' ||
+      emailLower === 'partner@infosys.com' ||
+      emailLower === 'partner@gmail.com' ||
+      emailLower === 'partner@flexistaff.com'
+    );
+  };
+
+  // Clean workforce roster without partner company organizations
+  const cleanWorkforceRoster = useMemo(
+    () => workforce.filter((w) => !isPartnerCompanyOrg(w)),
+    [workforce]
+  );
+
   // Counts for Badges
   const pendingCount = useMemo(
     () =>
-      workforce.filter(
+      cleanWorkforceRoster.filter(
         (w) =>
           w.approvalStatus === 'Pending Review' ||
           w.approvalStatus === 'Pending' ||
           w.verificationStatus === 'Pending'
       ).length,
-    [workforce]
+    [cleanWorkforceRoster]
   );
   const pendingPartnerCount = useMemo(
     () =>
-      workforce.filter(
+      cleanWorkforceRoster.filter(
         (w) =>
           (w.approvalStatus === 'Pending Review' ||
             w.approvalStatus === 'Pending' ||
             w.verificationStatus === 'Pending') &&
           (w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE')
       ).length,
-    [workforce]
+    [cleanWorkforceRoster]
   );
   const pendingFreelancerCount = useMemo(
     () =>
-      workforce.filter(
+      cleanWorkforceRoster.filter(
         (w) =>
           (w.approvalStatus === 'Pending Review' ||
             w.approvalStatus === 'Pending' ||
@@ -263,22 +356,22 @@ export const WorkforceManagement = () => {
             w.professionalType === 'FREELANCER' ||
             w.roleType === 'Freelancer')
       ).length,
-    [workforce]
+    [cleanWorkforceRoster]
   );
   const activeTalentCount = useMemo(
     () =>
-      workforce.filter(
+      cleanWorkforceRoster.filter(
         (w) =>
           w.approvalStatus === 'Approved' ||
           w.verificationStatus === 'Approved' ||
           w.accountStatus === 'Active'
       ).length,
-    [workforce]
+    [cleanWorkforceRoster]
   );
 
   // Filtered Workforce List
   const filteredWorkforce = useMemo(() => {
-    return workforce.filter((member) => {
+    return cleanWorkforceRoster.filter((member) => {
       const isMemberPending =
         member.approvalStatus === 'Pending Review' ||
         member.approvalStatus === 'Pending' ||
@@ -321,7 +414,7 @@ export const WorkforceManagement = () => {
 
       return true;
     });
-  }, [workforce, activeTab, roleTypeFilter, selectedSkill, searchQuery]);
+  }, [cleanWorkforceRoster, activeTab, roleTypeFilter, selectedSkill, searchQuery]);
 
   // Handle Admin Decision: Accept
   const handleAdminAccept = (member) => {
@@ -622,17 +715,12 @@ export const WorkforceManagement = () => {
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
-                          {app.personalDetails?.avatarUrl || app.avatar ? (
-                            <img
-                              src={app.personalDetails?.avatarUrl || app.avatar}
-                              alt={app.fullName}
-                              className="w-12 h-12 rounded-2xl object-cover ring-2 ring-purple-200 shadow-xs shrink-0"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-[#7c3aed] flex items-center justify-center font-bold text-lg shrink-0">
-                              {app.fullName ? app.fullName.charAt(0).toUpperCase() : 'F'}
-                            </div>
-                          )}
+                        <UserAvatar
+                          src={app.personalDetails?.avatarUrl || app.avatar}
+                          name={app.fullName}
+                          size="md"
+                          className="w-12 h-12 rounded-2xl shrink-0"
+                        />
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="text-base font-extrabold text-slate-900">{app.fullName}</h4>
@@ -786,7 +874,7 @@ export const WorkforceManagement = () => {
                       ) : (
                         <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800/40">
                           <Code2 size={12} className="shrink-0" />
-                          <span>Direct Freelancer</span>
+                          <span>Freelancer</span>
                         </span>
                       )}
                     </div>
@@ -795,10 +883,11 @@ export const WorkforceManagement = () => {
 
                   {/* Candidate Identity */}
                   <div className="mt-3.5 flex items-start gap-3.5">
-                    <img
+                    <UserAvatar
                       src={talent.avatar}
-                      alt={talent.name}
-                      className="w-12 h-12 rounded-xl object-cover ring-2 ring-white dark:ring-white/10 shadow-xs shrink-0"
+                      name={talent.name}
+                      size="md"
+                      className="w-12 h-12 rounded-xl shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{talent.name}</h3>
@@ -870,6 +959,14 @@ export const WorkforceManagement = () => {
                       </button>
                       <button
                         type="button"
+                        onClick={() => handleStartEditTalent(talent)}
+                        className="p-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-white/10 transition-colors"
+                        title="Edit employee profile"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleDeleteWorkforceMember(talent)}
                         className="p-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-white/10 transition-colors"
                         title="Delete candidate"
@@ -889,6 +986,7 @@ export const WorkforceManagement = () => {
             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
               <thead className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1a1835] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <tr>
+                  <th className="py-3.5 px-4">User ID</th>
                   <th className="py-3.5 px-4">Talent Name & Title</th>
                   <th className="py-3.5 px-4">Source / Partner</th>
                   <th className="py-3.5 px-4">Hourly Rate</th>
@@ -902,9 +1000,12 @@ export const WorkforceManagement = () => {
                   const isPending = talent.approvalStatus === 'Pending Review';
                   return (
                     <tr key={talent.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">
+                        #{talent.numericId || talent.id}
+                      </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <img src={talent.avatar} alt={talent.name} className="w-9 h-9 rounded-lg object-cover ring-1 ring-slate-200 dark:ring-white/10" />
+                          <UserAvatar src={talent.avatar} name={talent.name} size="sm" className="w-9 h-9 rounded-lg shrink-0" />
                           <div>
                             <p className="font-bold text-slate-900 dark:text-white">{talent.name}</p>
                             <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">{talent.title}</p>
@@ -913,7 +1014,7 @@ export const WorkforceManagement = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-medium text-slate-800 dark:text-slate-300">
-                          {talent.source === 'Partner Company' ? talent.partnerName : 'Direct Freelancer'}
+                          {talent.source === 'Partner Company' ? talent.partnerName : 'Freelancer'}
                         </span>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{talent.hourlyRate}</td>
@@ -980,10 +1081,11 @@ export const WorkforceManagement = () => {
         {selectedTalent && (
           <div className="space-y-5">
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <img
+              <UserAvatar
                 src={selectedTalent.avatar}
-                alt={selectedTalent.name}
-                className="w-16 h-16 rounded-xl object-cover ring-2 ring-white shadow-xs"
+                name={selectedTalent.name}
+                size="lg"
+                className="w-16 h-16 rounded-xl shrink-0"
               />
               <div>
                 <h4 className="text-base font-bold text-slate-900">{selectedTalent.name}</h4>
@@ -999,7 +1101,7 @@ export const WorkforceManagement = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Recruitment Source</span>
                 <p className="font-bold text-slate-800 mt-0.5">
-                  {selectedTalent.source === 'Partner Company' ? selectedTalent.partnerName : 'Direct Freelancer'}
+                  {selectedTalent.source === 'Partner Company' ? selectedTalent.partnerName : 'Freelancer'}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -1053,14 +1155,28 @@ export const WorkforceManagement = () => {
             )}
             {/* Modal Footer / Actions */}
             <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => handleDeleteWorkforceMember(selectedTalent)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
-              >
-                <Trash2 size={14} />
-                <span>Remove Candidate</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = selectedTalent;
+                    setSelectedTalent(null);
+                    handleStartEditTalent(t);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors"
+                >
+                  <Pencil size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteWorkforceMember(selectedTalent)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
+                >
+                  <Trash2 size={14} />
+                  <span>Remove Candidate</span>
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedTalent(null)}
@@ -1070,6 +1186,189 @@ export const WorkforceManagement = () => {
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* EDIT EMPLOYEE PROFILE MODAL */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={Boolean(editingTalent)}
+        onClose={() => setEditingTalent(null)}
+        title="Edit Employee Profile"
+        subtitle={`Update profile details for ${editingTalent?.name || 'Employee'}`}
+        maxWidth="max-w-xl"
+      >
+        {editingTalent && (
+          <form onSubmit={handleSaveEditTalent} className="space-y-4">
+            {/* Profile Avatar Upload & Preview Section */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+              <label className="block text-xs font-bold text-[#434655] dark:text-slate-300">
+                Profile Photo / Avatar
+              </label>
+              <div className="flex items-center gap-4">
+                <UserAvatar
+                  src={editTalentForm.avatar}
+                  name={editTalentForm.name}
+                  size="xl"
+                  className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-500/30 shadow-md shrink-0"
+                />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all">
+                      <Download size={13} className="rotate-180" />
+                      <span>Upload New Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error('Image size must be less than 5MB');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setEditTalentForm((prev) => ({
+                                ...prev,
+                                avatar: event.target.result,
+                              }));
+                              toast.info('New photo loaded! Click Save Changes to apply.');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {editTalentForm.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => setEditTalentForm((prev) => ({ ...prev, avatar: '' }))}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Or paste image URL (https://...)"
+                    value={editTalentForm.avatar || ''}
+                    onChange={(e) => setEditTalentForm((prev) => ({ ...prev, avatar: e.target.value }))}
+                    className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#14132b] px-3 py-1.5 text-xs text-[#191b23] dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormInput
+                label="Full Name"
+                name="name"
+                value={editTalentForm.name}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, name: e.target.value }))}
+                required
+              />
+              <FormInput
+                label="Job Title / Role"
+                name="title"
+                value={editTalentForm.title}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, title: e.target.value }))}
+                required
+              />
+              <FormInput
+                label="Hourly Billing Rate"
+                name="hourlyRate"
+                value={editTalentForm.hourlyRate}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, hourlyRate: e.target.value }))}
+                placeholder="$85/hr"
+                required
+              />
+              <FormInput
+                label="Experience"
+                name="experience"
+                value={editTalentForm.experience}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, experience: e.target.value }))}
+                placeholder="3+ Years"
+              />
+              <FormInput
+                label="Work Email"
+                name="email"
+                type="email"
+                value={editTalentForm.email}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, email: e.target.value }))}
+              />
+              <FormInput
+                label="Phone Number"
+                name="phone"
+                value={editTalentForm.phone}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, phone: e.target.value }))}
+              />
+              <FormInput
+                label="Location / City"
+                name="location"
+                value={editTalentForm.location}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, location: e.target.value }))}
+              />
+              <FormInput
+                label="Availability Status"
+                name="availability"
+                type="select"
+                value={editTalentForm.availability}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, availability: e.target.value }))}
+                options={[
+                  { value: 'Available', label: 'Available' },
+                  { value: 'Assigned', label: 'Assigned (On Project)' },
+                  { value: 'Onboarding', label: 'Onboarding' },
+                  { value: 'Inactive', label: 'Inactive' },
+                ]}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#434655] dark:text-slate-300">
+                Technical Skills (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={editTalentForm.skills}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, skills: e.target.value }))}
+                placeholder="React.js, Node.js, Python, TypeScript"
+                className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3 py-2 text-xs text-[#191b23] dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#434655] dark:text-slate-300">
+                Professional Bio / Summary
+              </label>
+              <textarea
+                rows={3}
+                value={editTalentForm.bio}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, bio: e.target.value }))}
+                placeholder="Short bio or candidate overview..."
+                className="w-full rounded-lg border border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3 py-2 text-xs text-[#191b23] dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+              />
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditingTalent(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-white/15 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
 
@@ -1088,17 +1387,12 @@ export const WorkforceManagement = () => {
             {/* Header Profile Summary */}
             <div className="flex items-start justify-between p-4 rounded-2xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40">
               <div className="flex items-start gap-4">
-                {viewingAppModal.personalDetails?.avatarUrl || viewingAppModal.avatar ? (
-                  <img
-                    src={viewingAppModal.personalDetails?.avatarUrl || viewingAppModal.avatar}
-                    alt={viewingAppModal.fullName}
-                    className="w-16 h-16 rounded-2xl object-cover ring-2 ring-purple-300 shadow-sm shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-purple-200 text-[#7c3aed] flex items-center justify-center font-bold text-xl shrink-0">
-                    {viewingAppModal.fullName ? viewingAppModal.fullName.charAt(0).toUpperCase() : 'F'}
-                  </div>
-                )}
+                <UserAvatar
+                  src={viewingAppModal.personalDetails?.avatarUrl || viewingAppModal.avatar}
+                  name={viewingAppModal.fullName}
+                  size="lg"
+                  className="w-16 h-16 rounded-2xl shrink-0"
+                />
                 <div>
                   <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{viewingAppModal.fullName}</h4>
                   <p className="text-xs font-bold text-[#7c3aed] dark:text-purple-300">{viewingAppModal.roleTitle || 'Full Stack Engineer'}</p>

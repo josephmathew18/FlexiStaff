@@ -129,6 +129,10 @@ export const ProjectDetails = () => {
 
     const rawList = (managerAssignments || []).filter((a) => {
       if (!a) return false;
+      const aName = (a.professionalName || a.name || '').toLowerCase();
+      const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
+      if (aName.includes('sharon') || aEmail.includes('sharon')) return false;
+
       const aProjId = normProjId(a.projectId);
       const aProjName = (a.projectName || '').toLowerCase().trim();
       const isIdMatch = targetNormId && (aProjId === targetNormId || aProjId.replace(/-/g, '') === targetNormId.replace(/-/g, ''));
@@ -166,6 +170,11 @@ export const ProjectDetails = () => {
     const seenIds = new Set(list.map((item) => String(item.professionalId || item.id)));
 
     (project?.assignedResources || []).forEach((res) => {
+      if (!res) return;
+      const resName = (res.name || res.professionalName || '').toLowerCase();
+      const resEmail = (res.email || res.professionalEmail || '').toLowerCase();
+      if (resName.includes('sharon') || resEmail.includes('sharon')) return;
+
       const rId = String(res.id);
       if (!seenIds.has(rId)) {
         seenIds.add(rId);

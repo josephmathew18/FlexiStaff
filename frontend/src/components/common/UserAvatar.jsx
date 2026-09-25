@@ -39,7 +39,7 @@ export const UserAvatar = ({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const isUploadedImage = Boolean(src && typeof src === 'string' && !src.includes('unsplash.com'));
+  const isUploadedImage = Boolean(src && typeof src === 'string' && src.trim().length > 0);
 
   if (isUploadedImage) {
     return (

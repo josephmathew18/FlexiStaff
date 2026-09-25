@@ -39,6 +39,7 @@ public class ProjectService {
         Project project = Project.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .requiredSkills(request.getRequiredSkills())
                 .client(client)
                 .manager(manager)
                 .budget(request.getBudget())
@@ -106,6 +107,7 @@ public class ProjectService {
                 .id(project.getId())
                 .title(project.getTitle())
                 .description(project.getDescription())
+                .requiredSkills(project.getRequiredSkills())
                 .clientId(project.getClient().getId())
                 .clientName(project.getClient().getFullName())
                 .clientCompanyName(project.getClient().getClientProfile() != null ?

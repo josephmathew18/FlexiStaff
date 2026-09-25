@@ -290,7 +290,7 @@ const addManagerSchema = yup.object().shape({
   confirmPassword: yup
     .string()
     .required('Please confirm password')
-    .oneOf([yup.ref('tempPassword'), null], 'Passwords must match'),
+    .oneOf([yup.ref('tempPassword')], 'Passwords must match'),
   accountStatus: yup.string().default('Active'),
 });
 

@@ -297,6 +297,10 @@ export const Login = () => {
       <ForgotPassword
         isOpen={isForgotPasswordOpen}
         onClose={() => setIsForgotPasswordOpen(false)}
+        onSuccess={(updatedEmail, updatedPassword) => {
+          setEmail(updatedEmail);
+          setPassword(updatedPassword);
+        }}
       />
     </main>
   );

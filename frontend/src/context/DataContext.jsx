@@ -25,6 +25,22 @@ import {
   initialAdminProfile,
 } from '../data/mockData';
 
+export const getNextGlobalUserId = (role, clients = [], managers = [], partners = [], workforce = []) => {
+  const allUserIds = [
+    ...(clients || []).map((c) => c?.numericId || c?.id),
+    ...(managers || []).map((m) => m?.numericId || m?.id || m?.employeeId),
+    ...(partners || []).map((p) => p?.numericId || p?.id),
+    ...(workforce || []).map((w) => w?.numericId || w?.id),
+  ]
+    .map((raw) => Number(String(raw || '').replace(/\D/g, '')))
+    .filter((num) => !isNaN(num) && num > 0);
+
+  if (allUserIds.length === 0) return 1;
+
+  const maxExisting = Math.max(...allUserIds);
+  return maxExisting + 1;
+};
+
 const DataContext = createContext(null);
 
 export const DataProvider = ({ children }) => {
@@ -65,9 +81,8 @@ export const DataProvider = ({ children }) => {
     }
     return list.map((m, idx) => {
       if (!m) return m;
-      const serialId = typeof m.id === 'number' ? m.id : (Number(String(m.id).replace(/\D/g, '')) || (idx + 1));
-      const empId = typeof m.employeeId === 'number' ? m.employeeId : (Number(String(m.employeeId).replace(/\D/g, '')) || serialId);
-      return { ...m, id: serialId, employeeId: empId };
+      const rawNum = Number(String(m.id || m.employeeId || '').replace(/\D/g, '')) || (idx + 1);
+      return { ...m, id: rawNum, numericId: rawNum, employeeId: rawNum };
     });
   });
 
@@ -78,9 +93,28 @@ export const DataProvider = ({ children }) => {
       if (saved) list = JSON.parse(saved);
     } catch {}
     if (!list || list.length === 0) list = initialWorkforce || [];
-    return list.filter(
-      (w) => w && !(w.email || '').toLowerCase().includes('sharon') && !(w.name || '').toLowerCase().includes('sharon')
-    );
+    return list.filter((w) => {
+      if (!w) return false;
+      const emailLower = (w.email || '').toLowerCase().trim();
+      const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+      const roleLower = (w.role || w.title || w.category || '').toLowerCase().trim();
+
+      if (emailLower.includes('sharon') || nameLower.includes('sharon')) return false;
+      if (emailLower.includes('admin') || roleLower.includes('admin')) return false;
+
+      const isPartnerCompany =
+        roleLower === 'partner company' ||
+        roleLower === 'partner' ||
+        roleLower === 'role_partner' ||
+        nameLower === 'infosys' ||
+        nameLower === 'partner' ||
+        nameLower === 'partner company' ||
+        emailLower === 'partner@infosys.com' ||
+        emailLower === 'partner@gmail.com' ||
+        emailLower === 'partner@flexistaff.com';
+
+      return !isPartnerCompany;
+    });
   });
 
   const [projects, setProjects] = useState(() => {
@@ -99,42 +133,62 @@ export const DataProvider = ({ children }) => {
     return list.map((p) => {
       if (!p) return p;
       const cleanId = typeof p.id === 'number' ? p.id : (Number(String(p.id).replace(/\D/g, '')) || p.id);
-      let stage = p.stage;
-      let status = p.status;
-      const numProg = Number(p.progress) || 0;
-      if (numProg < 100 && (stage === 'Completed' || status === 'Completed')) {
-        stage = numProg > 0 ? 'In Progress' : 'Approved';
-        status = numProg > 0 ? 'In Progress' : 'Approved';
+      const isPetrolPump =
+        String(p.id || '').includes('7142') ||
+        String(p.name || p.title || p.projectName || '').toLowerCase().includes('petrol');
+
+      let stage = isPetrolPump ? 'Completed' : p.stage;
+      let status = isPetrolPump ? 'Completed' : p.status;
+      let numProg = isPetrolPump ? 100 : (Number(p.progress) || 0);
+
+      if (stage === 'Completed' || status === 'Completed' || numProg >= 100 || isPetrolPump) {
+        stage = 'Completed';
+        status = 'Completed';
+        numProg = 100;
       }
 
-      let workforceRequired = p.workforceRequired;
-      let workforceAssigned = p.workforceAssigned;
+      // Filter out Sharon Tomy from assignedResources
+      const rawRes = p.assignedResources || [];
+      const cleanRes = rawRes.filter((r) => {
+        if (!r) return false;
+        const rEmail = (r.email || r.professionalEmail || '').toLowerCase();
+        const rName = (r.name || r.professionalName || '').toLowerCase();
+        return !rEmail.includes('sharon') && !rName.includes('sharon');
+      });
+
+      let workforceRequired = p.workforceRequired || (isPetrolPump ? 5 : 5);
+      const isCompletedPrj = stage === 'Completed' || status === 'Completed' || numProg >= 100 || isPetrolPump;
+      let workforceAssigned = isCompletedPrj ? workforceRequired : cleanRes.length;
       let requirements = p.requirements;
-      const isPetrolPump = String(p.id).includes('7142') || String(p.name || p.title || '').toLowerCase().includes('petrol pump');
+
       if (isPetrolPump) {
         workforceRequired = 5;
         workforceAssigned = 5;
         if (Array.isArray(requirements) && requirements.length > 0) {
-          requirements = requirements.map((r, idx) => (idx === 0 ? { ...r, required: 5, assigned: 5 } : r));
+          requirements = requirements.map((r, idx) => (idx === 0 ? { ...r, required: 5, assigned: 5 } : { ...r, assigned: r.required }));
         } else {
           requirements = [
             {
-              role: p.category || 'Enterprise Software Engineering',
+              role: p.category || 'Senior Full-Stack Engineer',
               required: 5,
               assigned: 5,
-              skills: p.techStack || 'React.js, Java, Python',
+              skills: p.techStack || 'React.js, Node.js, Cloud',
             },
           ];
         }
+      } else if (isCompletedPrj && Array.isArray(requirements)) {
+        requirements = requirements.map((r) => ({ ...r, assigned: r.required }));
       }
 
       return {
         ...p,
         id: cleanId,
-        stage,
-        status,
+        stage: isCompletedPrj ? 'Completed' : stage,
+        status: isCompletedPrj ? 'Completed' : status,
+        progress: isCompletedPrj ? 100 : numProg,
+        assignedResources: cleanRes,
         workforceRequired: isPetrolPump ? 5 : (workforceRequired || 5),
-        workforceAssigned: isPetrolPump ? 5 : (workforceAssigned || 0),
+        workforceAssigned: workforceAssigned,
         requirements,
       };
     });
@@ -224,6 +278,74 @@ export const DataProvider = ({ children }) => {
           localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
         }
       }
+
+      // Purge manager assignments of Sharon Tomy
+      const asgStr = localStorage.getItem('flexistaff_manager_assignments');
+      if (asgStr) {
+        const asgList = JSON.parse(asgStr);
+        if (Array.isArray(asgList)) {
+          const updatedAsg = asgList.filter((a) => {
+            if (!a) return false;
+            const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
+            const aName = (a.name || a.professionalName || '').toLowerCase();
+            return !aEmail.includes('sharon') && !aName.includes('sharon');
+          });
+          localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updatedAsg));
+          setManagerAssignments(updatedAsg);
+        }
+      }
+
+      // Purge projects assignedResources of Sharon Tomy
+      const projStr = localStorage.getItem('flexistaff_projects');
+      if (projStr) {
+        const projList = JSON.parse(projStr);
+        if (Array.isArray(projList)) {
+          const updatedProj = projList.map((p) => {
+            if (!p) return p;
+            const rawRes = p.assignedResources || [];
+            const cleanRes = rawRes.filter((r) => {
+              if (!r) return false;
+              const rEmail = (r.email || r.professionalEmail || '').toLowerCase();
+              const rName = (r.name || r.professionalName || '').toLowerCase();
+              return !rEmail.includes('sharon') && !rName.includes('sharon');
+            });
+            return {
+              ...p,
+              assignedResources: cleanRes,
+              workforceAssigned: cleanRes.length,
+            };
+          });
+          localStorage.setItem('flexistaff_projects', JSON.stringify(updatedProj));
+          setProjects(updatedProj);
+        }
+      }
+
+      // Purge partner company organizations from central workforce roster in localStorage
+      const wfStr = localStorage.getItem('flexistaff_workforce');
+      if (wfStr) {
+        const wfList = JSON.parse(wfStr);
+        if (Array.isArray(wfList)) {
+          const cleanWf = wfList.filter((w) => {
+            if (!w) return false;
+            const emailLower = (w.email || '').toLowerCase().trim();
+            const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+            const roleLower = (w.role || w.title || '').toLowerCase().trim();
+            const isPartnerCompany =
+              roleLower === 'partner company' ||
+              roleLower === 'partner' ||
+              roleLower === 'role_partner' ||
+              nameLower === 'infosys' ||
+              nameLower === 'partner' ||
+              nameLower === 'partner company' ||
+              emailLower === 'partner@infosys.com' ||
+              emailLower === 'partner@gmail.com' ||
+              emailLower === 'partner@flexistaff.com';
+            return !isPartnerCompany;
+          });
+          localStorage.setItem('flexistaff_workforce', JSON.stringify(cleanWf));
+          setWorkforce(cleanWf);
+        }
+      }
     } catch {}
   }, []);
 
@@ -234,10 +356,38 @@ export const DataProvider = ({ children }) => {
   }, [managers]);
 
 
-  // Client Registration helper
-  const addClient = (clientData) => {
+  // Client Registration helper connected to Spring Boot backend API
+  const addClient = async (clientData) => {
+    let assignedId = clientData.id;
+    let numericId = clientData.numericId;
+
+    try {
+      const apiRes = await api.clients.register({
+        fullName: clientData.fullName || clientData.contactPerson || clientData.name,
+        companyName: clientData.companyName || clientData.company || clientData.name,
+        email: clientData.email,
+        phone: clientData.phone,
+        password: clientData.password || 'Password123!',
+        industry: clientData.industry,
+        tier: clientData.tier,
+        location: clientData.location,
+      });
+
+      if (apiRes && apiRes.success === false) {
+        return { success: false, error: apiRes.error || 'Email address already registered' };
+      }
+
+      if (apiRes && apiRes.data) {
+        assignedId = apiRes.data.userId || apiRes.data.id;
+        numericId = apiRes.data.userId || apiRes.data.id;
+      }
+    } catch (err) {
+      console.warn('Backend client register offline, using local state fallback');
+    }
+
     const newClient = {
-      id: clientData.id || `cli-${Date.now()}`,
+      id: assignedId || Date.now(),
+      numericId: numericId || assignedId || Date.now(),
       name: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
       companyName: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
       contactPerson: clientData.fullName || clientData.contactPerson || clientData.name || 'Contact Person',
@@ -257,11 +407,8 @@ export const DataProvider = ({ children }) => {
     };
 
     setClients((prev) => {
-      const exists = prev.some((c) => c.email.toLowerCase() === newClient.email.toLowerCase());
-      if (exists) {
-        return prev.map((c) => (c.email.toLowerCase() === newClient.email.toLowerCase() ? { ...c, ...newClient } : c));
-      }
-      return [newClient, ...prev];
+      const filtered = prev.filter((c) => (c.email || '').toLowerCase() !== newClient.email.toLowerCase() && c.id !== newClient.id);
+      return [newClient, ...filtered];
     });
 
     setNotifications((prev) => [
@@ -277,7 +424,7 @@ export const DataProvider = ({ children }) => {
       ...prev,
     ]);
 
-    return newClient;
+    return { success: true, client: newClient };
   };
 
   const deleteClient = (idOrEmail) => {
@@ -615,6 +762,10 @@ export const DataProvider = ({ children }) => {
     const seen = new Set();
     list.forEach((a) => {
       if (!a) return;
+      const profName = (a.professionalName || a.name || '').toLowerCase();
+      const profEmail = (a.email || a.professionalEmail || '').toLowerCase();
+      if (profName.includes('sharon') || profEmail.includes('sharon')) return;
+
       const projKey = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
       const profKey = String(a.professionalId || a.professionalName || '').toLowerCase().trim();
       const key = `${projKey}_${profKey}`;
@@ -878,6 +1029,175 @@ export const DataProvider = ({ children }) => {
     };
   }, [workforce]);
 
+  // Sync any logged-in or registered workforce / freelancer user into the central workforce roster
+  useEffect(() => {
+    const syncUserToWorkforceList = () => {
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        const registeredUsersStr = localStorage.getItem('flexistaff_registered_users');
+        const applicationsStr = localStorage.getItem('flexistaff_freelancer_applications');
+
+        let usersToSync = [];
+        if (savedUserStr) {
+          try {
+            const u = JSON.parse(savedUserStr);
+            if (u && typeof u === 'object') usersToSync.push(u);
+          } catch {}
+        }
+        if (registeredUsersStr) {
+          try {
+            const list = JSON.parse(registeredUsersStr);
+            if (Array.isArray(list)) usersToSync = [...usersToSync, ...list];
+          } catch {}
+        }
+        if (applicationsStr) {
+          try {
+            const apps = JSON.parse(applicationsStr);
+            if (Array.isArray(apps)) {
+              apps.forEach((app) => {
+                if (app && app.email) {
+                  usersToSync.push({
+                    id: app.id,
+                    name: app.fullName || app.name,
+                    email: app.email,
+                    phone: app.phone,
+                    role: 'Freelancer',
+                    title: app.roleTitle || app.title || 'Freelancer Professional',
+                    skills: app.skills,
+                    hourlyRate: app.hourlyRate ? (typeof app.hourlyRate === 'number' ? `$${app.hourlyRate}/hr` : app.hourlyRate) : '$85/hr',
+                    experience: app.experienceLevel || app.experience || '3+ Years',
+                    location: app.personalDetails?.city || app.location || 'India',
+                    bio: app.bioOverview || app.bio || '',
+                    avatar: app.personalDetails?.avatarUrl || app.avatar || '',
+                  });
+                }
+              });
+            }
+          } catch {}
+        }
+
+        const workforceUsers = usersToSync.filter((u) => {
+          if (!u || !u.email) return false;
+          const r = String(u.role || u.userType || '').toLowerCase().trim();
+          const emailLower = (u.email || '').toLowerCase().trim();
+          const nameLower = (u.name || u.fullName || '').toLowerCase().trim();
+
+          const isPartnerCompany =
+            r.includes('partner company') ||
+            r === 'partner' ||
+            r === 'role_partner' ||
+            nameLower === 'infosys' ||
+            nameLower === 'partner' ||
+            nameLower === 'partner company' ||
+            emailLower === 'partner@infosys.com' ||
+            emailLower === 'partner@gmail.com' ||
+            emailLower === 'partner@flexistaff.com';
+
+          if (
+            emailLower.includes('sharon') ||
+            nameLower.includes('sharon') ||
+            emailLower.includes('admin') ||
+            r.includes('admin') ||
+            r.includes('client') ||
+            r.includes('manager') ||
+            isPartnerCompany
+          ) {
+            return false;
+          }
+          return (
+            r.includes('workforce') ||
+            r.includes('freelancer') ||
+            r.includes('professional') ||
+            r.includes('talent') ||
+            Boolean(u.hourlyRate) ||
+            Boolean(u.skills)
+          );
+        });
+
+        if (workforceUsers.length === 0) return;
+
+        setWorkforce((prevWorkforce) => {
+          let hasNewEntries = false;
+          let updatedList = [...(prevWorkforce || [])];
+
+          workforceUsers.forEach((u) => {
+            const userEmail = (u.email || '').toLowerCase().trim();
+            const userName = (u.name || u.fullName || u.pseudonym || '').toLowerCase().trim();
+            const userId = u.id ? String(u.id).trim() : '';
+
+            const exists = updatedList.some((w) => {
+              if (!w) return false;
+              const wEmail = (w.email || '').toLowerCase().trim();
+              const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+              const wId = w.id ? String(w.id).trim() : '';
+              return (
+                (wId && userId && wId === userId) ||
+                (wEmail && userEmail && wEmail === userEmail) ||
+                (wName && userName && wName === userName)
+              );
+            });
+
+            if (!exists && (userEmail || userName)) {
+              hasNewEntries = true;
+              const isPartner = Boolean(u.partnerCompany || u.partnerName);
+              const newWfMember = {
+                id: u.id || `wf-reg-${Date.now()}-${Math.random().toString().slice(-4)}`,
+                numericId: u.numericId || u.id || Date.now(),
+                name: u.name || u.fullName || 'Independent Freelancer',
+                pseudonym: u.name || u.fullName || 'Independent Freelancer',
+                email: u.email,
+                phone: u.phone || '+91 98765 00000',
+                title: u.title || u.jobTitle || u.role || 'Full-Stack Software Engineer',
+                role: u.title || u.jobTitle || u.role || 'Full-Stack Software Engineer',
+                category: 'Independent Freelancer',
+                roleType: isPartner ? 'Professional' : 'Freelancer',
+                professionalType: isPartner ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
+                source: isPartner ? 'Partner Company' : 'Freelancer Registration',
+                partnerCompany: u.partnerCompany || '',
+                partnerName: u.partnerCompany || 'Independent Freelancer',
+                skills: Array.isArray(u.skills)
+                  ? u.skills
+                  : (u.skills ? String(u.skills).split(',').map((s) => s.trim()) : ['React.js', 'Node.js']),
+                hourlyRate: u.hourlyRate || '$85/hr',
+                experience: u.experience || '3+ Years',
+                location: u.location || 'Bengaluru, India',
+                bio: u.bio || 'Specialized engineering professional registered on FlexiStaff.',
+                status: u.availability || 'Available',
+                availability: u.availability || 'Available',
+                approvalStatus: 'Approved',
+                verificationStatus: 'Approved',
+                accountStatus: 'Active',
+                rating: 5.0,
+                avatar:
+                  u.avatar ||
+                  `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name || u.fullName || 'Freelancer')}`,
+              };
+              updatedList = [newWfMember, ...updatedList];
+            }
+          });
+
+          if (hasNewEntries) {
+            try {
+              localStorage.setItem('flexistaff_workforce', JSON.stringify(updatedList));
+            } catch {}
+            return updatedList;
+          }
+          return prevWorkforce;
+        });
+      } catch (err) {
+        console.error('Error syncing user to workforce list:', err);
+      }
+    };
+
+    syncUserToWorkforceList();
+    window.addEventListener('storage', syncUserToWorkforceList);
+    window.addEventListener('auth_change', syncUserToWorkforceList);
+    return () => {
+      window.removeEventListener('storage', syncUserToWorkforceList);
+      window.removeEventListener('auth_change', syncUserToWorkforceList);
+    };
+  }, []);
+
   // Sync Client Profile with registered user data
   useEffect(() => {
     const syncClientProfileData = () => {
@@ -952,21 +1272,77 @@ export const DataProvider = ({ children }) => {
     } catch {}
   }, [freelancerApplications]);
 
-  const addFreelancerApplication = (appData) => {
+  const addFreelancerApplication = async (appData) => {
+    let assignedId = appData.id;
+    let numericId = appData.numericId;
+
+    try {
+      const skillsStr = Array.isArray(appData.skills) ? appData.skills.join(', ') : (appData.skills || '');
+      const apiRes = await api.freelancers.register({
+        fullName: appData.fullName,
+        email: appData.email,
+        phone: appData.phone,
+        password: appData.password || 'Password123!',
+        title: appData.roleTitle || appData.title || 'Full Stack Software Engineer',
+        skills: skillsStr,
+        bio: appData.bioOverview || appData.bio,
+        hourlyRate: appData.hourlyRate ? parseFloat(appData.hourlyRate) : 1500,
+        experienceYears: appData.experienceYears || 3,
+      });
+
+      if (apiRes && apiRes.success === false) {
+        return { success: false, error: apiRes.error || 'Email address already registered' };
+      }
+
+      if (apiRes && apiRes.data) {
+        assignedId = apiRes.data.userId || apiRes.data.id;
+        numericId = apiRes.data.userId || apiRes.data.id;
+      }
+    } catch (err) {
+      console.warn('Backend freelancer register offline, saving locally', err.message);
+    }
+
     const newApp = {
-      id: `fl-app-${Date.now()}`,
+      id: assignedId || `fl-app-${Date.now()}`,
+      numericId: numericId || assignedId || null,
       submittedAt: new Date().toISOString().split('T')[0],
-      status: 'Pending Admin Approval',
+      status: 'Approved',
       ...appData,
     };
     setFreelancerApplications((prev) => [newApp, ...prev]);
+
+    const newWorkforceMember = {
+      id: assignedId || Date.now(),
+      numericId: numericId || assignedId || Date.now(),
+      name: appData.fullName,
+      email: appData.email,
+      phone: appData.phone,
+      role: 'Freelancer',
+      roleType: 'Freelancer',
+      title: appData.roleTitle || appData.title || 'Full Stack Software Engineer',
+      skills: Array.isArray(appData.skills) ? appData.skills : (appData.skills ? appData.skills.split(',').map((s) => s.trim()) : ['React', 'Node.js']),
+      bio: appData.bioOverview || appData.bio,
+      hourlyRate: appData.hourlyRate ? `₹${appData.hourlyRate}/hr` : '₹1500/hr',
+      availabilityStatus: 'Available',
+      approvalStatus: 'Approved',
+      verificationStatus: 'Verified',
+      accountStatus: 'Active',
+      source: 'Freelancer Registration',
+      location: appData.personalDetails?.city || appData.location || 'India',
+      avatar: appData.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    };
+
+    setWorkforce((prev) => {
+      const filtered = prev.filter((w) => (w.email || '').toLowerCase() !== (newWorkforceMember.email || '').toLowerCase() && w.id !== newWorkforceMember.id);
+      return [newWorkforceMember, ...filtered];
+    });
 
     // Send notification to Admin feed
     setNotifications((prev) => [
       {
         id: `notif-${Date.now()}`,
-        title: 'New Freelancer Application Registered',
-        message: `${appData.fullName || 'Freelancer'} submitted profile registration details for verification.`,
+        title: 'New Freelancer Candidate Registered',
+        message: `${appData.fullName || 'Freelancer'} registered profile details in PostgreSQL database.`,
         type: 'request',
         unread: true,
         time: 'Just now',
@@ -975,7 +1351,7 @@ export const DataProvider = ({ children }) => {
       ...prev,
     ]);
 
-    return newApp;
+    return { success: true, freelancer: newWorkforceMember, application: newApp };
   };
 
   const approveFreelancerApplication = (appId) => {
@@ -2585,8 +2961,155 @@ export const DataProvider = ({ children }) => {
     );
   };
 
+  const updateWorkforceMember = (idOrEmail, updatedFields) => {
+    if (!idOrEmail && !updatedFields) return;
+
+    const targetStr = String(idOrEmail || '').toLowerCase().trim();
+    const targetEmail = String(updatedFields.email || targetStr).toLowerCase().trim();
+    const targetName = String(updatedFields.name || targetStr).toLowerCase().trim();
+
+    const matchesMember = (w) => {
+      if (!w) return false;
+      const wId = String(w.id || '').toLowerCase().trim();
+      const wNumericId = String(w.numericId || '').toLowerCase().trim();
+      const wEmail = String(w.email || '').toLowerCase().trim();
+      const wName = String(w.name || w.pseudonym || '').toLowerCase().trim();
+
+      if (targetStr && (wId === targetStr || wNumericId === targetStr)) return true;
+      if (targetEmail && wEmail && wEmail === targetEmail) return true;
+      if (targetName && wName && (wName === targetName || wName.includes(targetName) || targetName.includes(wName))) return true;
+      return false;
+    };
+
+    // Update central workforce state
+    setWorkforce((prevWorkforce) => {
+      let found = false;
+      const updatedList = (prevWorkforce || []).map((w) => {
+        if (matchesMember(w)) {
+          found = true;
+          const merged = { ...w, ...updatedFields };
+          if (updatedFields.title) merged.role = updatedFields.title;
+          if (updatedFields.role) merged.title = updatedFields.role;
+          if (updatedFields.name) merged.pseudonym = updatedFields.name;
+          return merged;
+        }
+        return w;
+      });
+
+      const newList = found
+        ? updatedList
+        : [
+            {
+              id: updatedFields.id || targetStr || `wf-${Date.now()}`,
+              name: updatedFields.name || 'Specialist',
+              title: updatedFields.title || updatedFields.role || 'Software Engineer',
+              role: updatedFields.role || updatedFields.title || 'Software Engineer',
+              email: updatedFields.email || '',
+              phone: updatedFields.phone || '',
+              location: updatedFields.location || 'India',
+              experience: updatedFields.experience || '3+ Years',
+              hourlyRate: updatedFields.hourlyRate || '$85/hr',
+              skills: Array.isArray(updatedFields.skills)
+                ? updatedFields.skills
+                : (updatedFields.skills ? String(updatedFields.skills).split(',').map((s) => s.trim()) : ['React.js', 'Node.js']),
+              bio: updatedFields.bio || '',
+              status: updatedFields.availability || 'Available',
+              availability: updatedFields.availability || 'Available',
+              approvalStatus: updatedFields.approvalStatus || 'Approved',
+              verificationStatus: updatedFields.verificationStatus || 'Approved',
+              accountStatus: updatedFields.accountStatus || 'Active',
+              avatar: updatedFields.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+              ...updatedFields,
+            },
+            ...(prevWorkforce || []),
+          ];
+
+      try {
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(newList));
+      } catch {}
+      return newList;
+    });
+
+    // Update partnerWorkforce state
+    setPartnerWorkforce((prevPartnerWorkforce) => {
+      const updatedList = (prevPartnerWorkforce || []).map((w) => {
+        if (matchesMember(w)) {
+          const merged = { ...w, ...updatedFields };
+          if (updatedFields.title) merged.role = updatedFields.title;
+          if (updatedFields.role) merged.title = updatedFields.role;
+          if (updatedFields.name) merged.pseudonym = updatedFields.name;
+          return merged;
+        }
+        return w;
+      });
+
+      try {
+        localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updatedList));
+      } catch {}
+      return updatedList;
+    });
+
+    // Update workforceUserProfile state
+    setWorkforceUserProfile((prevProfile) => {
+      if (!prevProfile || matchesMember(prevProfile) || (targetEmail && prevProfile.email && targetEmail === prevProfile.email.toLowerCase())) {
+        return {
+          ...prevProfile,
+          ...updatedFields,
+          title: updatedFields.title || updatedFields.role || prevProfile?.title,
+          role: updatedFields.role || updatedFields.title || prevProfile?.role,
+        };
+      }
+      return prevProfile;
+    });
+
+    // Sync active session in localStorage if logged in user is this employee
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && matchesMember(savedUser)) {
+          const updatedUser = {
+            ...savedUser,
+            ...updatedFields,
+            name: updatedFields.name || savedUser.name,
+            fullName: updatedFields.name || savedUser.fullName,
+            title: updatedFields.title || updatedFields.role || savedUser.title,
+            role: updatedFields.role || updatedFields.title || savedUser.role,
+          };
+          localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+          window.dispatchEvent(new CustomEvent('auth_change', { detail: updatedUser }));
+        }
+      }
+    } catch {}
+
+    // Sync flexistaff_registered_users in localStorage
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        if (Array.isArray(regList)) {
+          const updatedReg = regList.map((u) => {
+            if (matchesMember(u)) {
+              return { ...u, ...updatedFields };
+            }
+            return u;
+          });
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+        }
+      }
+    } catch {}
+  };
+
   const updateWorkforceUserProfile = (data) => {
-    setWorkforceUserProfile((prev) => ({ ...prev, ...data }));
+    setWorkforceUserProfile((prev) => {
+      const updated = { ...prev, ...data };
+      const targetId = updated.id || prev?.id;
+      const targetEmail = updated.email || prev?.email;
+      const targetName = updated.name || prev?.name;
+
+      updateWorkforceMember(targetId || targetEmail || targetName, updated);
+      return updated;
+    });
   };
 
   // Skill Matching Utility: Match Score = (Matched Required Skills / Total Required Skills) * 100
@@ -2661,9 +3184,11 @@ export const DataProvider = ({ children }) => {
 
   // Partner Actions
   const addPartner = (partner) => {
+    const nextGlobalId = getNextGlobalUserId('Partner', clients, managers, partners, workforce);
     const newPartner = {
       ...partner,
-      id: `prt-${Date.now().toString().slice(-4)}`,
+      id: nextGlobalId,
+      numericId: nextGlobalId,
       joinedDate: new Date().toISOString().split('T')[0],
       suppliedProfessionals: Number(partner.suppliedProfessionals) || 0,
       activePlacements: 0,
@@ -2701,13 +3226,8 @@ export const DataProvider = ({ children }) => {
 
   // Manager Lifecycle & Project Reassignment Actions
   const addManager = (managerData) => {
-    const existingNumIds = (managers || [])
-      .map((m) => Number(typeof m?.id === 'number' ? m.id : String(m?.id || '').replace(/\D/g, '')))
-      .filter((num) => !isNaN(num) && num > 0);
-    const nextSerialNum = existingNumIds.length > 0 ? Math.max(...existingNumIds) + 1 : 1;
-    const parsedEmpId = managerData.employeeId
-      ? (Number(String(managerData.employeeId).replace(/\D/g, '')) || nextSerialNum)
-      : nextSerialNum;
+    const nextSerialNum = getNextGlobalUserId('Manager', clients, managers, partners, workforce);
+    const parsedEmpId = nextSerialNum;
 
     const newManager = {
       ...managerData,
@@ -2908,7 +3428,7 @@ export const DataProvider = ({ children }) => {
       rating: 4.9,
       currentProject: 'None',
       source: member.source || (member.roleType === 'Freelancer' ? 'Freelancer' : 'Partner Company'),
-      partnerName: member.partnerName || (member.roleType === 'Freelancer' ? 'Direct Freelancer Application' : 'QuantumTech Staffing Solutions'),
+      partnerName: member.partnerName || (member.roleType === 'Freelancer' ? 'Freelancer Application' : 'QuantumTech Staffing Solutions'),
       approvalStatus: member.approvalStatus || 'Approved',
       status: member.approvalStatus === 'Pending Review' ? 'Pending Review' : (member.availability === 'Busy' ? 'Assigned' : 'Available'),
       avatar:
@@ -3038,7 +3558,7 @@ export const DataProvider = ({ children }) => {
       id: `wf-${Date.now().toString().slice(-4)}`,
       roleType: 'Freelancer',
       source: 'Freelancer',
-      partnerName: 'Direct Freelancer Application',
+      partnerName: 'Freelancer Application',
       approvalStatus: 'Pending Review',
       status: 'Pending Review',
       workload: 0,
@@ -3207,55 +3727,6 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  const updateWorkforceMember = (id, updatedData) => {
-    setWorkforce((prev) =>
-      prev.map((wf) => (wf.id === id ? { ...wf, ...updatedData, title: updatedData.title || updatedData.role || wf.title, role: updatedData.title || updatedData.role || wf.role } : wf))
-    );
-    setPartnerWorkforce((prev) =>
-      prev.map((wf) => (wf.id === id ? { ...wf, ...updatedData, title: updatedData.title || updatedData.role || wf.title, role: updatedData.title || updatedData.role || wf.role } : wf))
-    );
-
-    // Sync localStorage
-    try {
-      const savedStr = localStorage.getItem('flexistaff_workforce');
-      if (savedStr) {
-        const list = JSON.parse(savedStr);
-        const updatedList = list.map((w) => (w.id === id ? { ...w, ...updatedData } : w));
-        localStorage.setItem('flexistaff_workforce', JSON.stringify(updatedList));
-      }
-
-      const regStr = localStorage.getItem('flexistaff_registered_users');
-      if (regStr) {
-        const regList = JSON.parse(regStr);
-        const updatedRegList = regList.map((u) => {
-          if (u.id === id || (updatedData.email && u.email?.toLowerCase() === updatedData.email.toLowerCase())) {
-            return {
-              ...u,
-              name: updatedData.name || u.name,
-              fullName: updatedData.name || u.fullName,
-              email: updatedData.email || u.email,
-              password: updatedData.password || u.password,
-              phone: updatedData.phone || u.phone,
-            };
-          }
-          return u;
-        });
-        localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedRegList));
-      }
-    } catch {}
-
-    setWorkforceUserProfile((prev) => {
-      if (prev && (prev.id === id || (updatedData.email && prev.email?.toLowerCase() === updatedData.email.toLowerCase()))) {
-        return {
-          ...prev,
-          ...updatedData,
-          title: updatedData.title || updatedData.role || prev.title,
-          role: updatedData.title || updatedData.role || prev.role,
-        };
-      }
-      return prev;
-    });
-  };
 
   const deleteWorkforceMember = (id) => {
     // 1. Locate the target workforce member
@@ -3606,7 +4077,6 @@ export const DataProvider = ({ children }) => {
         clientProfile,
         setClientProfile,
         updateClientProfile,
-        addClient,
         clientNotifications,
         setClientNotifications,
         submitClientProjectRequest,

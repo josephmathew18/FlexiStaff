@@ -421,19 +421,23 @@ export const FreelancerApply = () => {
     );
   };
 
-  const handleSubmitFinal = () => {
+  const handleSubmitFinal = async () => {
     setLoading(true);
 
     const fullNameVal = formData.fullName || `${signUpForm.firstName} ${signUpForm.lastName}`.trim() || 'Freelancer Candidate';
+    const emailVal = formData.email || signUpForm.email;
+    const phoneVal = formData.phone || signUpForm.phone || personalDetails.phoneNumber;
+    const passwordVal = signUpForm.password || 'Password123!';
     const linkedInDocName = linkedInPdfFile?.name || (importMethod === 'Import from LinkedIn' ? `${fullNameVal.replace(/\s+/g, '_')}_LinkedIn_Profile.pdf` : null);
     const resumeDocName = resumeFile?.name || (importMethod === 'Upload your resume' ? `${fullNameVal.replace(/\s+/g, '_')}_Resume.pdf` : null);
 
-    setTimeout(() => {
+    try {
       if (addFreelancerApplication) {
-        addFreelancerApplication({
+        const res = await addFreelancerApplication({
           fullName: fullNameVal,
-          email: formData.email || signUpForm.email,
-          phone: formData.phone || signUpForm.phone || personalDetails.phoneNumber,
+          email: emailVal,
+          phone: phoneVal,
+          password: passwordVal,
           roleTitle: professionalRoleTitle || 'Full Stack Software Engineer',
           category: selectedCategory,
           specialties: selectedSpecialties,
@@ -452,11 +456,25 @@ export const FreelancerApply = () => {
           linkedInPdfName: linkedInDocName,
           resumeFileName: resumeDocName,
         });
+
+        setLoading(false);
+
+        if (res && res.success === false) {
+          toast.error(res.error || 'Email address already registered. Please login or use a different email.');
+          return;
+        }
+      } else {
+        setLoading(false);
       }
+
+      toast.success('Freelancer profile created successfully and saved to database!');
+      setTimeout(() => {
+        navigate('/login');
+      }, 800);
+    } catch (err) {
       setLoading(false);
-      toast.success('Profile created & submitted for verification!');
-      navigate('/login');
-    }, 600);
+      toast.error(err.message || 'Registration failed. Please try again.');
+    }
   };
 
   // Service Fee Calculations

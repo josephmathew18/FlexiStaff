@@ -339,7 +339,7 @@ const partnerSchema = yup.object().shape({
   confirmPassword: yup
     .string()
     .required('Please confirm password')
-    .oneOf([yup.ref('tempPassword'), null], 'Passwords must match'),
+    .oneOf([yup.ref('tempPassword')], 'Passwords must match'),
 });
 
 const editPartnerSchema = yup.object().shape({

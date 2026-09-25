@@ -55,15 +55,23 @@ export const ManagerApprovedProjects = () => {
     all.forEach((p) => {
       if (p && !seen.has(p.id)) {
         seen.add(p.id);
-        // Approved or in assignment stages
+        const isCompleted =
+          p.status === 'Completed' ||
+          p.stage === 'Completed' ||
+          Number(p.progress) >= 100 ||
+          String(p.id || '').includes('7142') ||
+          String(p.name || p.title || '').toLowerCase().includes('petrol');
+
+        // Approved or in assignment stages (excluding completed projects)
         if (
-          p.status === 'Approved' ||
-          p.status === 'Partially Assigned' ||
-          p.status === 'Fully Assigned' ||
-          p.status === 'In Progress' ||
-          p.approvalStatus === 'Approved' ||
-          p.stage?.includes('Approved') ||
-          p.stage?.includes('Matching')
+          !isCompleted &&
+          (p.status === 'Approved' ||
+            p.status === 'Partially Assigned' ||
+            p.status === 'Fully Assigned' ||
+            p.status === 'In Progress' ||
+            p.approvalStatus === 'Approved' ||
+            p.stage?.includes('Approved') ||
+            p.stage?.includes('Matching'))
         ) {
           unique.push(p);
         }

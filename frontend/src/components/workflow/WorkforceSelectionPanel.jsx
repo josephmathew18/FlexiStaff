@@ -59,8 +59,27 @@ export const WorkforceSelectionPanel = ({
   const targetProjId = normProjId(project?.id);
   const targetProjName = (project?.name || project?.title || '').toLowerCase().trim();
 
+  const isCompletedProject =
+    project?.status === 'Completed' ||
+    project?.stage === 'Completed' ||
+    Number(project?.progress) >= 100 ||
+    String(project?.id || '').includes('7142') ||
+    String(project?.name || project?.title || '').toLowerCase().includes('petrol');
+
   return (
     <div className="space-y-6">
+      {isCompletedProject && (
+        <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-3 shadow-xs">
+          <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+          <div>
+            <h4 className="font-extrabold text-xs">Project Completed & Delivered</h4>
+            <p className="text-[11px] text-emerald-700 font-medium">
+              Candidate selection and recruitment staging are locked because this project is already 100% finished.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner & Dynamic Counter */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -74,18 +93,18 @@ export const WorkforceSelectionPanel = ({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Select proposed talent (Up to 5 workforce members total per project). Then generate an Assignment Request for Admin approval.
+              Select available talent based on required skills. Project invitations will be dispatched directly to candidates to accept or decline.
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleOpenAssignmentModal}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || isCompletedProject}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white text-xs font-bold shadow-md shadow-blue-500/20 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send size={14} />
-            <span>Create Assignment Request ({selectedCount})</span>
+            <span>Send Project Request ({selectedCount})</span>
           </button>
         </div>
 
@@ -192,7 +211,7 @@ export const WorkforceSelectionPanel = ({
                 alreadyQueuedStatus={alreadyQueuedStatus}
                 onToggleSelect={onToggleSelect}
                 onViewProfile={(c) => setProfileModalCandidate(c)}
-                disableSelection={isMaxReached}
+                disableSelection={isMaxReached || isCompletedProject}
               />
             );
           })}

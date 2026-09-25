@@ -88,27 +88,36 @@ export const ManagerProjectDetails = () => {
     status: 'Approved',
   };
 
-  const isPetrol = String(activeProject.id || '').includes('7142') || String(activeProject.name || activeProject.title || '').toLowerCase().includes('petrol pump');
+  const isPetrol = String(activeProject.id || '').includes('7142') || String(activeProject.name || activeProject.title || '').toLowerCase().includes('petrol');
+
+  const isCompletedProject =
+    activeProject.status === 'Completed' ||
+    activeProject.stage === 'Completed' ||
+    Number(activeProject.progress) >= 100 ||
+    isPetrol;
 
   const requirementsList = useMemo(() => {
     const raw = activeProject.requirements && activeProject.requirements.length > 0 ? activeProject.requirements : [
       {
-        role: activeProject.category || 'Engineering Specialist',
+        role: activeProject.category || 'Senior Full-Stack Engineer',
         required: activeProject.workforceRequired || (isPetrol ? 5 : 1),
-        assigned: activeProject.workforceAssigned || 0,
-        skills: Array.isArray(activeProject.skills) ? activeProject.skills.join(', ') : (activeProject.techStack || 'Technical Matching'),
+        assigned: isCompletedProject ? (activeProject.workforceRequired || 5) : (activeProject.workforceAssigned || 0),
+        skills: Array.isArray(activeProject.skills) ? activeProject.skills.join(', ') : (activeProject.techStack || 'React.js, Node.js, Cloud'),
       },
     ];
-    if (isPetrol) {
-      return raw.map((r, idx) => (idx === 0 ? { ...r, required: 5 } : r));
-    }
-    return raw;
-  }, [activeProject, isPetrol]);
+    return raw.map((r) => ({
+      ...r,
+      required: isPetrol ? 5 : (r.required || 1),
+      assigned: isCompletedProject ? (isPetrol ? 5 : (r.required || 1)) : (r.assigned || 0),
+    }));
+  }, [activeProject, isPetrol, isCompletedProject]);
 
   const totalRequired = isPetrol
     ? 5
     : (requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || activeProject.workforceRequired || 1);
-  const totalAssigned = requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || activeProject.workforceAssigned || 0;
+  const totalAssigned = isCompletedProject
+    ? totalRequired
+    : (requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || activeProject.workforceAssigned || 0);
   const totalRemaining = Math.max(0, totalRequired - totalAssigned);
 
   return (
@@ -125,14 +134,21 @@ export const ManagerProjectDetails = () => {
         </button>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => navigate(`/manager/matching/${activeProject.id}`)}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
-          >
-            <Cpu size={15} />
-            <span>Find & Match Workforce</span>
-          </button>
+          {!isCompletedProject ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/manager/matching/${activeProject.id}`)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
+            >
+              <Cpu size={15} />
+              <span>Find & Match Workforce</span>
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-extrabold">
+              <CheckCircle2 size={15} />
+              <span>Project Completed & Delivered</span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -144,9 +160,15 @@ export const ManagerProjectDetails = () => {
               <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
                 {activeProject.id}
               </span>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                Approved by Company
-              </span>
+              {isCompletedProject ? (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Project Completed
+                </span>
+              ) : (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  Approved by Company
+                </span>
+              )}
               <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 Project #{typeof activeProject.id === 'number' ? activeProject.id : (String(activeProject.id).replace(/\D/g, '') || activeProject.id)}
               </span>
@@ -170,8 +192,9 @@ export const ManagerProjectDetails = () => {
                 <button
                   type="button"
                   title="Decrease required workforce"
+                  disabled={isCompletedProject}
                   onClick={() => updateProjectHeadcount?.(activeProject.id, Math.max(1, totalRequired - 1))}
-                  className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs transition-colors"
+                  className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   -
                 </button>
@@ -179,8 +202,9 @@ export const ManagerProjectDetails = () => {
                 <button
                   type="button"
                   title="Increase required workforce"
+                  disabled={isCompletedProject}
                   onClick={() => updateProjectHeadcount?.(activeProject.id, totalRequired + 1)}
-                  className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold flex items-center justify-center text-xs transition-colors"
+                  className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold flex items-center justify-center text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
@@ -277,15 +301,19 @@ export const ManagerProjectDetails = () => {
               </div>
 
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-500">Ready to query vetted candidate pool</span>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/manager/matching/${project.id}`)}
-                  className="text-xs font-bold text-[#004ac6] hover:underline flex items-center gap-1"
-                >
-                  <span>Match Candidates</span>
-                  <ArrowRight size={13} />
-                </button>
+                <span className="text-[11px] text-slate-500">
+                  {isCompletedProject ? 'Project is completed & delivered' : 'Ready to query vetted candidate pool'}
+                </span>
+                {!isCompletedProject && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/manager/matching/${project.id}`)}
+                    className="text-xs font-bold text-[#004ac6] hover:underline flex items-center gap-1"
+                  >
+                    <span>Match Candidates</span>
+                    <ArrowRight size={13} />
+                  </button>
+                )}
               </div>
             </div>
           ))}

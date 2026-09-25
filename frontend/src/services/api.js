@@ -130,6 +130,36 @@ export const api = {
       }),
   },
 
+  // Clients API endpoints
+  clients: {
+    getAll: () => request('/clients'),
+    getById: (id) => request(`/clients/${id}`),
+    register: (clientData) =>
+      request('/clients/register', {
+        method: 'POST',
+        body: JSON.stringify(clientData),
+      }),
+    delete: (id) =>
+      request(`/clients/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Freelancers API endpoints
+  freelancers: {
+    getAll: () => request('/freelancers'),
+    getById: (id) => request(`/freelancers/${id}`),
+    register: (freelancerData) =>
+      request('/freelancers/register', {
+        method: 'POST',
+        body: JSON.stringify(freelancerData),
+      }),
+    delete: (id) =>
+      request(`/freelancers/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
   // Dashboard API endpoints
   dashboard: {
     getAdmin: () => request('/dashboard/admin'),

@@ -1,5 +1,7 @@
 package com.flexistaff.backend.dto.request;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -15,8 +17,13 @@ public class UpdateUserProfileRequest {
     private String title;
     private String bio;
     private String skills;
+
+    @Min(value = 0, message = "Experience years cannot be negative")
     private Integer experienceYears;
+
+    @PositiveOrZero(message = "Hourly rate cannot be negative")
     private BigDecimal hourlyRate;
+
     private String availabilityStatus;
 
     // Client fields

@@ -259,6 +259,42 @@ export const AuthProvider = ({ children }) => {
       }
     } catch {}
 
+    // Strict Password Validation
+    const matchedAccount = matchedUser || matchedManagerOrg || matchedPartnerOrg || matchedClientOrg || matchedWorkforceOrg;
+    const isStandardRoleInput =
+      ['admin', 'admin@flexistaff.com', 'admin@flexistaff.ai',
+       'manager', 'manager@flexistaff.com',
+       'client', 'client@flexistaff.com',
+       'partner', 'partner@flexistaff.com',
+       'workforce', 'workforce@flexistaff.com', 'freelancer'].includes(trimmedEmail);
+
+    if (!matchedAccount && !isStandardRoleInput) {
+      return {
+        success: false,
+        error: 'Account not found. Please check your email address or register for an account.',
+      };
+    }
+
+    const expectedPassword =
+      matchedUser?.password ||
+      matchedUser?.tempPassword ||
+      matchedPartnerOrg?.tempPassword ||
+      matchedPartnerOrg?.password ||
+      matchedManagerOrg?.tempPassword ||
+      matchedManagerOrg?.password ||
+      matchedWorkforceOrg?.tempPassword ||
+      matchedWorkforceOrg?.password ||
+      matchedClientOrg?.password ||
+      matchedClientOrg?.tempPassword ||
+      'Password123!';
+
+    if (trimmedPassword !== expectedPassword) {
+      return {
+        success: false,
+        error: 'Invalid password. Please check your password and try again.',
+      };
+    }
+
     const isWorkforceUser =
       Boolean(matchedWorkforceOrg) ||
       trimmedEmail.includes('workforce') ||
@@ -444,22 +480,10 @@ export const AuthProvider = ({ children }) => {
         ? '/workforce/dashboard'
         : '/admin/dashboard';
 
-    const registeredUser = {
-      id: `usr-${Date.now()}`,
-      name: fullName,
-      fullName: fullName,
-      email: trimmedEmail,
-      phone: phone || '',
-      role: userRole,
-      companyName: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
-      company: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
-      contactPerson: fullName,
-      portalPath,
-    };
-
+    let backendUserId = null;
     try {
       const backendRole = userRole === 'Client' ? 'ROLE_CLIENT' : 'ROLE_PROFESSIONAL';
-      await api.auth.register({
+      const apiRes = await api.auth.register({
         fullName,
         email: trimmedEmail,
         password: trimmedPassword,
@@ -469,9 +493,36 @@ export const AuthProvider = ({ children }) => {
         title,
         skills,
       });
+
+      if (apiRes && apiRes.success === false) {
+        return {
+          success: false,
+          error: apiRes.error || 'Email address is already registered or registration failed.',
+        };
+      }
+
+      if (apiRes && apiRes.data) {
+        backendUserId = apiRes.data.id || apiRes.data.userId;
+      }
     } catch (err) {
-      console.warn('Backend API register offline, saving registered profile locally.');
+      console.warn('Backend API register offline, using local session state.', err.message);
     }
+
+    const registeredUser = {
+      id: backendUserId || `usr-${Date.now()}`,
+      numericId: backendUserId || null,
+      name: fullName,
+      fullName: fullName,
+      email: trimmedEmail,
+      password: trimmedPassword,
+      tempPassword: trimmedPassword,
+      phone: phone || '',
+      role: userRole,
+      companyName: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      company: companyName || (userRole === 'Client' ? 'Enterprise Client' : ''),
+      contactPerson: fullName,
+      portalPath,
+    };
 
     setUser(registeredUser);
     setRole(userRole);
@@ -502,6 +553,193 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Reset / update password directly for a registered email or username
+   */
+  const resetPassword = async (emailOrUsername, newPassword) => {
+    const trimmedInput = (emailOrUsername || '').trim().toLowerCase();
+    const trimmedPassword = (newPassword || '').trim();
+
+    if (!trimmedInput) {
+      return { success: false, error: 'Please enter your registered email address or username.' };
+    }
+    if (!trimmedPassword || trimmedPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters long.' };
+    }
+
+    const matchesInput = (obj) => {
+      if (!obj) return false;
+      const email = (obj.email || '').toLowerCase().trim();
+      const loginEmail = (obj.loginEmail || '').toLowerCase().trim();
+      const name = (obj.name || obj.fullName || obj.contactPerson || '').toLowerCase().trim();
+      const empId = (obj.employeeId || '').toLowerCase().trim();
+
+      if (email && email === trimmedInput) return true;
+      if (loginEmail && loginEmail === trimmedInput) return true;
+
+      const inputUser = trimmedInput.split('@')[0];
+      const objUser = email.split('@')[0];
+      if (inputUser && objUser && inputUser === objUser && inputUser !== 'admin' && inputUser !== 'manager' && inputUser !== 'client' && inputUser !== 'partner') return true;
+
+      if (name && name === trimmedInput) return true;
+      if (empId && empId === trimmedInput) return true;
+      return false;
+    };
+
+    let updatedAny = false;
+
+    // 1. Update flexistaff_registered_users
+    try {
+      const stored = localStorage.getItem('flexistaff_registered_users');
+      let registeredUsers = stored ? JSON.parse(stored) : [];
+      let foundInRegistered = false;
+      registeredUsers = registeredUsers.map((u) => {
+        if (matchesInput(u)) {
+          foundInRegistered = true;
+          updatedAny = true;
+          return { ...u, password: trimmedPassword, tempPassword: trimmedPassword };
+        }
+        return u;
+      });
+      if (foundInRegistered) {
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(registeredUsers));
+      }
+    } catch {}
+
+    // 2. Update active user session if matching
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (matchesInput(u)) {
+          const updatedUser = { ...u, password: trimmedPassword, tempPassword: trimmedPassword };
+          localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+          updatedAny = true;
+        }
+      }
+    } catch {}
+
+    // 3. Update workforce roster
+    try {
+      const savedWorkforceStr = localStorage.getItem('flexistaff_workforce');
+      if (savedWorkforceStr) {
+        let workforceList = JSON.parse(savedWorkforceStr);
+        let foundWf = false;
+        workforceList = workforceList.map((w) => {
+          if (matchesInput(w)) {
+            foundWf = true;
+            updatedAny = true;
+            return { ...w, password: trimmedPassword, tempPassword: trimmedPassword };
+          }
+          return w;
+        });
+        if (foundWf) {
+          localStorage.setItem('flexistaff_workforce', JSON.stringify(workforceList));
+        }
+      }
+    } catch {}
+
+    // 4. Update managers roster
+    try {
+      const savedManagersStr = localStorage.getItem('flexistaff_managers');
+      if (savedManagersStr) {
+        let managersList = JSON.parse(savedManagersStr);
+        let foundMgr = false;
+        managersList = managersList.map((m) => {
+          if (matchesInput(m)) {
+            foundMgr = true;
+            updatedAny = true;
+            return { ...m, password: trimmedPassword, tempPassword: trimmedPassword };
+          }
+          return m;
+        });
+        if (foundMgr) {
+          localStorage.setItem('flexistaff_managers', JSON.stringify(managersList));
+        }
+      }
+    } catch {}
+
+    // 5. Update partners roster
+    try {
+      const savedPartnersStr = localStorage.getItem('flexistaff_partners');
+      if (savedPartnersStr) {
+        let partnersList = JSON.parse(savedPartnersStr);
+        let foundPtn = false;
+        partnersList = partnersList.map((p) => {
+          if (matchesInput(p)) {
+            foundPtn = true;
+            updatedAny = true;
+            return { ...p, password: trimmedPassword, tempPassword: trimmedPassword };
+          }
+          return p;
+        });
+        if (foundPtn) {
+          localStorage.setItem('flexistaff_partners', JSON.stringify(partnersList));
+        }
+      }
+    } catch {}
+
+    // 6. Update clients roster
+    try {
+      const savedClientsStr = localStorage.getItem('flexistaff_clients');
+      if (savedClientsStr) {
+        let clientsList = JSON.parse(savedClientsStr);
+        let foundCl = false;
+        clientsList = clientsList.map((c) => {
+          if (matchesInput(c)) {
+            foundCl = true;
+            updatedAny = true;
+            return { ...c, password: trimmedPassword, tempPassword: trimmedPassword };
+          }
+          return c;
+        });
+        if (foundCl) {
+          localStorage.setItem('flexistaff_clients', JSON.stringify(clientsList));
+        }
+      }
+    } catch {}
+
+    // Check standard role keywords fallback (admin, manager, client, partner, workforce, etc.)
+    const isStandardRoleInput =
+      ['admin', 'admin@flexistaff.com', 'admin@flexistaff.ai',
+       'manager', 'manager@flexistaff.com',
+       'client', 'client@flexistaff.com',
+       'partner', 'partner@flexistaff.com',
+       'workforce', 'workforce@flexistaff.com', 'freelancer'].includes(trimmedInput);
+
+    if (isStandardRoleInput || !updatedAny) {
+      try {
+        const stored = localStorage.getItem('flexistaff_registered_users');
+        let registeredUsers = stored ? JSON.parse(stored) : [];
+        const existingIdx = registeredUsers.findIndex((u) => {
+          const uEmail = (u.email || '').toLowerCase().trim();
+          return uEmail === trimmedInput || uEmail.split('@')[0] === trimmedInput;
+        });
+        if (existingIdx >= 0) {
+          registeredUsers[existingIdx].password = trimmedPassword;
+          registeredUsers[existingIdx].tempPassword = trimmedPassword;
+        } else {
+          registeredUsers.push({
+            id: `usr-${Date.now()}`,
+            email: trimmedInput.includes('@') ? trimmedInput : `${trimmedInput}@flexistaff.com`,
+            password: trimmedPassword,
+            tempPassword: trimmedPassword,
+            name: trimmedInput,
+            role: trimmedInput.includes('admin') ? 'Admin' : trimmedInput.includes('manager') ? 'Manager' : trimmedInput.includes('client') ? 'Client' : trimmedInput.includes('partner') ? 'Partner Company' : 'Workforce',
+          });
+        }
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(registeredUsers));
+        updatedAny = true;
+      } catch {}
+    }
+
+    return {
+      success: true,
+      message: 'Password changed successfully! You can now log in with your new password.',
+    };
+  };
+
+  /**
    * Clear session on logout
    */
   const logout = () => {
@@ -527,6 +765,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated,
         login,
         register,
+        resetPassword,
         logout,
         demoAccounts: {},
       }}

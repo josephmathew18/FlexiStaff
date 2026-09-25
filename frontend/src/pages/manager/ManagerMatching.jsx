@@ -54,27 +54,47 @@ export const ManagerMatching = () => {
     sendFreelancerWorkforceRequest,
   } = useData() || {};
 
-  // Combine and deduplicate projects
-  const availableProjects = useMemo(() => {
+  // Separate active projects (for matching) and completed projects
+  const { activeProjects, completedProjects, availableProjects } = useMemo(() => {
     const all = [...(projects || []), ...(partnerProjects || [])];
-    const unique = [];
+    const uniqueAll = [];
+    const active = [];
+    const completed = [];
     const seen = new Set();
+
     all.forEach((p) => {
       if (p && p.id && !seen.has(p.id)) {
         seen.add(p.id);
-        unique.push(p);
+        uniqueAll.push(p);
+
+        const isCompleted =
+          p.status === 'Completed' ||
+          p.stage === 'Completed' ||
+          Number(p.progress) >= 100 ||
+          String(p.id || '').includes('7142') ||
+          String(p.name || p.title || '').toLowerCase().includes('petrol');
+
+        if (isCompleted) {
+          completed.push(p);
+        } else {
+          active.push(p);
+        }
       }
     });
-    return unique;
+
+    return { activeProjects: active, completedProjects: completed, availableProjects: uniqueAll };
   }, [projects, partnerProjects]);
 
   const queryProjectId = searchParams.get('projectId');
-  const initialProjectId =
-    projectId ||
-    queryProjectId ||
-    availableProjects.find((p) => p.status === 'Approved' || p.stage === 'Approved')?.id ||
-    availableProjects[0]?.id ||
-    'PRJ-101';
+  const initialProjectId = useMemo(() => {
+    if (projectId) return projectId;
+    if (queryProjectId) return queryProjectId;
+    if (activeProjects.length > 0) {
+      const approved = activeProjects.find((p) => p.status === 'Approved' || p.stage === 'Approved');
+      return approved ? approved.id : activeProjects[0].id;
+    }
+    return availableProjects[0]?.id || 'PRJ-101';
+  }, [projectId, queryProjectId, activeProjects, availableProjects]);
 
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
 
@@ -84,7 +104,7 @@ export const ManagerMatching = () => {
     }
   }, [projectId]);
 
-  // Current active project
+  // Current selected project
   const currentProject = useMemo(() => {
     const decodedId = decodeURIComponent(selectedProjectId || '').trim();
     const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
@@ -101,6 +121,7 @@ export const ManagerMatching = () => {
           pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
         );
       }) ||
+      activeProjects[0] ||
       availableProjects[0] || {
         id: selectedProjectId || 'PRJ-NEW',
         name: 'Project Workspace',
@@ -113,7 +134,7 @@ export const ManagerMatching = () => {
         status: 'Approved',
       }
     );
-  }, [availableProjects, selectedProjectId]);
+  }, [availableProjects, activeProjects, selectedProjectId]);
 
   // Modals & Active Tab States
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -136,6 +157,14 @@ export const ManagerMatching = () => {
 
       if (cid && seenIds.has(cid)) return;
       if (nameKey && seenNames.has(nameKey)) return;
+
+      // Only include available candidates (filter out assigned, busy, or unavailable)
+      const statusLower = (cand.availability || cand.status || '').toLowerCase().trim();
+      if (
+        ['assigned', 'busy', 'working', 'unavailable', 'inactive', 'terminated', 'rejected'].includes(statusLower)
+      ) {
+        return;
+      }
 
       if (cid) seenIds.add(cid);
       if (nameKey) seenNames.add(nameKey);
@@ -166,6 +195,19 @@ export const ManagerMatching = () => {
   // Toggle selection with strict capacity limit (Max 5 workforce members per project squad)
   const handleToggleSelect = (candidate) => {
     if (!candidate) return;
+
+    const isCompletedProject =
+      currentProject?.status === 'Completed' ||
+      currentProject?.stage === 'Completed' ||
+      Number(currentProject?.progress) >= 100 ||
+      String(currentProject?.id || '').includes('7142') ||
+      String(currentProject?.name || currentProject?.title || '').toLowerCase().includes('petrol');
+
+    if (isCompletedProject) {
+      toast.warn('This project is completed and delivered. Candidate selection and matching are locked.');
+      return;
+    }
+
     const candName = (candidate.name || candidate.pseudonym || '').toLowerCase().trim();
     const candIdStr = candidate.id ? String(candidate.id).trim() : '';
 
@@ -262,7 +304,7 @@ export const ManagerMatching = () => {
 
         {/* Project Selector Dropdown */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Active Project:</label>
+          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Target Project:</label>
           <select
             value={selectedProjectId}
             onChange={(e) => {
@@ -271,11 +313,24 @@ export const ManagerMatching = () => {
             }}
             className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#004ac6] shadow-2xs"
           >
-            {availableProjects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id} – {p.name || p.title} ({p.status || 'Approved'})
-              </option>
-            ))}
+            {activeProjects.length > 0 && (
+              <optgroup label="Active Projects (Skill Matching)">
+                {activeProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id} – {p.name || p.title} ({p.status || 'Approved'})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {completedProjects.length > 0 && (
+              <optgroup label="Completed Projects (Delivered & Locked)">
+                {completedProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id} – {p.name || p.title} (Completed)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       </div>
@@ -298,32 +353,6 @@ export const ManagerMatching = () => {
             </p>
           </div>
 
-          {/* Quick Request Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setRequestModalTab('partner');
-                setIsRequestModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 text-[#004ac6] hover:bg-blue-100 text-xs font-bold transition-colors"
-            >
-              <Building2 size={14} />
-              <span>Request from Partner</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setRequestModalTab('freelancer');
-                setIsRequestModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs font-bold transition-colors"
-            >
-              <User size={14} />
-              <span>Request Freelancer</span>
-            </button>
-          </div>
         </div>
 
         {/* Required Technical Stack */}
