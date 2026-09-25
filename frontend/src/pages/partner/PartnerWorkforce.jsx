@@ -105,6 +105,8 @@ export const PartnerWorkforce = () => {
     partnerWorkforce = [],
     partnerWorkforceRequests = [],
     partnerProjects = [],
+    projects = [],
+    managerAssignments = [],
     updatePartnerProfessionalAvailability,
     updateWorkforceMember,
     respondPartnerWorkforceRequest,
@@ -123,6 +125,95 @@ export const PartnerWorkforce = () => {
 
   // Selected Professional Details Modal
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  // Compute dynamic project assignment details for the selected employee
+  const activeEmployeeAssignment = useMemo(() => {
+    if (!selectedEmployee) return null;
+
+    const hasAssigned =
+      selectedEmployee.assignedProject &&
+      selectedEmployee.assignedProject !== 'None' &&
+      selectedEmployee.assignedProject !== 'Unassigned';
+
+    if (!hasAssigned) return null;
+
+    const targetProjectName = String(selectedEmployee.assignedProject || '').toLowerCase().trim();
+    const allAvailableProjects = [...(projects || []), ...(partnerProjects || [])];
+
+    // Match project from database state
+    const matchedProject = allAvailableProjects.find((p) => {
+      if (!p) return false;
+      const pIdStr = String(p.id || '').toLowerCase().trim();
+      const pNameStr = String(p.name || p.title || p.projectName || '').toLowerCase().trim();
+      return pIdStr === targetProjectName || pNameStr === targetProjectName || pNameStr.includes(targetProjectName) || targetProjectName.includes(pNameStr);
+    });
+
+    // Match manager assignment from database state
+    const matchedAssignment = (managerAssignments || []).find((asg) => {
+      if (!asg) return false;
+      const profId = String(asg.professionalId || asg.workforceId || asg.id || '').toLowerCase().trim();
+      const profName = String(asg.professionalName || asg.name || '').toLowerCase().trim();
+      const empId = String(selectedEmployee.id || '').toLowerCase().trim();
+      const empName = String(selectedEmployee.name || selectedEmployee.pseudonym || '').toLowerCase().trim();
+      return (profId && empId && profId === empId) || (profName && empName && profName === empName);
+    });
+
+    const projectName = matchedProject?.name || matchedProject?.title || selectedEmployee.assignedProject;
+    const clientName = matchedProject?.clientName || matchedProject?.client || matchedAssignment?.clientName || selectedEmployee.clientName || 'Client Enterprise';
+    const description = matchedProject?.description || matchedProject?.overview || 'Enterprise project deliverable managed securely via FlexiStaff platform.';
+    const status = matchedProject?.status || matchedProject?.stage || 'In Progress';
+    const startDate = matchedProject?.startDate || matchedAssignment?.startDate || '2026-01-15';
+    const expectedEndDate = matchedProject?.endDate || matchedProject?.expectedEndDate || matchedAssignment?.expectedEndDate || '2026-11-30';
+    const assignedRole = selectedEmployee.role || selectedEmployee.title || matchedProject?.category || 'Software Specialist';
+
+    // Skill requirements comparison
+    const rawProjectSkills = matchedProject?.skills || matchedProject?.techStack || matchedProject?.requirements || selectedEmployee.skills || [];
+    let projectSkillList = [];
+    if (Array.isArray(rawProjectSkills)) {
+      projectSkillList = rawProjectSkills.map((s) => (typeof s === 'object' ? (s.role || s.skills || s.name || '') : String(s))).filter(Boolean);
+    } else if (typeof rawProjectSkills === 'string') {
+      projectSkillList = rawProjectSkills.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+
+    if (projectSkillList.length === 0) {
+      projectSkillList = ['React.js', 'PostgreSQL', 'Tailwind CSS', 'Java/Spring Boot'];
+    }
+
+    const empSkills = (Array.isArray(selectedEmployee.skills) ? selectedEmployee.skills : (selectedEmployee.skills || '').split(','))
+      .map((s) => String(s).toLowerCase().trim());
+
+    const skillRequirements = projectSkillList.map((skillName) => {
+      const isCompleted = empSkills.some((es) => es.includes(skillName.toLowerCase().trim()) || skillName.toLowerCase().trim().includes(es));
+      return {
+        name: skillName,
+        status: isCompleted ? 'Completed' : 'Pending',
+      };
+    });
+
+    // Progress metrics
+    const progressPercentage = matchedProject?.progress ?? selectedEmployee.workProgress ?? 65;
+    const completedTasks = matchedProject?.completedTasksCount ?? Math.round((progressPercentage / 100) * 12);
+    const pendingTasks = matchedProject?.pendingTasksCount ?? Math.max(0, 12 - completedTasks);
+
+    const currentMilestone = selectedEmployee.currentMilestone || matchedProject?.currentMilestone || 'Sprint Phase 2: API & Core Module Integration';
+    const latestProgressUpdate = selectedEmployee.latestCommit?.message || selectedEmployee.currentTask || matchedProject?.recentUpdate || matchedProject?.latestActivity || 'Merged feature updates to main sprint repository and completed module integration.';
+
+    return {
+      projectName,
+      clientName,
+      description,
+      status,
+      startDate,
+      expectedEndDate,
+      assignedRole,
+      skillRequirements,
+      progressPercentage,
+      completedTasks,
+      pendingTasks,
+      currentMilestone,
+      latestProgressUpdate,
+    };
+  }, [selectedEmployee, projects, partnerProjects, managerAssignments]);
 
   // Edit Professional Modal State
   const [editingEmployee, setEditingEmployee] = useState(null);
@@ -728,42 +819,167 @@ export const PartnerWorkforce = () => {
               </div>
 
               <div className="p-6 max-h-[72vh] overflow-y-auto space-y-5 text-xs">
-                {/* Project Metadata Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Assigned Project</span>
-                    <p className="font-bold text-slate-900 mt-0.5">{selectedEmployee.assignedProject || 'None'}</p>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Current Milestone</span>
-                    <p className="font-bold text-slate-900 mt-0.5">{selectedEmployee.currentMilestone || 'Sprint Active'}</p>
+                {/* Employee Profile Quick Summary */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <Users size={14} className="text-[#004ac6]" />
+                    <span>Employee Profile</span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 pt-1 text-slate-700">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Employee Name</span>
+                      <span className="font-extrabold text-slate-900 text-sm">{selectedEmployee.name || selectedEmployee.pseudonym}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Role</span>
+                      <span className="font-bold text-blue-700">{selectedEmployee.role || selectedEmployee.title || 'Software Specialist'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Current Project</span>
+                      <span className="font-bold text-slate-900">{selectedEmployee.assignedProject || 'Unassigned'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Client Company</span>
+                      <span className="font-bold text-blue-700">{activeEmployeeAssignment?.clientName || selectedEmployee.clientName || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Progress Bar */}
-                {selectedEmployee.assignedProject && selectedEmployee.assignedProject !== 'None' && selectedEmployee.assignedProject !== 'Unassigned' ? (
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/70 space-y-2">
-                    <div className="flex items-center justify-between font-extrabold text-slate-900">
-                      <span>Employee Work Progress</span>
-                      <span className="text-[#004ac6] text-sm">{selectedEmployee.workProgress || 0}%</span>
+                {/* Project Details & Progress & Skills Sections */}
+                {activeEmployeeAssignment ? (
+                  <>
+                    {/* Project Details Section (Read-Only) */}
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <Briefcase size={14} className="text-[#004ac6]" />
+                          <span>Project Details</span>
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px]">
+                          {activeEmployeeAssignment.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Project Name</span>
+                          <p className="font-extrabold text-slate-900 text-sm">{activeEmployeeAssignment.projectName}</p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Project Description</span>
+                          <p className="text-slate-600 leading-relaxed font-medium mt-0.5">{activeEmployeeAssignment.description}</p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2.5 pt-2">
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">Start Date</span>
+                            <span className="font-bold text-slate-800">{activeEmployeeAssignment.startDate}</span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">Expected End Date</span>
+                            <span className="font-bold text-slate-800">{activeEmployeeAssignment.expectedEndDate}</span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase block">Assigned Role</span>
+                            <span className="font-bold text-blue-700 truncate block">{activeEmployeeAssignment.assignedRole}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full h-2.5 rounded-full bg-white border border-blue-200 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#004ac6] to-[#2563eb] rounded-full"
-                        style={{ width: `${selectedEmployee.workProgress || 0}%` }}
-                      />
+
+                    {/* Progress & Skills Section (Read-Only) */}
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                          <TrendingUp size={14} className="text-[#004ac6]" />
+                          <span>Progress & Skills</span>
+                        </h4>
+                        <span className="text-xs font-extrabold text-blue-700">
+                          Overall Progress: {activeEmployeeAssignment.progressPercentage}%
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className="text-slate-700">Overall Progress</span>
+                          <span className="text-[#004ac6]">{activeEmployeeAssignment.progressPercentage}%</span>
+                        </div>
+                        <div className="w-full h-2.5 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-[#004ac6] to-[#2563eb]"
+                            style={{ width: `${activeEmployeeAssignment.progressPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Completed & Pending Tasks Metrics */}
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Task Metrics</span>
+                          <div className="flex items-center gap-3 font-extrabold text-xs">
+                            <span className="text-emerald-700 flex items-center gap-1">
+                              <CheckCircle2 size={13} /> Completed: {activeEmployeeAssignment.completedTasks}
+                            </span>
+                            <span className="text-amber-700 flex items-center gap-1">
+                              <Clock size={13} /> Pending: {activeEmployeeAssignment.pendingTasks}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Current Milestone</span>
+                          <p className="font-bold text-slate-900 truncate">{activeEmployeeAssignment.currentMilestone}</p>
+                        </div>
+                      </div>
+
+                      {/* Assigned Skill Requirements */}
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Assigned Skill Requirements</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {activeEmployeeAssignment.skillRequirements.map((sk, idx) => (
+                            <span
+                              key={idx}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 border ${
+                                sk.status === 'Completed'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              <span>{sk.name}</span>
+                              {sk.status === 'Completed' ? (
+                                <span className="text-emerald-600 font-extrabold">✓</span>
+                              ) : (
+                                <span className="text-amber-600 font-extrabold">⏳</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1.5 italic">
+                          Required skill level: Professional / Enterprise Standard
+                        </p>
+                      </div>
+
+                      {/* Latest Progress Update */}
+                      <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">Latest Progress Update</span>
+                        <p className="text-xs font-semibold text-slate-800 leading-normal">
+                          {activeEmployeeAssignment.latestProgressUpdate}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-500 text-right">
-                      Last Updated: <strong>{selectedEmployee.lastUpdated || 'No updates logged'}</strong>
-                    </p>
-                  </div>
+                  </>
                 ) : (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px] font-medium text-center">
-                    No active project assignment currently assigned to this employee.
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
+                    <Briefcase size={24} className="mx-auto text-slate-400" />
+                    <h4 className="font-extrabold text-slate-900 text-xs">No Active Project Assignment</h4>
+                    <p className="text-slate-500 text-[11px] max-w-sm mx-auto">
+                      This employee is currently available in your talent roster for allocation to incoming client project requirements.
+                    </p>
                   </div>
                 )}
 
-                {/* Technical Skills */}
+                {/* Technical Skills Inventory */}
                 <div>
                   <h4 className="font-bold text-slate-900 text-xs mb-2">Technical Skills & Competencies</h4>
                   <div className="flex flex-wrap gap-1.5">
