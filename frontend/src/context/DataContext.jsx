@@ -717,19 +717,7 @@ export const DataProvider = ({ children }) => {
             const descVal = matchedPrt?.description || 'Enterprise IT Services & Strategic Talent Partner on FlexiStaff.';
             const logoVal = matchedPrt?.logo || matchedPrt?.avatar || matchedPrt?.logoUrl || '';
 
-            // Keep session user in localStorage synchronized with full company name & contact person
-            if (savedUser.companyName !== companyDisplayName || savedUser.contactPerson !== contactDisplayName) {
-              const updatedUser = {
-                ...savedUser,
-                name: companyDisplayName,
-                companyName: companyDisplayName,
-                company: companyDisplayName,
-                contactPerson: contactDisplayName,
-              };
-              try {
-                localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
-              } catch {}
-            }
+
 
             // If not found in central list, seed it so Admin & Partner are in sync
             if (!matchedPrt && (userEmail || userName)) {
