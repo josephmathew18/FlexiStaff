@@ -158,29 +158,10 @@ export const DataProvider = ({ children }) => {
         return !rEmail.includes('sharon') && !rName.includes('sharon');
       });
 
-      let workforceRequired = p.workforceRequired || (isPetrolPump ? 5 : 5);
-      const isCompletedPrj = stage === 'Completed' || status === 'Completed' || numProg >= 100 || isPetrolPump;
-      let workforceAssigned = isCompletedPrj ? workforceRequired : cleanRes.length;
-      let requirements = p.requirements;
-
-      if (isPetrolPump) {
-        workforceRequired = 5;
-        workforceAssigned = 5;
-        if (Array.isArray(requirements) && requirements.length > 0) {
-          requirements = requirements.map((r, idx) => (idx === 0 ? { ...r, required: 5, assigned: 5 } : { ...r, assigned: r.required }));
-        } else {
-          requirements = [
-            {
-              role: p.category || 'Senior Full-Stack Engineer',
-              required: 5,
-              assigned: 5,
-              skills: p.techStack || 'React.js, Node.js, Cloud',
-            },
-          ];
-        }
-      } else if (isCompletedPrj && Array.isArray(requirements)) {
-        requirements = requirements.map((r) => ({ ...r, assigned: r.required }));
-      }
+      const workforceRequired = Number(p.workforceRequired) || (Array.isArray(p.requirements) && p.requirements.length > 0 ? p.requirements.reduce((acc, r) => acc + (Number(r.required) || 0), 0) : 1);
+      const isCompletedPrj = stage === 'Completed' || status === 'Completed' || numProg >= 100;
+      const workforceAssigned = isCompletedPrj ? workforceRequired : (cleanRes.length || Number(p.workforceAssigned) || 0);
+      const requirements = Array.isArray(p.requirements) ? p.requirements : [];
 
       return {
         ...p,
@@ -189,7 +170,7 @@ export const DataProvider = ({ children }) => {
         status: isCompletedPrj ? 'Completed' : status,
         progress: isCompletedPrj ? 100 : numProg,
         assignedResources: cleanRes,
-        workforceRequired: isPetrolPump ? 5 : (workforceRequired || 5),
+        workforceRequired: workforceRequired,
         workforceAssigned: workforceAssigned,
         requirements,
       };

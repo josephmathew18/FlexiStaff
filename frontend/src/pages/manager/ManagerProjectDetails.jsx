@@ -99,22 +99,20 @@ export const ManagerProjectDetails = () => {
   const requirementsList = useMemo(() => {
     const raw = activeProject.requirements && activeProject.requirements.length > 0 ? activeProject.requirements : [
       {
-        role: activeProject.category || 'Senior Full-Stack Engineer',
-        required: activeProject.workforceRequired || (isPetrol ? 5 : 1),
-        assigned: isCompletedProject ? (activeProject.workforceRequired || 5) : (activeProject.workforceAssigned || 0),
-        skills: Array.isArray(activeProject.skills) ? activeProject.skills.join(', ') : (activeProject.techStack || 'React.js, Node.js, Cloud'),
+        role: activeProject.category || 'Software Engineer',
+        required: Number(activeProject.workforceRequired) || 1,
+        assigned: isCompletedProject ? (Number(activeProject.workforceRequired) || 1) : (Number(activeProject.workforceAssigned) || 0),
+        skills: Array.isArray(activeProject.skills) ? activeProject.skills.join(', ') : (activeProject.techStack || 'Engineering'),
       },
     ];
     return raw.map((r) => ({
       ...r,
-      required: isPetrol ? 5 : (r.required || 1),
-      assigned: isCompletedProject ? (isPetrol ? 5 : (r.required || 1)) : (r.assigned || 0),
+      required: Number(r.required) || 1,
+      assigned: isCompletedProject ? (Number(r.required) || 1) : (Number(r.assigned) || 0),
     }));
-  }, [activeProject, isPetrol, isCompletedProject]);
+  }, [activeProject, isCompletedProject]);
 
-  const totalRequired = isPetrol
-    ? 5
-    : (requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || activeProject.workforceRequired || 1);
+  const totalRequired = requirementsList.reduce((sum, r) => sum + (Number(r.required) || 0), 0) || Number(activeProject.workforceRequired) || 1;
   const totalAssigned = isCompletedProject
     ? totalRequired
     : (requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || activeProject.workforceAssigned || 0);
