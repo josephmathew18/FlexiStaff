@@ -129,12 +129,14 @@ export const AuthProvider = ({ children }) => {
 
         const backendUser = {
           id: authData.userId,
+          partnerCompanyId: authData.partnerCompanyId || authData.userId,
           name: authData.fullName,
           fullName: authData.fullName,
           email: authData.email,
           phone: authData.phone || '',
-          companyName: authData.companyName || '',
-          company: authData.companyName || '',
+          companyName: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
+          company: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
+          partnerCompany: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
           role: userRole,
           portalPath,
         };
@@ -366,14 +368,32 @@ export const AuthProvider = ({ children }) => {
       trimmedEmail.split('@')[0];
 
     const partnerCompany =
+      matchedPartnerOrg?.companyName ||
+      matchedPartnerOrg?.name ||
       matchedWorkforceOrg?.partnerCompany ||
       matchedWorkforceOrg?.partnerName ||
       matchedWorkforceOrg?.partner ||
       matchedUser?.partnerCompany ||
+      matchedUser?.companyName ||
+      matchedUser?.company ||
       matchedUser?.partnerName ||
       '';
 
-    const companyName = partnerCompany || (userRole === 'Client' ? 'Enterprise Client' : userRole === 'Partner Company' ? 'Partner Company' : userRole === 'Manager' ? 'Enterprise Resource Allocation' : '');
+    const resolvedPartnerCompanyId =
+      matchedPartnerOrg?.id ||
+      matchedUser?.partnerCompanyId ||
+      matchedUser?.id ||
+      (trimmedEmail.includes('infosys') ? 'prt-infosys' : 'prt-partner');
+
+    const companyName =
+      partnerCompany ||
+      (userRole === 'Partner Company'
+        ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company')
+        : userRole === 'Client'
+        ? 'Enterprise Client'
+        : userRole === 'Manager'
+        ? 'Enterprise Resource Allocation'
+        : '');
 
     const roleType =
       matchedWorkforceOrg?.roleType ||
@@ -395,7 +415,8 @@ export const AuthProvider = ({ children }) => {
       trimmedEmail;
 
     const localUser = {
-      id: matchedWorkforceOrg?.id || matchedUser?.id || matchedPartnerOrg?.id || matchedClientOrg?.id || matchedManagerOrg?.id || `usr-${Date.now()}`,
+      id: matchedPartnerOrg?.id || matchedUser?.id || matchedWorkforceOrg?.id || matchedClientOrg?.id || matchedManagerOrg?.id || `usr-${Date.now()}`,
+      partnerCompanyId: resolvedPartnerCompanyId,
       name: displayName,
       fullName: displayName,
       email: resolvedEmail,
@@ -403,22 +424,22 @@ export const AuthProvider = ({ children }) => {
       phone: matchedWorkforceOrg?.phone || matchedManagerOrg?.phone || matchedUser?.phone || matchedPartnerOrg?.phone || matchedClientOrg?.phone || '',
       companyName: companyName,
       company: companyName,
-      partnerCompany: partnerCompany,
-      partnerName: partnerCompany,
-      partner: partnerCompany,
+      partnerCompany: companyName,
+      partnerName: companyName,
+      partner: companyName,
       roleType: roleType,
       professionalType: professionalType,
       userType: professionalType,
-      contactPerson: displayName,
+      contactPerson: matchedPartnerOrg?.contactPerson || displayName,
       role: userRole,
       portalPath,
-      avatar: matchedWorkforceOrg?.avatar || matchedManagerOrg?.avatar || matchedUser?.avatar || '',
-      location: matchedWorkforceOrg?.location || matchedManagerOrg?.location || matchedUser?.location || '',
-      address: matchedWorkforceOrg?.location || matchedManagerOrg?.address || matchedUser?.address || '',
+      avatar: matchedWorkforceOrg?.avatar || matchedManagerOrg?.avatar || matchedUser?.avatar || matchedPartnerOrg?.logo || '',
+      location: matchedPartnerOrg?.location || matchedWorkforceOrg?.location || matchedManagerOrg?.location || matchedUser?.location || '',
+      address: matchedPartnerOrg?.location || matchedWorkforceOrg?.location || matchedManagerOrg?.address || matchedUser?.address || '',
       department: matchedManagerOrg?.department || matchedUser?.department || '',
       jobTitle: matchedWorkforceOrg?.title || matchedWorkforceOrg?.role || matchedManagerOrg?.jobTitle || matchedUser?.jobTitle || '',
       title: matchedWorkforceOrg?.title || matchedWorkforceOrg?.role || matchedUser?.title || '',
-      bio: matchedWorkforceOrg?.bio || matchedManagerOrg?.bio || matchedUser?.bio || '',
+      bio: matchedWorkforceOrg?.bio || matchedManagerOrg?.bio || matchedUser?.bio || matchedPartnerOrg?.description || '',
       employeeId: matchedWorkforceOrg?.id || matchedManagerOrg?.employeeId || matchedUser?.employeeId || '',
       dob: matchedManagerOrg?.dob || matchedUser?.dob || '',
       joinDate: matchedManagerOrg?.joinDate || matchedUser?.joinDate || '',
