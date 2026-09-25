@@ -54,18 +54,15 @@ export const ManagerMatching = () => {
     sendFreelancerWorkforceRequest,
   } = useData() || {};
 
-  // Separate active projects (for matching) and completed projects
-  const { activeProjects, completedProjects, availableProjects } = useMemo(() => {
+  // Only active projects (excluding completed/delivered projects)
+  const activeProjects = useMemo(() => {
     const all = [...(projects || []), ...(partnerProjects || [])];
-    const uniqueAll = [];
     const active = [];
-    const completed = [];
     const seen = new Set();
 
     all.forEach((p) => {
       if (p && p.id && !seen.has(p.id)) {
         seen.add(p.id);
-        uniqueAll.push(p);
 
         const isCompleted =
           p.status === 'Completed' ||
@@ -74,27 +71,22 @@ export const ManagerMatching = () => {
           String(p.id || '').includes('7142') ||
           String(p.name || p.title || '').toLowerCase().includes('petrol');
 
-        if (isCompleted) {
-          completed.push(p);
-        } else {
+        if (!isCompleted) {
           active.push(p);
         }
       }
     });
 
-    return { activeProjects: active, completedProjects: completed, availableProjects: uniqueAll };
+    return active;
   }, [projects, partnerProjects]);
 
   const queryProjectId = searchParams.get('projectId');
   const initialProjectId = useMemo(() => {
     if (projectId) return projectId;
     if (queryProjectId) return queryProjectId;
-    if (activeProjects.length > 0) {
-      const approved = activeProjects.find((p) => p.status === 'Approved' || p.stage === 'Approved');
-      return approved ? approved.id : activeProjects[0].id;
-    }
-    return availableProjects[0]?.id || 'PRJ-101';
-  }, [projectId, queryProjectId, activeProjects, availableProjects]);
+    const approved = activeProjects.find((p) => p.status === 'Approved' || p.stage === 'Approved');
+    return approved ? approved.id : activeProjects[0]?.id || 'PRJ-101';
+  }, [projectId, queryProjectId, activeProjects]);
 
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
 
@@ -104,13 +96,13 @@ export const ManagerMatching = () => {
     }
   }, [projectId]);
 
-  // Current selected project
+  // Current selected active project
   const currentProject = useMemo(() => {
     const decodedId = decodeURIComponent(selectedProjectId || '').trim();
     const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
 
     return (
-      availableProjects.find((p) => {
+      activeProjects.find((p) => {
         if (!p || !p.id) return false;
         const pidLower = String(p.id).toLowerCase().trim();
         const pidNormalized = pidLower.replace(/[\s_]/g, '-');
@@ -121,8 +113,7 @@ export const ManagerMatching = () => {
           pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
         );
       }) ||
-      activeProjects[0] ||
-      availableProjects[0] || {
+      activeProjects[0] || {
         id: selectedProjectId || 'PRJ-NEW',
         name: 'Project Workspace',
         title: 'Project Workspace',
@@ -134,7 +125,7 @@ export const ManagerMatching = () => {
         status: 'Approved',
       }
     );
-  }, [availableProjects, activeProjects, selectedProjectId]);
+  }, [activeProjects, selectedProjectId]);
 
   // Modals & Active Tab States
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -304,7 +295,7 @@ export const ManagerMatching = () => {
 
         {/* Project Selector Dropdown */}
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Target Project:</label>
+          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Active Project:</label>
           <select
             value={selectedProjectId}
             onChange={(e) => {
@@ -313,24 +304,11 @@ export const ManagerMatching = () => {
             }}
             className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#004ac6] shadow-2xs"
           >
-            {activeProjects.length > 0 && (
-              <optgroup label="Active Projects (Skill Matching)">
-                {activeProjects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.id} – {p.name || p.title} ({p.status || 'Approved'})
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {completedProjects.length > 0 && (
-              <optgroup label="Completed Projects (Delivered & Locked)">
-                {completedProjects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.id} – {p.name || p.title} (Completed)
-                  </option>
-                ))}
-              </optgroup>
-            )}
+            {activeProjects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.id} – {p.name || p.title} ({p.status || 'Approved'})
+              </option>
+            ))}
           </select>
         </div>
       </div>

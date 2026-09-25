@@ -92,7 +92,94 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_workforce');
       if (saved) list = JSON.parse(saved);
     } catch {}
-    if (!list || list.length === 0) list = initialWorkforce || [];
+    if (!list || list.length === 0) {
+      list = [
+        {
+          id: 'WF-101',
+          numericId: 101,
+          name: 'Rahul Verma',
+          pseudonym: 'Rahul Verma',
+          title: 'Senior Full-Stack Engineer',
+          role: 'Senior Full-Stack Engineer',
+          roleCategory: 'Software Engineering',
+          source: 'Partner Company',
+          roleType: 'Professional',
+          partnerCompany: 'Infosys Technologies',
+          partnerName: 'Infosys Technologies',
+          email: 'rahul.verma@infosys.com',
+          phone: '+91 98765 12345',
+          hourlyRate: '$85/hr',
+          location: 'Bengaluru, India',
+          availability: 'Available',
+          workingStatus: 'Working',
+          status: 'Active',
+          approvalStatus: 'Approved',
+          verificationStatus: 'Approved',
+          skills: ['React.js', 'Node.js', 'PostgreSQL', 'TypeScript', 'AWS'],
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+          assignedProject: '7142 – petrol pump',
+          clientName: 'Client Organization',
+          workProgress: 85,
+          bio: 'Senior Full-Stack Engineer with 6+ years experience in enterprise React & Node.js microservices.',
+        },
+        {
+          id: 'WF-102',
+          numericId: 102,
+          name: 'Ananya Sharma',
+          pseudonym: 'Ananya Sharma',
+          title: 'Cloud DevOps Architect',
+          role: 'Cloud DevOps Architect',
+          roleCategory: 'Cloud & Infrastructure',
+          source: 'Partner Company',
+          roleType: 'Professional',
+          partnerCompany: 'Infosys Technologies',
+          partnerName: 'Infosys Technologies',
+          email: 'ananya.sharma@infosys.com',
+          phone: '+91 98765 54321',
+          hourlyRate: '$95/hr',
+          location: 'Bengaluru, India',
+          availability: 'Available',
+          workingStatus: 'Working',
+          status: 'Active',
+          approvalStatus: 'Approved',
+          verificationStatus: 'Approved',
+          skills: ['Docker', 'Kubernetes', 'AWS', 'Terraform', 'CI/CD'],
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+          assignedProject: 'Enterprise Cloud Migration',
+          clientName: 'Client Organization',
+          workProgress: 90,
+          bio: 'Cloud DevOps Architect specializing in Kubernetes cluster automation and Terraform IaC.',
+        },
+        {
+          id: 'WF-103',
+          numericId: 103,
+          name: 'Vikram Patel',
+          pseudonym: 'Vikram Patel',
+          title: 'Backend Java Specialist',
+          role: 'Backend Java Specialist',
+          roleCategory: 'Software Engineering',
+          source: 'Partner Company',
+          roleType: 'Professional',
+          partnerCompany: 'Infosys Technologies',
+          partnerName: 'Infosys Technologies',
+          email: 'vikram.patel@infosys.com',
+          phone: '+91 98765 67890',
+          hourlyRate: '$90/hr',
+          location: 'Hyderabad, India',
+          availability: 'Available',
+          workingStatus: 'Working',
+          status: 'Active',
+          approvalStatus: 'Approved',
+          verificationStatus: 'Approved',
+          skills: ['Java', 'Spring Boot', 'Microservices', 'Kafka', 'MySQL'],
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+          assignedProject: 'Banking Portal Core API',
+          clientName: 'Client Organization',
+          workProgress: 75,
+          bio: 'Backend Java Developer experienced in high-throughput Spring Boot microservices and Kafka streaming.',
+        },
+      ];
+    }
     return list.filter((w) => {
       if (!w) return false;
       const emailLower = (w.email || '').toLowerCase().trim();
@@ -603,9 +690,25 @@ export const DataProvider = ({ children }) => {
               return false;
             });
 
-            const companyDisplayName = matchedPrt?.name || matchedPrt?.companyName || savedUser.companyName || savedUser.company || (savedUser.name !== 'System Administrator' ? savedUser.name : 'Infosys Technologies');
-            const contactDisplayName = matchedPrt?.contactPerson || savedUser.contactPerson || (savedUser.name !== 'System Administrator' ? savedUser.name : 'Joseph Mathew');
-            const emailAddr = matchedPrt?.email || savedUser.email || 'partner@infosys.com';
+            let companyDisplayName = matchedPrt?.name || matchedPrt?.companyName;
+            if (!companyDisplayName || companyDisplayName === 'Partner Company' || companyDisplayName.toLowerCase() === 'infosys') {
+              if (userEmail.includes('infosys') || userName.includes('infosys')) {
+                companyDisplayName = 'Infosys Technologies';
+              } else if (savedUser.companyName && savedUser.companyName !== 'Partner Company' && savedUser.companyName.toLowerCase() !== 'infosys') {
+                companyDisplayName = savedUser.companyName;
+              } else if (savedUser.name && savedUser.name !== 'System Administrator' && savedUser.name !== 'Partner Company' && savedUser.name.toLowerCase() !== 'infosys') {
+                companyDisplayName = savedUser.name;
+              } else {
+                companyDisplayName = 'Infosys Technologies';
+              }
+            }
+
+            let contactDisplayName = matchedPrt?.contactPerson || savedUser.contactPerson;
+            if (!contactDisplayName || contactDisplayName === 'Partner Company' || contactDisplayName.toLowerCase() === 'infosys') {
+              contactDisplayName = 'Joseph Mathew';
+            }
+
+            const emailAddr = matchedPrt?.email || savedUser.email || 'infosys@flexistaff.com';
             const phoneNo = matchedPrt?.phone || savedUser.phone || '+91 98765 43210';
             const tierVal = matchedPrt?.tier || 'Tier-1 Strategic Partner';
             const locationVal = matchedPrt?.location || matchedPrt?.city || 'Bengaluru, India';
@@ -613,6 +716,20 @@ export const DataProvider = ({ children }) => {
             const webVal = matchedPrt?.website || 'https://infosys.com';
             const descVal = matchedPrt?.description || 'Enterprise IT Services & Strategic Talent Partner on FlexiStaff.';
             const logoVal = matchedPrt?.logo || matchedPrt?.avatar || matchedPrt?.logoUrl || '';
+
+            // Keep session user in localStorage synchronized with full company name & contact person
+            if (savedUser.companyName !== companyDisplayName || savedUser.contactPerson !== contactDisplayName) {
+              const updatedUser = {
+                ...savedUser,
+                name: companyDisplayName,
+                companyName: companyDisplayName,
+                company: companyDisplayName,
+                contactPerson: contactDisplayName,
+              };
+              try {
+                localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+              } catch {}
+            }
 
             // If not found in central list, seed it so Admin & Partner are in sync
             if (!matchedPrt && (userEmail || userName)) {
@@ -632,8 +749,8 @@ export const DataProvider = ({ children }) => {
                 logo: logoVal,
                 status: 'Active',
                 joinedDate: new Date().toISOString().split('T')[0],
-                suppliedProfessionals: 0,
-                activePlacements: 0,
+                suppliedProfessionals: 3,
+                activePlacements: 3,
                 availabilityRate: '100%',
                 rating: 4.9,
               };
@@ -649,6 +766,7 @@ export const DataProvider = ({ children }) => {
             setPartnerProfile({
               id: matchedPrt?.id || savedUser.id || 'prt-101',
               name: companyDisplayName,
+              companyName: companyDisplayName,
               contactPerson: contactDisplayName,
               email: emailAddr,
               phone: phoneNo,
@@ -680,6 +798,37 @@ export const DataProvider = ({ children }) => {
 
   const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
   const [partnerWorkforce, setPartnerWorkforce] = useState(initialPartnerWorkforce);
+
+  // Derive partner workforce members for the active partner company from central workforce state
+  const activePartnerWorkforce = useMemo(() => {
+    const partnerNameLower = (partnerProfile?.name || partnerProfile?.companyName || 'infosys').toLowerCase().trim();
+
+    const matchedFromCentral = (workforce || []).filter((w) => {
+      if (!w) return false;
+      const wCompany = (w.partnerCompany || w.partner || w.partnerName || '').toLowerCase().trim();
+      const wSource = (w.source || '').toLowerCase().trim();
+
+      if (wCompany && (wCompany === partnerNameLower || wCompany.includes(partnerNameLower) || partnerNameLower.includes(wCompany))) {
+        return true;
+      }
+      if ((partnerNameLower.includes('infosys') || partnerNameLower.includes('partner')) && (wCompany.includes('infosys') || wCompany.includes('partner') || wSource === 'partner company' || w.roleType === 'Professional')) {
+        return true;
+      }
+      return false;
+    });
+
+    const combined = [...(partnerWorkforce || []), ...matchedFromCentral];
+    const unique = [];
+    const seen = new Set();
+    combined.forEach((item) => {
+      if (item && item.id && !seen.has(String(item.id))) {
+        seen.add(String(item.id));
+        unique.push(item);
+      }
+    });
+
+    return unique;
+  }, [workforce, partnerWorkforce, partnerProfile]);
   const [partnerWorkforceRequests, setPartnerWorkforceRequests] = useState(initialPartnerWorkforceRequests);
   const [partnerNotifications, setPartnerNotifications] = useState(initialPartnerNotifications);
   const [partnerActivities, setPartnerActivities] = useState(initialPartnerActivities);
@@ -4047,7 +4196,7 @@ export const DataProvider = ({ children }) => {
         partnerProjects,
         addPartnerProject,
         updatePartnerProject,
-        partnerWorkforce,
+        partnerWorkforce: activePartnerWorkforce,
         addPartnerProfessional,
         updatePartnerProfessionalAvailability,
         partnerWorkforceRequests,
