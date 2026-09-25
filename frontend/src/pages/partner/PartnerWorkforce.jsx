@@ -462,21 +462,29 @@ export const PartnerWorkforce = () => {
                   </div>
 
                   {/* Live Progress Bar & Percentage */}
-                  <div className="mt-3 space-y-1 bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/70">
-                    <div className="flex items-center justify-between text-[10px] font-bold">
-                      <span className="text-slate-600">Employee Project Progress</span>
-                      <span className="text-blue-700 font-extrabold">{emp.workProgress || 75}% In Progress</span>
+                  {emp.assignedProject && emp.assignedProject !== 'Unassigned' && emp.assignedProject !== 'None' && (
+                    <div className="mt-3 space-y-1 bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/70">
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span className="text-slate-600">Employee Project Progress</span>
+                        <span className="text-blue-700 font-extrabold">{emp.workProgress || 0}% In Progress</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-[#004ac6] to-[#2563eb]"
+                          style={{ width: `${emp.workProgress || 0}%` }}
+                        />
+                      </div>
+                      {(emp.latestCommit || emp.currentTask) && (
+                        <p className="text-[9px] text-slate-400 pt-0.5 truncate">
+                          {emp.latestCommit ? (
+                            <>Latest Commit: <code className="font-mono text-slate-700 font-bold">{emp.latestCommit.hash || emp.latestCommit}</code> {emp.latestCommit.message || ''}</>
+                          ) : (
+                            <>Current Task: <span className="font-semibold text-slate-700">{emp.currentTask}</span></>
+                          )}
+                        </p>
+                      )}
                     </div>
-                    <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#004ac6] to-[#2563eb]"
-                        style={{ width: `${emp.workProgress || 75}%` }}
-                      />
-                    </div>
-                    <p className="text-[9px] text-slate-400 pt-0.5">
-                      Latest Commit: <code className="font-mono text-slate-700 font-bold">#a7f3d91</code> feat(auth): JWT Token rotation
-                    </p>
-                  </div>
+                  )}
 
                   {/* Skills Tags */}
                   <div className="mt-3 flex flex-wrap gap-1">
@@ -733,21 +741,27 @@ export const PartnerWorkforce = () => {
                 </div>
 
                 {/* Progress Bar */}
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/70 space-y-2">
-                  <div className="flex items-center justify-between font-extrabold text-slate-900">
-                    <span>Employee Work Progress</span>
-                    <span className="text-[#004ac6] text-sm">{selectedEmployee.workProgress || 70}%</span>
+                {selectedEmployee.assignedProject && selectedEmployee.assignedProject !== 'None' && selectedEmployee.assignedProject !== 'Unassigned' ? (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200/70 space-y-2">
+                    <div className="flex items-center justify-between font-extrabold text-slate-900">
+                      <span>Employee Work Progress</span>
+                      <span className="text-[#004ac6] text-sm">{selectedEmployee.workProgress || 0}%</span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-white border border-blue-200 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#004ac6] to-[#2563eb] rounded-full"
+                        style={{ width: `${selectedEmployee.workProgress || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 text-right">
+                      Last Updated: <strong>{selectedEmployee.lastUpdated || 'No updates logged'}</strong>
+                    </p>
                   </div>
-                  <div className="w-full h-2.5 rounded-full bg-white border border-blue-200 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#004ac6] to-[#2563eb] rounded-full"
-                      style={{ width: `${selectedEmployee.workProgress || 70}%` }}
-                    />
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px] font-medium text-center">
+                    No active project assignment currently assigned to this employee.
                   </div>
-                  <p className="text-[10px] text-slate-500 text-right">
-                    Last Updated: <strong>{selectedEmployee.lastUpdated || 'Today'}</strong>
-                  </p>
-                </div>
+                )}
 
                 {/* Technical Skills */}
                 <div>

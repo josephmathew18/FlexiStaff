@@ -107,7 +107,7 @@ export const PartnerProjectProgress = () => {
           </div>
 
           <div className="text-right">
-            <span className="text-2xl sm:text-3xl font-black text-[#004ac6]">{selectedProject.progress || 75}%</span>
+            <span className="text-2xl sm:text-3xl font-black text-[#004ac6]">{selectedProject.progress ?? 0}%</span>
             <span className="block text-[11px] font-bold text-slate-400">Total Completion</span>
           </div>
         </div>
@@ -117,7 +117,7 @@ export const PartnerProjectProgress = () => {
           <div className="w-full h-3.5 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${selectedProject.progress || 75}%` }}
+              animate={{ width: `${selectedProject.progress ?? 0}%` }}
               transition={{ duration: 0.8 }}
               className="h-full rounded-full bg-gradient-to-r from-[#004ac6] to-[#2563eb]"
             />
