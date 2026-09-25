@@ -47,39 +47,37 @@ export const WorkforceProfile = () => {
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [formData, setFormData] = useState({
-    name: formatCapitalizedName(workforceUserProfile?.name || 'Technical Specialist'),
+    name: formatCapitalizedName(workforceUserProfile?.name || 'Professional'),
     email: workforceUserProfile?.email || '',
-    phone: workforceUserProfile?.phone || '+91 98765 00000',
-    title: workforceUserProfile?.title || workforceUserProfile?.role || 'Senior Full-Stack Engineer',
-    role: workforceUserProfile?.role || 'Senior Full-Stack Engineer',
-    location: workforceUserProfile?.location || 'Bengaluru, India',
-    experience: workforceUserProfile?.experience || '5+ Years',
+    phone: workforceUserProfile?.phone || '',
+    title: workforceUserProfile?.title || workforceUserProfile?.role || 'Software Specialist',
+    role: workforceUserProfile?.role || 'Software Specialist',
+    location: workforceUserProfile?.location || '',
+    experience: workforceUserProfile?.experience || '',
     availability: workforceUserProfile?.availability || 'Available',
     preferredWorkType: workforceUserProfile?.preferredWorkType || 'Remote',
     portfolioUrl: workforceUserProfile?.portfolioUrl || '',
-    bio:
-      workforceUserProfile?.bio ||
-      'Specialized engineering professional experienced in building enterprise cloud architectures and scalable web platforms.',
+    bio: workforceUserProfile?.bio || '',
     avatar: workforceUserProfile?.avatar || '',
-    skills: workforceUserProfile?.skills || ['React', 'Node.js', 'TypeScript', 'Tailwind CSS', 'Docker'],
+    skills: workforceUserProfile?.skills || [],
   });
 
   React.useEffect(() => {
     if (workforceUserProfile) {
       setFormData({
-        name: formatCapitalizedName(workforceUserProfile.name || 'Technical Specialist'),
+        name: formatCapitalizedName(workforceUserProfile.name || 'Professional'),
         email: workforceUserProfile.email || '',
-        phone: workforceUserProfile.phone || '+91 98765 00000',
-        title: workforceUserProfile.title || workforceUserProfile.role || 'Senior Full-Stack Engineer',
-        role: workforceUserProfile.role || 'Senior Full-Stack Engineer',
-        location: workforceUserProfile.location || 'Bengaluru, India',
-        experience: workforceUserProfile.experience || '5+ Years',
+        phone: workforceUserProfile.phone || '',
+        title: workforceUserProfile.title || workforceUserProfile.role || 'Software Specialist',
+        role: workforceUserProfile.role || 'Software Specialist',
+        location: workforceUserProfile.location || '',
+        experience: workforceUserProfile.experience || '',
         availability: workforceUserProfile.availability || 'Available',
         preferredWorkType: workforceUserProfile.preferredWorkType || 'Remote',
         portfolioUrl: workforceUserProfile.portfolioUrl || '',
-        bio: workforceUserProfile.bio || 'Specialized engineering professional experienced in building enterprise cloud architectures and scalable web platforms.',
+        bio: workforceUserProfile.bio || '',
         avatar: workforceUserProfile.avatar || '',
-        skills: workforceUserProfile.skills || ['React', 'Node.js', 'TypeScript', 'Tailwind CSS', 'Docker'],
+        skills: workforceUserProfile.skills || [],
       });
     }
   }, [workforceUserProfile]);

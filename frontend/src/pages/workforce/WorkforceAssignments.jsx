@@ -479,48 +479,8 @@ export const WorkforceAssignments = () => {
 
         {/* Milestone Cards for Active Assignments */}
         {myAssignments.map((asg) => {
-          const pId = asg.projectId || 7142;
-          const msList = (projectMilestones && projectMilestones[pId]) || [
-            {
-              id: 'ms-01',
-              title: 'Core OAuth2 & RBAC Auth Engine',
-              status: 'Completed',
-              dueDate: '2026-09-15',
-              commits: [
-                {
-                  id: 'cmt-101',
-                  commitHash: 'a7f3d91',
-                  commitMessage: 'feat(auth): Implement JWT token rotation & session refresh handler',
-                  workCompleted: 'Configured secure HttpOnly cookies, added middleware route protection, and wrote unit tests for auth flow.',
-                  authorName: workforceUserProfile?.name || 'Workforce Specialist',
-                  dateTime: '2026-08-28 02:45 PM',
-                },
-              ],
-            },
-            {
-              id: 'ms-02',
-              title: 'Real-time Analytics & Dashboard Metrics',
-              status: 'In Progress',
-              dueDate: '2026-10-01',
-              commits: [
-                {
-                  id: 'cmt-201',
-                  commitHash: 'c4d9e20',
-                  commitMessage: 'feat(analytics): Wire WebSocket live metrics feed to dashboard UI',
-                  workCompleted: 'Integrated Socket.io client listener with automatic reconnection and live chart state updates.',
-                  authorName: workforceUserProfile?.name || 'Workforce Specialist',
-                  dateTime: '2026-08-28 04:10 PM',
-                },
-              ],
-            },
-            {
-              id: 'ms-03',
-              title: 'Billing Gateway & Webhook Integration',
-              status: 'Pending',
-              dueDate: '2026-10-20',
-              commits: [],
-            },
-          ];
+          const pId = asg.projectId;
+          const msList = (projectMilestones && projectMilestones[pId]) || asg.milestones || [];
 
           return (
             <div key={asg.id} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">

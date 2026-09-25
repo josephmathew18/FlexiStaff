@@ -64,10 +64,9 @@ export const PartnerProjectDetails = () => {
         return (
           pidLower === decodedId.toLowerCase() ||
           pidNormalized === normalizedId ||
-          pidLower === id?.toLowerCase() ||
-          pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
+          pidLower === id?.toLowerCase()
         );
-      }) || (partnerProjects || [])[0]
+      }) || null
     );
   }, [partnerProjects, id]);
 
