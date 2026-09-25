@@ -176,20 +176,11 @@ export const AuthProvider = ({ children }) => {
       if (email && email === trimmedEmail) return true;
       if (loginEmail && loginEmail === trimmedEmail) return true;
 
-      // Exact username prefix match (e.g. sharon === sharon)
-      const inputUser = trimmedEmail.split('@')[0];
-      const objUser = email.split('@')[0];
-      if (inputUser && objUser && inputUser === objUser && inputUser !== 'admin' && inputUser !== 'manager' && inputUser !== 'client' && inputUser !== 'partner') {
-        return true;
-      }
-
-      if (name && name === trimmedEmail) return true;
-      if (companyName && companyName === trimmedEmail) return true;
-      if (empId && empId === trimmedEmail) return true;
-
-      const firstWordName = name.split(' ')[0];
-      if (firstWordName && inputUser && firstWordName === inputUser && firstWordName.length > 2) {
-        return true;
+      // Username / empId match only if input does not contain @
+      if (!trimmedEmail.includes('@')) {
+        if (name && name === trimmedEmail) return true;
+        if (companyName && companyName === trimmedEmail) return true;
+        if (empId && empId === trimmedEmail) return true;
       }
 
       return false;
@@ -415,7 +406,9 @@ export const AuthProvider = ({ children }) => {
       trimmedEmail;
 
     const localUser = {
-      id: matchedPartnerOrg?.id || matchedUser?.id || matchedWorkforceOrg?.id || matchedClientOrg?.id || matchedManagerOrg?.id || `usr-${Date.now()}`,
+      id: matchedUser?.id || matchedManagerOrg?.id || matchedPartnerOrg?.id || matchedWorkforceOrg?.id || matchedClientOrg?.id || 1,
+      numericId: matchedUser?.id || matchedManagerOrg?.id || matchedPartnerOrg?.id || matchedWorkforceOrg?.id || matchedClientOrg?.id || 1,
+      employeeId: matchedUser?.id || matchedManagerOrg?.id || matchedPartnerOrg?.id || matchedWorkforceOrg?.id || matchedClientOrg?.id || 1,
       partnerCompanyId: resolvedPartnerCompanyId,
       name: displayName,
       fullName: displayName,
@@ -503,7 +496,17 @@ export const AuthProvider = ({ children }) => {
 
     let backendUserId = null;
     try {
-      const backendRole = userRole === 'Client' ? 'ROLE_CLIENT' : 'ROLE_PROFESSIONAL';
+      let backendRole = 'ROLE_CLIENT';
+      if (userRole === 'Workforce' || userRole === 'Freelancer' || role === 'ROLE_PROFESSIONAL') {
+        backendRole = 'ROLE_PROFESSIONAL';
+      } else if (userRole === 'Partner Company' || userRole === 'Partner' || role === 'ROLE_PARTNER') {
+        backendRole = 'ROLE_PARTNER';
+      } else if (userRole === 'Manager' || role === 'ROLE_MANAGER') {
+        backendRole = 'ROLE_MANAGER';
+      } else if (userRole === 'Admin' || role === 'ROLE_ADMIN') {
+        backendRole = 'ROLE_ADMIN';
+      }
+
       const apiRes = await api.auth.register({
         fullName,
         email: trimmedEmail,
@@ -530,8 +533,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     const registeredUser = {
-      id: backendUserId || `usr-${Date.now()}`,
-      numericId: backendUserId || null,
+      id: backendUserId || 1,
+      numericId: backendUserId || 1,
+      employeeId: backendUserId || 1,
       name: fullName,
       fullName: fullName,
       email: trimmedEmail,

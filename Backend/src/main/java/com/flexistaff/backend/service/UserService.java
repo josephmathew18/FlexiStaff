@@ -36,8 +36,10 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserDto getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        String trimmed = email != null ? email.trim() : "";
+        User user = userRepository.findByEmailIgnoreCase(trimmed)
+                .orElseGet(() -> userRepository.findByEmail(email)
+                        .orElseThrow(() -> new ResourceNotFoundException("User", "email", email)));
         return mapToUserDto(user);
     }
 

@@ -321,7 +321,7 @@ export const Dashboard = () => {
             </div>
             <div>
               <p className="font-bold text-slate-900 dark:text-white">{managers[0]?.name || 'Assigned Manager'}</p>
-              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">ID: #{managers[0]?.employeeId || managers[0]?.id || 1}</p>
+              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">ID: #{managers[0]?.id || managers[0]?.numericId || managers[0]?.employeeId || 1}</p>
             </div>
           </div>
 

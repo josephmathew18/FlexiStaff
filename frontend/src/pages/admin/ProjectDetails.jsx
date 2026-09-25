@@ -778,7 +778,7 @@ export const ProjectDetails = () => {
             >
               {(managers || []).map((m) => (
                 <option key={m.id || m.name} value={m.name}>
-                  {m.name} (ID: #{m.employeeId || m.id}) - {m.role || m.jobTitle || 'HR Manager'}
+                  {m.name} (ID: #{m.id || m.numericId || m.employeeId}) - {m.role || m.jobTitle || 'HR Manager'}
                 </option>
               ))}
             </select>

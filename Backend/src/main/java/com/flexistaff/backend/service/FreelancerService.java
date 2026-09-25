@@ -29,12 +29,13 @@ public class FreelancerService {
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.flexistaff.backend.config.DatabaseSequenceRepairRunner sequenceRepairRunner;
 
     @Transactional
     public FreelancerDto registerFreelancer(FreelancerRegistrationRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
-        if (userRepository.existsByEmail(email) || freelancerRepository.existsByEmail(email) || clientRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email) || freelancerRepository.existsByEmailIgnoreCase(email) || clientRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email address already registered: " + email);
         }
 
@@ -48,7 +49,15 @@ public class FreelancerService {
                 .active(true)
                 .build();
 
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        try {
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        } catch (Exception ex) {
+            sequenceRepairRunner.repairDatabaseSequences();
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        }
 
         // 2. Create and save Freelancer entity in "freelancers" table
         Freelancer freelancer = Freelancer.builder()

@@ -590,7 +590,7 @@ export const ManagerManagement = () => {
                         {pm.jobTitle || pm.role}
                       </p>
                       <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                        <span className="font-mono font-semibold">ID: #{pm.employeeId || pm.id}</span>
+                        <span className="font-mono font-semibold">ID: #{pm.id || pm.numericId || pm.employeeId}</span>
                         <span>•</span>
                         <span>{pm.email}</span>
                         <span>•</span>
@@ -947,7 +947,7 @@ export const ManagerManagement = () => {
               </p>
               <p className="text-xs text-[#737686] dark:text-slate-400 mt-1 flex items-center gap-2">
                 <span className="font-mono font-bold bg-slate-100 dark:bg-[#1c1a36] px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
-                  ID: #{manager.employeeId || manager.id}
+                  ID: #{manager.id || manager.numericId || manager.employeeId}
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
@@ -1541,7 +1541,7 @@ export const ManagerManagement = () => {
                       {pm.jobTitle || pm.role}
                     </p>
                     <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                      <span className="font-mono font-semibold">ID: #{pm.employeeId || pm.id}</span>
+                      <span className="font-mono font-semibold">ID: #{pm.id || pm.numericId || pm.employeeId}</span>
                       <span>•</span>
                       <span>{pm.email}</span>
                       <span>•</span>

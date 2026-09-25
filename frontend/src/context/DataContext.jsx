@@ -81,7 +81,7 @@ export const DataProvider = ({ children }) => {
     }
     return list.map((m, idx) => {
       if (!m) return m;
-      const rawNum = Number(String(m.id || m.employeeId || '').replace(/\D/g, '')) || (idx + 1);
+      const rawNum = Number(String(m.id || m.userId || m.numericId || '').replace(/\D/g, '')) || (idx + 1);
       return { ...m, id: rawNum, numericId: rawNum, employeeId: rawNum };
     });
   });
@@ -330,7 +330,54 @@ export const DataProvider = ({ children }) => {
         }
       }
     } catch {}
+
+    refreshClients();
   }, []);
+
+  const refreshClients = async () => {
+    try {
+      const res = await api.clients.getAll();
+      if (res && res.success && Array.isArray(res.data)) {
+        const mappedBackendClients = res.data.map((c) => ({
+          id: c.userId || c.id,
+          numericId: c.userId || c.id,
+          name: c.companyName || c.name,
+          companyName: c.companyName || c.name,
+          contactPerson: c.name || c.contactPerson || c.companyName,
+          email: c.email,
+          phone: c.phone || c.contactPhone || '',
+          logo: c.logoUrl || c.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+          industry: c.industry || 'Enterprise Software & Services',
+          tier: c.tier || 'Enterprise Client',
+          status: c.status || 'Active',
+          location: c.location || 'India',
+          joinedDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Active Account',
+          activeProjects: c.activeProjects || 0,
+          totalSpent: c.totalSpent || '₹0',
+        }));
+
+        setClients((prevLocal) => {
+          const merged = [...mappedBackendClients];
+          (prevLocal || []).forEach((localC) => {
+            if (!localC) return;
+            const exists = merged.some((m) =>
+              (m.email && localC.email && m.email.toLowerCase() === localC.email.toLowerCase()) ||
+              (m.id && localC.id && String(m.id) === String(localC.id))
+            );
+            if (!exists) {
+              merged.push(localC);
+            }
+          });
+          try {
+            localStorage.setItem('flexistaff_clients', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch clients from backend API:', err.message);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -344,28 +391,32 @@ export const DataProvider = ({ children }) => {
     let assignedId = clientData.id;
     let numericId = clientData.numericId;
 
-    try {
-      const apiRes = await api.clients.register({
-        fullName: clientData.fullName || clientData.contactPerson || clientData.name,
-        companyName: clientData.companyName || clientData.company || clientData.name,
-        email: clientData.email,
-        phone: clientData.phone,
-        password: clientData.password || 'Password123!',
-        industry: clientData.industry,
-        tier: clientData.tier,
-        location: clientData.location,
-      });
+    if (!clientData.skipApi) {
+      try {
+        const apiRes = await api.clients.register({
+          fullName: clientData.fullName || clientData.contactPerson || clientData.name,
+          companyName: clientData.companyName || clientData.company || clientData.name,
+          email: clientData.email,
+          phone: clientData.phone,
+          password: clientData.password || 'Password123!',
+          industry: clientData.industry,
+          tier: clientData.tier,
+          location: clientData.location,
+        });
 
-      if (apiRes && apiRes.success === false) {
-        return { success: false, error: apiRes.error || 'Email address already registered' };
-      }
+        if (apiRes && apiRes.success === false) {
+          if (!assignedId) {
+            return { success: false, error: apiRes.error || 'Email address already registered' };
+          }
+        }
 
-      if (apiRes && apiRes.data) {
-        assignedId = apiRes.data.userId || apiRes.data.id;
-        numericId = apiRes.data.userId || apiRes.data.id;
+        if (apiRes && apiRes.data) {
+          assignedId = apiRes.data.userId || apiRes.data.id;
+          numericId = apiRes.data.userId || apiRes.data.id;
+        }
+      } catch (err) {
+        console.warn('Backend client register offline, using local state fallback');
       }
-    } catch (err) {
-      console.warn('Backend client register offline, using local state fallback');
     }
 
     const newClient = {
@@ -4016,6 +4067,7 @@ export const DataProvider = ({ children }) => {
         updateClient,
         deleteClient,
         clearClients,
+        refreshClients,
         partners,
         addPartner,
         updatePartner,

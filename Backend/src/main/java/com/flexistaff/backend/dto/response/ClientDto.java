@@ -25,5 +25,7 @@ public class ClientDto {
     private String location;
     private String status;
     private String logoUrl;
+    private Integer activeProjects;
+    private String totalSpent;
     private LocalDateTime createdAt;
 }

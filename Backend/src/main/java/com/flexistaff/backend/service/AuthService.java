@@ -40,6 +40,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final UserService userService;
+    private final com.flexistaff.backend.config.DatabaseSequenceRepairRunner sequenceRepairRunner;
 
     public AuthResponse login(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
@@ -70,7 +71,7 @@ public class AuthService {
     public UserDto register(RegisterRequest registerRequest) {
         String email = registerRequest.getEmail().trim().toLowerCase();
 
-        if (userRepository.existsByEmail(email) || clientRepository.existsByEmail(email) || freelancerRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email) || clientRepository.existsByEmailIgnoreCase(email) || freelancerRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email address already registered: " + email);
         }
 
@@ -83,7 +84,15 @@ public class AuthService {
                 .active(true)
                 .build();
 
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        try {
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        } catch (Exception ex) {
+            sequenceRepairRunner.repairDatabaseSequences();
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        }
 
         // Create initial role profile and entities
         if (registerRequest.getRole() == Role.ROLE_PROFESSIONAL) {

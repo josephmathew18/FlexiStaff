@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -253,7 +253,13 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
 
 
 export const ClientManagement = () => {
-  const { clients = [], deleteClient, clearClients } = useData();
+  const { clients = [], deleteClient, clearClients, refreshClients } = useData();
+
+  useEffect(() => {
+    if (refreshClients) {
+      refreshClients();
+    }
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');

@@ -28,13 +28,15 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final ClientProfileRepository clientProfileRepository;
     private final FreelancerRepository freelancerRepository;
+    private final com.flexistaff.backend.repository.ProjectRepository projectRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.flexistaff.backend.config.DatabaseSequenceRepairRunner sequenceRepairRunner;
 
     @Transactional
     public ClientDto registerClient(ClientRegistrationRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
-        if (userRepository.existsByEmail(email) || clientRepository.existsByEmail(email) || freelancerRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email) || clientRepository.existsByEmailIgnoreCase(email) || freelancerRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email address already registered: " + email);
         }
 
@@ -48,7 +50,15 @@ public class ClientService {
                 .active(true)
                 .build();
 
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        try {
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        } catch (Exception ex) {
+            sequenceRepairRunner.repairDatabaseSequences();
+            savedUser = userRepository.save(user);
+            userRepository.flush();
+        }
 
         // 2. Create and save Client entity in "clients" table
         Client client = Client.builder()
@@ -81,40 +91,109 @@ public class ClientService {
     }
 
     public List<ClientDto> getAllClients() {
-        return clientRepository.findAll().stream()
+        List<ClientDto> list = clientRepository.findAll().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
+
+        List<User> clientUsers = userRepository.findByRole(Role.ROLE_CLIENT);
+        for (User user : clientUsers) {
+            boolean alreadyMapped = list.stream().anyMatch(c -> c.getUserId() != null && c.getUserId().equals(user.getId()));
+            if (!alreadyMapped) {
+                int projectCount = 0;
+                try {
+                    projectCount = projectRepository.findByClientId(user.getId()).size();
+                } catch (Exception ignored) {}
+
+                list.add(ClientDto.builder()
+                        .id(user.getId())
+                        .userId(user.getId())
+                        .name(user.getFullName())
+                        .companyName(user.getClientProfile() != null && user.getClientProfile().getCompanyName() != null ? user.getClientProfile().getCompanyName() : user.getFullName())
+                        .email(user.getEmail())
+                        .phone(user.getPhone())
+                        .contactPhone(user.getPhone())
+                        .industry(user.getClientProfile() != null && user.getClientProfile().getIndustry() != null ? user.getClientProfile().getIndustry() : "Enterprise Software & Services")
+                        .tier(user.getClientProfile() != null && user.getClientProfile().getTier() != null ? user.getClientProfile().getTier() : "Enterprise Client")
+                        .location(user.getClientProfile() != null && user.getClientProfile().getLocation() != null ? user.getClientProfile().getLocation() : "India")
+                        .status(user.getActive() != null && user.getActive() ? "Active" : "Inactive")
+                        .activeProjects(projectCount)
+                        .totalSpent("₹0")
+                        .createdAt(user.getCreatedAt())
+                        .build());
+            }
+        }
+
+        return list;
     }
 
     public ClientDto getClientById(Long id) {
-        Client client = clientRepository.findById(id)
+        Client client = clientRepository.findById(id).orElse(null);
+        if (client != null) {
+            return mapToDto(client);
+        }
+
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", "id", id));
-        return mapToDto(client);
+        int projectCount = 0;
+        try {
+            projectCount = projectRepository.findByClientId(user.getId()).size();
+        } catch (Exception ignored) {}
+
+        return ClientDto.builder()
+                .id(user.getId())
+                .userId(user.getId())
+                .name(user.getFullName())
+                .companyName(user.getClientProfile() != null && user.getClientProfile().getCompanyName() != null ? user.getClientProfile().getCompanyName() : user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .contactPhone(user.getPhone())
+                .industry(user.getClientProfile() != null && user.getClientProfile().getIndustry() != null ? user.getClientProfile().getIndustry() : "Enterprise Software & Services")
+                .tier(user.getClientProfile() != null && user.getClientProfile().getTier() != null ? user.getClientProfile().getTier() : "Enterprise Client")
+                .location(user.getClientProfile() != null && user.getClientProfile().getLocation() != null ? user.getClientProfile().getLocation() : "India")
+                .status(user.getActive() != null && user.getActive() ? "Active" : "Inactive")
+                .activeProjects(projectCount)
+                .totalSpent("₹0")
+                .createdAt(user.getCreatedAt())
+                .build();
     }
 
     @Transactional
     public void deleteClient(Long id) {
-        Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Client", "id", id));
-        clientRepository.delete(client);
-        if (client.getUser() != null) {
-            userRepository.delete(client.getUser());
+        Client client = clientRepository.findById(id).orElse(null);
+        if (client != null) {
+            clientRepository.delete(client);
+            if (client.getUser() != null) {
+                userRepository.delete(client.getUser());
+            }
+        } else {
+            User user = userRepository.findById(id).orElse(null);
+            if (user != null) {
+                userRepository.delete(user);
+            }
         }
     }
 
     public ClientDto mapToDto(Client client) {
+        int projectCount = 0;
+        try {
+            Long searchId = client.getUser() != null ? client.getUser().getId() : client.getId();
+            projectCount = projectRepository.findByClientId(searchId).size();
+        } catch (Exception ignored) {}
+
         return ClientDto.builder()
                 .id(client.getId())
                 .userId(client.getUser() != null ? client.getUser().getId() : client.getId())
                 .name(client.getName())
-                .companyName(client.getCompanyName())
+                .companyName(client.getCompanyName() != null ? client.getCompanyName() : client.getName())
                 .email(client.getEmail())
                 .phone(client.getPhone())
                 .contactPhone(client.getPhone())
-                .industry(client.getIndustry())
-                .tier(client.getTier())
-                .location(client.getLocation())
-                .status(client.getStatus())
+                .industry(client.getIndustry() != null ? client.getIndustry() : "Enterprise Software & Services")
+                .tier(client.getTier() != null ? client.getTier() : "Enterprise Client")
+                .location(client.getLocation() != null ? client.getLocation() : "India")
+                .status(client.getStatus() != null ? client.getStatus() : "Active")
+                .activeProjects(projectCount)
+                .totalSpent("₹0")
                 .createdAt(client.getCreatedAt())
                 .build();
     }

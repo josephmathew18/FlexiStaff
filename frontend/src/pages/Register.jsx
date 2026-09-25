@@ -191,6 +191,8 @@ export const Register = ({ onNavigateToLogin }) => {
       }
 
       const clientRes = await addClient({
+        id: authRes.user?.id,
+        numericId: authRes.user?.id,
         companyName: formData.companyName,
         fullName: formData.fullName,
         email: formData.email,
@@ -200,6 +202,7 @@ export const Register = ({ onNavigateToLogin }) => {
         industry: 'Enterprise Software & Services',
         tier: 'Enterprise Client',
         status: 'Active',
+        skipApi: true,
       });
 
       setLoading(false);
