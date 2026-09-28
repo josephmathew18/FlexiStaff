@@ -127,36 +127,110 @@ export const Dashboard = () => {
   const activeProjects = projects.filter((p) => p.stage === 'In Progress').length;
   const completedProjects = projects.filter((p) => p.stage === 'Completed').length;
   const pendingRequests = projects.filter((p) => p.stage === 'Request').length;
-  const pendingTalentApprovals = workforce.filter((w) => w.approvalStatus === 'Pending Review').length;
+  // Helper to filter out partner company organization accounts (which belong to Partner Companies, not individual workforce)
+  const isPartnerCompanyOrg = (w) => {
+    if (!w) return true;
+    const roleLower = (w.role || w.title || w.category || '').toLowerCase().trim();
+    const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+    const emailLower = (w.email || '').toLowerCase().trim();
 
-  // Manager Lifecycle & Reassignment Metrics
-  const totalManagers = managers.length;
-  const activeManagers = managers.filter((m) => m.status === 'Active').length;
-  const suspendedManagers = managers.filter((m) => m.status === 'Suspended').length;
-  const resignedManagers = managers.filter((m) => m.status === 'Resigned').length;
-  const terminatedManagers = managers.filter((m) => m.status === 'Terminated').length;
+    return (
+      roleLower === 'partner company' ||
+      roleLower === 'partner' ||
+      roleLower === 'role_partner' ||
+      nameLower === 'infosys' ||
+      nameLower === 'partner' ||
+      nameLower === 'partner company' ||
+      emailLower === 'partner@infosys.com' ||
+      emailLower === 'partner@gmail.com' ||
+      emailLower === 'partner@flexistaff.com'
+    );
+  };
 
-  const projectsNeedingReassignment = projects.filter((p) => {
-    const isProjectActive =
-      p.stage === 'In Progress' ||
-      p.stage === 'Approved' ||
-      p.status === 'In Progress' ||
-      p.status === 'Approved' ||
-      p.status === 'Partially Assigned' ||
-      p.status === 'Active';
-    const assignedMgr = managers.find((m) => m.name === p.manager);
-    return isProjectActive && assignedMgr && assignedMgr.status !== 'Active';
-  });
+  const cleanWorkforceRoster = useMemo(
+    () => (workforce || []).filter((w) => !isPartnerCompanyOrg(w)),
+    [workforce]
+  );
 
-  const totalProfessionals = workforce.filter((w) => w.roleType === 'Professional' && w.approvalStatus === 'Approved').length;
-  const availableProfessionals = workforce.filter(
-    (w) => w.roleType === 'Professional' && w.availability === 'Immediate' && w.approvalStatus === 'Approved'
-  ).length;
+  const pendingTalentApprovals = useMemo(
+    () =>
+      cleanWorkforceRoster.filter(
+        (w) =>
+          w.approvalStatus === 'Pending Review' ||
+          w.approvalStatus === 'Pending' ||
+          w.verificationStatus === 'Pending'
+      ).length,
+    [cleanWorkforceRoster]
+  );
 
-  const totalFreelancers = workforce.filter((w) => w.roleType === 'Freelancer' && w.approvalStatus === 'Approved').length;
-  const availableFreelancers = workforce.filter(
-    (w) => w.roleType === 'Freelancer' && w.availability === 'Immediate' && w.approvalStatus === 'Approved'
-  ).length;
+  // Helper functions for categorization
+  const isFreelancerMember = (w) => {
+    const source = (w.source || '').toLowerCase();
+    const profType = (w.professionalType || '').toLowerCase();
+    const roleType = (w.roleType || '').toLowerCase();
+    const type = (w.type || '').toLowerCase();
+    const role = (w.role || w.title || '').toLowerCase();
+
+    return (
+      source.includes('freelance') ||
+      profType === 'freelancer' ||
+      roleType === 'freelancer' ||
+      type === 'freelancer' ||
+      role.includes('freelanc')
+    );
+  };
+
+  const isApprovedMember = (w) => {
+    const appStat = (w.approvalStatus || '').toLowerCase();
+    const verStat = (w.verificationStatus || '').toLowerCase();
+    const accStat = (w.accountStatus || '').toLowerCase();
+    const stat = (w.status || '').toLowerCase();
+
+    if (
+      appStat === 'rejected' ||
+      verStat === 'rejected' ||
+      appStat.includes('pending') ||
+      verStat.includes('pending')
+    ) {
+      return false;
+    }
+
+    return (
+      appStat === 'approved' ||
+      verStat === 'approved' ||
+      accStat === 'active' ||
+      stat === 'active' ||
+      stat === 'available' ||
+      (!appStat && !verStat)
+    );
+  };
+
+  const isAvailableMember = (w) => {
+    if (!isApprovedMember(w)) return false;
+    const avail = (w.availability || w.status || '').toLowerCase().trim();
+    const unavailableList = ['busy', 'assigned', 'booked', 'inactive', 'unavailable', 'rejected'];
+    return !unavailableList.includes(avail);
+  };
+
+  const totalProfessionals = useMemo(
+    () => cleanWorkforceRoster.filter((w) => !isFreelancerMember(w) && isApprovedMember(w)).length,
+    [cleanWorkforceRoster]
+  );
+
+  const availableProfessionals = useMemo(
+    () => cleanWorkforceRoster.filter((w) => !isFreelancerMember(w) && isAvailableMember(w)).length,
+    [cleanWorkforceRoster]
+  );
+
+  const totalFreelancers = useMemo(
+    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isApprovedMember(w)).length,
+    [cleanWorkforceRoster]
+  );
+
+  const availableFreelancers = useMemo(
+    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isAvailableMember(w)).length,
+    [cleanWorkforceRoster]
+  );
 
   // Project Stage Distribution Chart Data
   const stageDistribution = useMemo(() => {
@@ -355,7 +429,7 @@ export const Dashboard = () => {
               <span className="text-[10px] font-bold uppercase tracking-wider">Supervised Talent</span>
               <Users size={14} />
             </div>
-            <p className="mt-1 text-base font-extrabold text-purple-950 dark:text-white">{workforce.length} Members</p>
+            <p className="mt-1 text-base font-extrabold text-purple-950 dark:text-white">{cleanWorkforceRoster.length} Members</p>
           </div>
         </div>
       </div>

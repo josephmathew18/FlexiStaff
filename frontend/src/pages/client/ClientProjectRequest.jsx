@@ -17,14 +17,23 @@ export const ClientProjectRequest = () => {
   const navigate = useNavigate();
 
   const handleFormSubmit = (data) => {
+    if (!submitClientProjectRequest) {
+      toast.error('System unavailable. Please refresh and try again.');
+      return;
+    }
+
     const newPrj = submitClientProjectRequest({
       ...data,
       client: clientProfile?.company || 'Client Organization',
       clientId: clientProfile?.id || 'cli-01',
     });
 
-    toast.success(`Project "${newPrj.name || newPrj.title}" submitted with status: Pending Admin Approval!`);
-    navigate(`/client/projects/${newPrj.id}`);
+    if (newPrj && newPrj.id) {
+      toast.success(`Project "${newPrj.name || newPrj.title}" submitted with status: Pending Admin Approval!`);
+      navigate(`/client/projects/${newPrj.id}`);
+    } else {
+      toast.error('Failed to register project requirement.');
+    }
   };
 
   return (

@@ -474,16 +474,39 @@ export const PartnerManagement = () => {
 
   // Aggregate Partner Metrics
   const totalSuppliedStaff = useMemo(() => {
-    return partners.reduce((sum, p) => sum + (Number(p.suppliedProfessionals) || 0), 0);
-  }, [partners]);
+    return partners.reduce((sum, p) => {
+      const pStaffList = (workforce || []).filter(
+        (w) =>
+          (w.partnerName && p.name && w.partnerName.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
+          (w.partnerCompany && p.name && w.partnerCompany.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
+          (w.partner && p.name && w.partner.toLowerCase().trim() === p.name.toLowerCase().trim())
+      );
+      const count = Number(p.suppliedProfessionals) || pStaffList.length || 0;
+      return sum + count;
+    }, 0);
+  }, [partners, workforce]);
 
   const totalActivePlacements = useMemo(() => {
-    return partners.reduce((sum, p) => sum + (Number(p.activePlacements) || 0), 0);
-  }, [partners]);
+    return partners.reduce((sum, p) => {
+      const activeWf = (workforce || []).filter(
+        (w) =>
+          ((w.partnerName && p.name && w.partnerName.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
+           (w.partnerCompany && p.name && w.partnerCompany.toLowerCase().trim() === p.name.toLowerCase().trim())) &&
+          (w.status === 'Assigned' || w.status === 'Active' || w.currentProject !== 'Unassigned')
+      );
+      const count = Number(p.activePlacements) || activeWf.length || 0;
+      return sum + count;
+    }, 0);
+  }, [partners, workforce]);
 
   // Register new Partner Submit
   const onAddSubmit = (data) => {
-    const specialtiesArray = data.specialties.split(',').map((s) => s.trim()).filter(Boolean);
+    const specialtiesArray = Array.isArray(data.specialties)
+      ? data.specialties
+      : typeof data.specialties === 'string'
+      ? data.specialties.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
     addPartner({
       ...data,
       specialties: specialtiesArray,

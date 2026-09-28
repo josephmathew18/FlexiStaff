@@ -18,6 +18,11 @@ import {
   Check,
   Flame,
   User,
+  Eye,
+  Star,
+  Mail,
+  Phone,
+  MapPin,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -103,6 +108,53 @@ export const ProjectDetails = () => {
 
   // Rejection modal state for candidate squad proposals
   const [rejectSquadModal, setRejectSquadModal] = useState({ isOpen: false, member: null, reason: '' });
+
+  // Candidate Details View Modal State
+  const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
+
+  const getEnrichedCandidate = (member) => {
+    if (!member) return null;
+    const candIdStr = String(member.professionalId || member.id || '').toLowerCase().trim();
+    const candNameLower = String(member.professionalName || member.name || '').toLowerCase().trim();
+    const candEmailLower = String(member.email || '').toLowerCase().trim();
+
+    const masterCandidate =
+      (workforce || []).find((w) => {
+        if (!w) return false;
+        const wId = String(w.id || '').toLowerCase().trim();
+        const wName = String(w.name || w.pseudonym || '').toLowerCase().trim();
+        const wEmail = String(w.email || '').toLowerCase().trim();
+        return (candIdStr && wId === candIdStr) || (candNameLower && wName === candNameLower) || (candEmailLower && wEmail === candEmailLower);
+      }) ||
+      (partnerWorkforce || []).find((w) => {
+        if (!w) return false;
+        const wId = String(w.id || '').toLowerCase().trim();
+        const wName = String(w.name || w.pseudonym || '').toLowerCase().trim();
+        const wEmail = String(w.email || '').toLowerCase().trim();
+        return (candIdStr && wId === candIdStr) || (candNameLower && wName === candNameLower) || (candEmailLower && wEmail === candEmailLower);
+      });
+
+    const rawSkills = member.skills || masterCandidate?.skills || ['React.js', 'PostgreSQL', 'Node.js'];
+    const skillsArr = Array.isArray(rawSkills)
+      ? rawSkills
+      : String(rawSkills).split(/[,+]/).map((s) => s.trim()).filter(Boolean);
+
+    return {
+      ...member,
+      professionalName: member.professionalName || member.name || masterCandidate?.name || masterCandidate?.pseudonym || 'Specialist',
+      avatar: member.avatar || masterCandidate?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      email: member.email || masterCandidate?.email || 'specialist@flexistaff.ai',
+      phone: member.phone || masterCandidate?.phone || '+91 98765 43210',
+      location: member.location || masterCandidate?.location || 'Bengaluru, India',
+      bio: masterCandidate?.bio || masterCandidate?.summary || member.notes || 'Experienced software specialist assigned to project engineering squad.',
+      experience: member.experience || masterCandidate?.experience || '3+ Years',
+      hourlyRate: member.hourlyRate || masterCandidate?.hourlyRate || '$95/hr',
+      rating: masterCandidate?.rating || 4.9,
+      skills: skillsArr,
+      partnerName: member.partnerName || masterCandidate?.partnerName || masterCandidate?.partnerCompany || (member.source === 'Partner Company' ? 'Partner Enterprise Company' : 'Independent Freelancer Pool'),
+      roleType: member.roleType || masterCandidate?.roleType || (member.source === 'Partner Company' ? 'Professional' : 'Freelancer'),
+    };
+  };
 
   const decodedId = decodeURIComponent(id || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');

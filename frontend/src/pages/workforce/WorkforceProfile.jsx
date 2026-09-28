@@ -22,6 +22,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
+import SkillInputWithSuggestions from '../../components/common/SkillInputWithSuggestions';
 
 const formatCapitalizedName = (str) => {
   if (!str) return '';
@@ -544,44 +545,14 @@ export const WorkforceProfile = () => {
               </div>
             </div>
 
-            {/* Skills Chip Manager */}
-            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/10">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Verified Technical Skills</label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.skills.map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/40 text-xs font-bold text-purple-800 dark:text-purple-300 shadow-xs"
-                  >
-                    <span>{skill}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSkill(skill)}
-                      className="text-purple-400 hover:text-purple-700 dark:hover:text-purple-200"
-                    >
-                      <X size={13} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-
-              <div className="flex gap-2 max-w-md">
-                <input
-                  type="text"
-                  value={newSkillInput}
-                  onChange={(e) => setNewSkillInput(e.target.value)}
-                  placeholder="Add skill"
-                  className="flex-1 rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSkill}
-                  className="px-4 py-2 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 font-extrabold text-xs hover:bg-purple-200 dark:hover:bg-purple-900/80 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={14} />
-                  <span>Add</span>
-                </button>
-              </div>
+            {/* Skills Chip Manager with Suggestions */}
+            <div className="pt-2 border-t border-slate-100 dark:border-white/10">
+              <SkillInputWithSuggestions
+                selectedSkills={formData.skills}
+                onChange={(updatedSkills) => setFormData((prev) => ({ ...prev, skills: updatedSkills }))}
+                label="Verified Technical Skills"
+                theme="purple"
+              />
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-white/10">

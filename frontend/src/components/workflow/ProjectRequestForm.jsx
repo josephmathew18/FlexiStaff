@@ -20,6 +20,7 @@ import {
   Award,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import SkillInputWithSuggestions from '../common/SkillInputWithSuggestions';
 
 const PRESET_SKILLS = [
   'React.js',
@@ -48,10 +49,10 @@ const schema = yup.object().shape({
   priority: yup.string().required('Priority level is required'),
   duration: yup.string().required('Project Duration is required'),
   startDate: yup.string().required('Start Date is required'),
-  endDate: yup.string().required('End Date is required'),
+  endDate: yup.string().nullable().optional(),
   minExperience: yup.string().required('Minimum experience requirement is required'),
   budget: yup.string().required('Estimated budget is required'),
-  additionalRequirements: yup.string(),
+  additionalRequirements: yup.string().optional(),
 });
 
 export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
@@ -173,8 +174,16 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
     }
   };
 
+  const onFormError = (errs) => {
+    const errorKeys = Object.keys(errs);
+    if (errorKeys.length > 0) {
+      const firstError = errs[errorKeys[0]]?.message || 'Please fill in all required fields';
+      toast.error(`Form Error: ${firstError}`);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6 text-xs text-slate-700">
+    <form onSubmit={handleSubmit(onFormSubmit, onFormError)} className="space-y-6 text-xs text-slate-700">
       {/* 1. Project Basic Overview */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
@@ -262,65 +271,14 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
           </div>
         </div>
 
-        {/* Skill Badge Selector */}
-        <div className="space-y-3">
-          <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
-            <span>Select Required Skill Technologies *</span>
-            <span className="text-[11px] font-normal text-blue-600">
-              {selectedSkills.length} Skills Selected
-            </span>
-          </label>
-
-          <div className="flex flex-wrap gap-2">
-            {PRESET_SKILLS.map((skill) => {
-              const isSelected = selectedSkills.includes(skill);
-              return (
-                <button
-                  type="button"
-                  key={skill}
-                  onClick={() => toggleSkill(skill)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    isSelected
-                      ? 'bg-[#004ac6] text-white shadow-xs scale-102'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-blue-50'
-                  }`}
-                >
-                  <Tag size={12} />
-                  <span>{skill}</span>
-                  {isSelected && <CheckCircle2 size={12} className="ml-0.5" />}
-                </button>
-              );
-            })}
-          </div>
-
-
-
-          {/* Display Selected Skills summary pills */}
-          {selectedSkills.length > 0 && (
-            <div className="rounded-xl bg-white p-3 border border-slate-200 space-y-1.5">
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                Active Skill Stack Requirements:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedSkills.map((sk) => (
-                  <span
-                    key={sk}
-                    className="inline-flex items-center gap-1 bg-blue-50 text-[#004ac6] border border-blue-200 px-2.5 py-0.5 rounded-md text-[11px] font-semibold"
-                  >
-                    <span>{sk}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleSkill(sk)}
-                      className="text-blue-400 hover:text-blue-700 font-bold ml-1"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Skill Selector with Autocomplete Suggestions */}
+        <SkillInputWithSuggestions
+          selectedSkills={selectedSkills}
+          onChange={(newSkills) => setSelectedSkills(newSkills)}
+          label="Select Required Skill Technologies *"
+          placeholder="Type or select skill (e.g. react.js, postgresql...)"
+          theme="blue"
+        />
 
         {/* Total Professionals / Headcount Required */}
         <div className="pt-3 border-t border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -403,6 +361,15 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
               className="w-full rounded-xl border border-slate-300 p-2 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
             />
             {errors.startDate && <p className="text-rose-600 text-[10px] mt-1">{errors.startDate.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Target End Date (Optional)</label>
+            <input
+              type="date"
+              {...register('endDate')}
+              className="w-full rounded-xl border border-slate-300 p-2 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+            />
           </div>
         </div>
 

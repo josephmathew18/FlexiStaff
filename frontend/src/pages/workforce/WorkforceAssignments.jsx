@@ -90,6 +90,7 @@ export const WorkforceAssignments = () => {
 
     const results = [];
     const seenKeys = new Set();
+    const handledProjectIds = new Set();
 
     // 1. From managerAssignments
     (managerAssignments || []).forEach((a) => {
@@ -107,13 +108,17 @@ export const WorkforceAssignments = () => {
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           results.push(a);
+          if (normProj) handledProjectIds.add(normProj);
         }
       }
     });
 
-    // 2. From projects array (assignedResources & active project allocations)
+    // 2. From projects array (ONLY if explicitly in assignedResources and not already handled in managerAssignments)
     (projects || []).forEach((p) => {
       if (!p) return;
+      const normProj = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      if (handledProjectIds.has(normProj)) return;
+
       const assignedList = p.assignedResources || [];
       const isAssignedToUser = assignedList.some((res) => {
         if (!res) return false;
@@ -126,11 +131,7 @@ export const WorkforceAssignments = () => {
         );
       });
 
-      const pClient = (p.client || '').toLowerCase().trim();
-      const isCompanyProj = wfCompany && wfCompany !== 'enterprise client' && (pClient === wfCompany || pClient.includes(wfCompany) || wfCompany.includes(pClient));
-
-      if (isAssignedToUser || (isCompanyProj && p.status !== 'Rejected' && p.stage !== 'Rejected')) {
-        const normProj = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      if (isAssignedToUser) {
         const key = `prj_${normProj}_${p.id}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -149,6 +150,7 @@ export const WorkforceAssignments = () => {
             currentTask: p.recentUpdate || 'Active project milestone deliverables in progress.',
             progress: p.progress || 0,
           });
+          handledProjectIds.add(normProj);
         }
       }
     });
@@ -163,6 +165,8 @@ export const WorkforceAssignments = () => {
 
       if (isMatch) {
         const normProj = String(r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (handledProjectIds.has(normProj)) return;
+
         const key = `fl_${normProj}_${r.id || rName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -178,8 +182,9 @@ export const WorkforceAssignments = () => {
             status: r.status === 'Pending' ? 'Awaiting Workforce Response' : r.status,
             assignedDate: r.requestedDate || new Date().toISOString().split('T')[0],
             notes: r.notes || 'Direct Workforce Request submitted by Organization Manager.',
-            currentTask: 'Direct request submitted by Manager. Review and respond.',
+            currentTask: r.status === 'Declined' || r.status === 'Rejected' ? 'Assignment declined by candidate.' : 'Direct request submitted by Manager. Review and respond.',
           });
+          if (normProj) handledProjectIds.add(normProj);
         }
       }
     });
@@ -191,6 +196,8 @@ export const WorkforceAssignments = () => {
         const prCompany = (pr.partnerName || '').toLowerCase().trim();
         if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
           const normProj = String(pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          if (handledProjectIds.has(normProj)) return;
+
           const key = `prt_${normProj}_${pr.id}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
@@ -206,8 +213,9 @@ export const WorkforceAssignments = () => {
               status: pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status,
               assignedDate: pr.createdDate || new Date().toISOString().split('T')[0],
               notes: pr.additionalRequirements || 'Partner Company Allocation Request.',
-              currentTask: 'Partner Workforce Request assigned to your company. Awaiting response.',
+              currentTask: pr.status === 'Declined' || pr.status === 'Rejected' ? 'Assignment declined by candidate.' : 'Partner Workforce Request assigned to your company. Awaiting response.',
             });
+            if (normProj) handledProjectIds.add(normProj);
           }
         }
       });
@@ -226,7 +234,11 @@ export const WorkforceAssignments = () => {
   }, [myAssignments]);
 
   const activeAssignments = useMemo(() => {
-    return myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
+    return myAssignments.filter((a) => {
+      const s = String(a.status || '').toLowerCase().trim();
+      const isDeclinedOrRejected = s.includes('declined') || s.includes('rejected');
+      return !isDeclinedOrRejected && (s === 'accepted' || s === 'working' || s === 'in progress' || s === 'approved');
+    });
   }, [myAssignments]);
 
   const filteredAssignments = useMemo(() => {
@@ -465,10 +477,10 @@ export const WorkforceAssignments = () => {
             </div>
           </div>
 
-          {myAssignments.length > 0 && (
+          {activeAssignments.length > 0 && (
             <button
               type="button"
-              onClick={() => handleOpenCommitModal(myAssignments[0])}
+              onClick={() => handleOpenCommitModal(activeAssignments[0])}
               className="px-4 py-2 rounded-xl bg-[#7c3aed] hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 active:scale-95 transition-all flex items-center gap-2 self-start sm:self-auto"
             >
               <GitCommit size={15} />
@@ -478,7 +490,18 @@ export const WorkforceAssignments = () => {
         </div>
 
         {/* Milestone Cards for Active Assignments */}
-        {myAssignments.map((asg) => {
+        {activeAssignments.length === 0 ? (
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs text-center py-8 space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center">
+              <GitCommit size={24} />
+            </div>
+            <h3 className="text-sm font-extrabold text-slate-900">No Active Project Milestone Commits</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              You do not have any active, accepted project assignments at the moment. Milestone commit tracking and work submission are enabled once you accept an assignment offer.
+            </p>
+          </div>
+        ) : (
+          activeAssignments.map((asg) => {
           const pId = asg.projectId;
           const msList = (projectMilestones && projectMilestones[pId]) || asg.milestones || [];
 
@@ -622,7 +645,8 @@ export const WorkforceAssignments = () => {
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
       {/* Filter Tabs & Search */}
@@ -742,14 +766,28 @@ export const WorkforceAssignments = () => {
                             />
                             <span className="font-bold text-slate-900 text-xs">{asg.progress || 0}%</span>
                           </div>
-                        ) : asg.status === 'Awaiting Workforce Response' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAccept(asg)}
-                            className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold shadow-2xs hover:bg-emerald-700"
-                          >
-                            Accept Offer
-                          </button>
+                        ) : isPendingStatus(asg.status) ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleAccept(asg)}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all"
+                            >
+                              <Check size={12} />
+                              <span>Accept Offer</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAsgForDecline(asg);
+                                setIsDeclineModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                            >
+                              <X size={12} />
+                              <span>Decline</span>
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-[11px] text-slate-400">{asg.progress || 0}%</span>
                         )}

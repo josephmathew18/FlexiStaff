@@ -47,6 +47,7 @@ export const WorkforceDashboard = () => {
 
     const results = [];
     const seenKeys = new Set();
+    const handledProjectIds = new Set();
 
     (managerAssignments || []).forEach((a) => {
       if (!a) return;
@@ -63,6 +64,7 @@ export const WorkforceDashboard = () => {
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           results.push(a);
+          if (normProj) handledProjectIds.add(normProj);
         }
       }
     });
@@ -76,6 +78,8 @@ export const WorkforceDashboard = () => {
 
       if (isMatch) {
         const normProj = String(r.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (handledProjectIds.has(normProj)) return;
+
         const key = `fl_${normProj}_${r.id || rName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
@@ -91,8 +95,9 @@ export const WorkforceDashboard = () => {
             status: r.status === 'Pending' ? 'Awaiting Workforce Response' : r.status,
             assignedDate: r.requestedDate || new Date().toISOString().split('T')[0],
             notes: r.notes || 'Direct Workforce Request submitted by Organization Manager.',
-            currentTask: 'Direct request submitted by Manager. Review and respond.',
+            currentTask: r.status === 'Declined' || r.status === 'Rejected' ? 'Assignment declined by candidate.' : 'Direct request submitted by Manager. Review and respond.',
           });
+          if (normProj) handledProjectIds.add(normProj);
         }
       }
     });
@@ -103,6 +108,8 @@ export const WorkforceDashboard = () => {
         const prCompany = (pr.partnerName || '').toLowerCase().trim();
         if (prCompany === wfCompany || prCompany.includes(wfCompany) || wfCompany.includes(prCompany)) {
           const normProj = String(pr.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          if (handledProjectIds.has(normProj)) return;
+
           const key = `prt_${normProj}_${pr.id}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
@@ -118,8 +125,9 @@ export const WorkforceDashboard = () => {
               status: pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status,
               assignedDate: pr.createdDate || new Date().toISOString().split('T')[0],
               notes: pr.additionalRequirements || 'Partner Company Allocation Request.',
-              currentTask: 'Partner Workforce Request assigned to your company. Awaiting response.',
+              currentTask: pr.status === 'Declined' || pr.status === 'Rejected' ? 'Assignment declined by candidate.' : 'Partner Workforce Request assigned to your company. Awaiting response.',
             });
+            if (normProj) handledProjectIds.add(normProj);
           }
         }
       });

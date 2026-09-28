@@ -41,6 +41,45 @@ export const getNextGlobalUserId = (role, clients = [], managers = [], partners 
   return maxExisting + 1;
 };
 
+const DEFAULT_CLIENTS = [
+  {
+    id: 'cli-01',
+    numericId: 101,
+    name: 'TechCorp Enterprise Solutions',
+    companyName: 'TechCorp Enterprise Solutions',
+    contactPerson: 'Enterprise Client Contact',
+    email: 'client@flexistaff.com',
+    phone: '+91 98765 00000',
+    logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+    industry: 'Enterprise Software & Cloud',
+    tier: 'Tier 1 Enterprise Client',
+    status: 'Active',
+    location: 'Bengaluru, India',
+    joinedDate: '2026-01-15',
+    activeProjects: 2,
+    totalSpent: '₹12,50,000',
+    description: 'Global enterprise client leveraging FlexiStaff for cloud scaling.',
+  },
+  {
+    id: 'cli-02',
+    numericId: 102,
+    name: 'Acme Financial Guild',
+    companyName: 'Acme Financial Guild',
+    contactPerson: 'Sarah Jenkins',
+    email: 'sarah@acmefinance.com',
+    phone: '+91 98123 45678',
+    logo: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=200&q=80',
+    industry: 'FinTech & Machine Learning',
+    tier: 'Enterprise Client',
+    status: 'Active',
+    location: 'Mumbai, India',
+    joinedDate: '2026-02-10',
+    activeProjects: 1,
+    totalSpent: '₹8,20,000',
+    description: 'Financial engineering partner company.',
+  },
+];
+
 const DataContext = createContext(null);
 
 export const DataProvider = ({ children }) => {
@@ -50,11 +89,14 @@ export const DataProvider = ({ children }) => {
   const [clients, setClients] = useState(() => {
     try {
       const saved = localStorage.getItem('flexistaff_clients');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // Ignore
     }
-    return initialClients || [];
+    return DEFAULT_CLIENTS;
   });
 
   const [partners, setPartners] = useState(() => {
@@ -335,16 +377,17 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   const refreshClients = async () => {
+    let mappedBackendClients = [];
     try {
       const res = await api.clients.getAll();
       if (res && res.success && Array.isArray(res.data)) {
-        const mappedBackendClients = res.data.map((c) => ({
+        mappedBackendClients = res.data.map((c) => ({
           id: c.userId || c.id,
           numericId: c.userId || c.id,
-          name: c.companyName || c.name,
-          companyName: c.companyName || c.name,
-          contactPerson: c.name || c.contactPerson || c.companyName,
-          email: c.email,
+          name: c.companyName || c.name || 'Client Organization',
+          companyName: c.companyName || c.name || 'Client Organization',
+          contactPerson: c.name || c.contactPerson || c.companyName || 'Client Contact',
+          email: c.email || '',
           phone: c.phone || c.contactPhone || '',
           logo: c.logoUrl || c.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
           industry: c.industry || 'Enterprise Software & Services',
@@ -355,28 +398,82 @@ export const DataProvider = ({ children }) => {
           activeProjects: c.activeProjects || 0,
           totalSpent: c.totalSpent || '₹0',
         }));
-
-        setClients((prevLocal) => {
-          const merged = [...mappedBackendClients];
-          (prevLocal || []).forEach((localC) => {
-            if (!localC) return;
-            const exists = merged.some((m) =>
-              (m.email && localC.email && m.email.toLowerCase() === localC.email.toLowerCase()) ||
-              (m.id && localC.id && String(m.id) === String(localC.id))
-            );
-            if (!exists) {
-              merged.push(localC);
-            }
-          });
-          try {
-            localStorage.setItem('flexistaff_clients', JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
       }
     } catch (err) {
       console.warn('Could not fetch clients from backend API:', err.message);
     }
+
+    let registeredUsersClients = [];
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      if (regStr) {
+        const regList = JSON.parse(regStr);
+        if (Array.isArray(regList)) {
+          regList.forEach((u) => {
+            if (u && (u.role === 'Client' || u.role === 'ROLE_CLIENT')) {
+              registeredUsersClients.push({
+                id: u.id || `cli-${Date.now()}`,
+                numericId: u.id || Date.now(),
+                name: u.companyName || u.company || u.name || 'Registered Client',
+                companyName: u.companyName || u.company || u.name || 'Registered Client',
+                contactPerson: u.fullName || u.name || u.contactPerson || 'Client Contact',
+                email: u.email || '',
+                phone: u.phone || '',
+                logo: u.avatar || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+                industry: u.industry || 'Enterprise Technology',
+                tier: u.tier || 'Enterprise Client',
+                status: u.status || 'Active',
+                location: u.location || u.address || 'India',
+                joinedDate: u.joinedDate || new Date().toISOString().split('T')[0],
+                activeProjects: 0,
+                totalSpent: '₹0',
+              });
+            }
+          });
+        }
+      }
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
+          registeredUsersClients.push({
+            id: savedUser.id || 'cli-logged',
+            numericId: savedUser.id || 999,
+            name: savedUser.companyName || savedUser.company || savedUser.name || 'Logged Client Organization',
+            companyName: savedUser.companyName || savedUser.company || savedUser.name || 'Logged Client Organization',
+            contactPerson: savedUser.fullName || savedUser.name || savedUser.contactPerson || 'Client Contact',
+            email: savedUser.email || '',
+            phone: savedUser.phone || '',
+            logo: savedUser.avatar || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+            industry: savedUser.industry || 'Enterprise Technology',
+            tier: savedUser.tier || 'Enterprise Client',
+            status: 'Active',
+            location: savedUser.location || savedUser.address || 'India',
+            joinedDate: new Date().toISOString().split('T')[0],
+            activeProjects: 0,
+            totalSpent: '₹0',
+          });
+        }
+      }
+    } catch {}
+
+    setClients((prevLocal) => {
+      const combined = [...mappedBackendClients, ...registeredUsersClients, ...(prevLocal || []), ...DEFAULT_CLIENTS];
+      const unique = [];
+      const seen = new Set();
+      combined.forEach((item) => {
+        if (!item) return;
+        const key = (item.email || item.name || item.id || '').toLowerCase().trim();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          unique.push(item);
+        }
+      });
+      try {
+        localStorage.setItem('flexistaff_clients', JSON.stringify(unique));
+      } catch {}
+      return unique;
+    });
   };
 
   useEffect(() => {
@@ -500,25 +597,9 @@ export const DataProvider = ({ children }) => {
     } catch {}
   };
 
-  // Clear any existing self-registered client entries on initial load as requested by user
-  useEffect(() => {
-    try {
-      const regStr = localStorage.getItem('flexistaff_registered_users');
-      if (regStr) {
-        const regList = JSON.parse(regStr);
-        const hasClients = regList.some((u) => u && (u.role === 'Client' || u.role === 'ROLE_CLIENT'));
-        if (hasClients) {
-          const updatedReg = regList.filter((u) => u && u.role !== 'Client' && u.role !== 'ROLE_CLIENT');
-          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
-        }
-      }
-      const savedClientsStr = localStorage.getItem('flexistaff_clients');
-      if (savedClientsStr) {
-        localStorage.removeItem('flexistaff_clients');
-        setClients([]);
-      }
-    } catch {}
-  }, []);
+
+
+
 
   // Sync projects and data with Spring Boot backend when available
   useEffect(() => {
@@ -2625,30 +2706,40 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   // WORKFORCE (PROFESSIONAL / FREELANCER): ACCEPT OR DECLINE
   // =========================================================================
+  // =========================================================================
+  // WORKFORCE (PROFESSIONAL / FREELANCER): ACCEPT OR DECLINE
+  // =========================================================================
   const acceptWorkforceAssignment = (assignmentId) => {
     let targetAsg = null;
-    setManagerAssignments((prev) =>
-      prev.map((a) => {
-        if (a.id === assignmentId) {
+    const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        const aIdStr = String(a.id || '').toLowerCase().trim();
+        const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+        if (aIdStr === targetIdStr || aProjIdStr === targetIdStr) {
           targetAsg = {
             ...a,
             status: 'Accepted',
-            progress: 15,
-            currentTask: 'Architecture orientation and codebase setup',
+            progress: Math.max(15, a.progress || 0),
+            currentTask: 'Architecture orientation and codebase setup in progress',
             acceptedDate: new Date().toISOString().split('T')[0],
           };
           return targetAsg;
         }
         return a;
-      })
-    );
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     if (!targetAsg) return;
 
     // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
     setWorkforce((prev) =>
-      prev.map((w) =>
-        w.id === targetAsg.professionalId
+      (prev || []).map((w) =>
+        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
               ...w,
               availability: 'Assigned',
@@ -2660,8 +2751,8 @@ export const DataProvider = ({ children }) => {
       )
     );
     setPartnerWorkforce((prev) =>
-      prev.map((w) =>
-        w.id === targetAsg.professionalId
+      (prev || []).map((w) =>
+        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
               ...w,
               availability: 'Assigned',
@@ -2673,38 +2764,55 @@ export const DataProvider = ({ children }) => {
       )
     );
 
-    // 2. Update project status to 'In Progress' and increment workforceAssigned
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id === targetAsg.projectId) {
-          const nextAssigned = (p.workforceAssigned || 0) + 1;
-          const newResources = [
-            ...(p.assignedResources || []).filter((r) => r.id !== targetAsg.professionalId),
-            {
-              id: targetAsg.professionalId,
-              name: targetAsg.professionalName,
-              role: targetAsg.role,
-              avatar: targetAsg.avatar,
-              roleType: targetAsg.roleType || 'Professional',
-              hoursPerWeek: 40,
-            },
-          ];
-          return {
-            ...p,
-            status: 'In Progress',
-            stage: 'In Progress',
-            workforceAssigned: nextAssigned,
-            assignedResources: newResources,
-          };
-        }
-        return p;
-      })
-    );
+    // 2. Update project status to 'In Progress' and add assigned resources
+    const updateProjObj = (p) => {
+      if (!p) return p;
+      const pIdStr = String(p.id || '').toLowerCase().trim();
+      const asgProjIdStr = String(targetAsg.projectId || '').toLowerCase().trim();
+      const pTitleLower = (p.title || p.name || '').toLowerCase().trim();
+      const asgTitleLower = (targetAsg.projectName || '').toLowerCase().trim();
+
+      if (pIdStr === asgProjIdStr || (pTitleLower && asgTitleLower && (pTitleLower === asgTitleLower || pTitleLower.includes(asgTitleLower)))) {
+        const nextAssigned = Math.max(1, (p.workforceAssigned || 0) + 1);
+        const newResources = [
+          ...(p.assignedResources || []).filter((r) => r && r.id !== targetAsg.professionalId && (r.name || '').toLowerCase() !== (targetAsg.professionalName || '').toLowerCase()),
+          {
+            id: targetAsg.professionalId || targetAsg.id,
+            name: targetAsg.professionalName,
+            role: targetAsg.role,
+            avatar: targetAsg.avatar,
+            roleType: targetAsg.roleType || 'Professional',
+            hoursPerWeek: 40,
+          },
+        ];
+        return {
+          ...p,
+          status: 'In Progress',
+          stage: 'In Progress',
+          workforceAssigned: nextAssigned,
+          assignedResources: newResources,
+          recentUpdate: `Workforce candidate accepted assignment. Project phase set to In Progress.`,
+        };
+      }
+      return p;
+    };
+
+    setProjects((prev) => {
+      const updated = (prev || []).map(updateProjObj);
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    setPartnerProjects((prev) => {
+      const updated = (prev || []).map(updateProjObj);
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
     // 3. Notify Manager & Client
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
-      title: 'Talent Accepted Assignment',
+      title: 'Talent Accepted Assignment Offer',
       message: `${targetAsg.professionalName} accepted assignment on "${targetAsg.projectName}". Project execution started.`,
       type: 'assignment',
       unread: true,
@@ -2716,7 +2824,7 @@ export const DataProvider = ({ children }) => {
     const clientNotif = {
       id: `cnotif-${Date.now()}`,
       title: 'Workforce Onboarded to Project',
-      message: `${targetAsg.professionalName} (${targetAsg.role}) accepted assignment and has been allocated to "${targetAsg.projectName}".`,
+      message: `${targetAsg.professionalName} (${targetAsg.role}) accepted assignment offer for "${targetAsg.projectName}".`,
       type: 'project',
       unread: true,
       time: 'Just now',
@@ -2727,26 +2835,93 @@ export const DataProvider = ({ children }) => {
 
   const declineWorkforceAssignment = (assignmentId, reason = 'Schedule conflict / timeline mismatch') => {
     let targetAsg = null;
-    setManagerAssignments((prev) =>
-      prev.map((a) => {
-        if (a.id === assignmentId) {
+    const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        const aIdStr = String(a.id || '').toLowerCase().trim();
+        const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+
+        if (aIdStr === targetIdStr || aProjIdStr === targetIdStr) {
           targetAsg = {
             ...a,
             status: 'Declined',
             declineReason: reason,
-            currentTask: 'Assignment declined by talent.',
+            currentTask: 'Assignment declined by candidate.',
           };
           return targetAsg;
         }
         return a;
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    setFreelancerRequests((prev) =>
+      (prev || []).map((r) => {
+        if (!r) return r;
+        const rIdStr = String(r.id || '').toLowerCase().trim();
+        const rProjIdStr = String(r.projectId || '').toLowerCase().trim();
+        if (rIdStr === targetIdStr || rProjIdStr === targetIdStr) {
+          return { ...r, status: 'Declined', rejectionReason: reason };
+        }
+        return r;
       })
     );
+
+    setPartnerWorkforceRequests((prev) =>
+      (prev || []).map((pr) => {
+        if (!pr) return pr;
+        const prIdStr = String(pr.id || '').toLowerCase().trim();
+        const prProjIdStr = String(pr.projectId || '').toLowerCase().trim();
+        if (prIdStr === targetIdStr || prProjIdStr === targetIdStr) {
+          return { ...pr, status: 'Declined', rejectionReason: reason };
+        }
+        return pr;
+      })
+    );
+
+    if (targetAsg) {
+      // Remove candidate from project assignedResources if present
+      const cleanupProjectObj = (p) => {
+        if (!p) return p;
+        const pIdStr = String(p.id || '').toLowerCase().trim();
+        const asgProjIdStr = String(targetAsg.projectId || '').toLowerCase().trim();
+        if (pIdStr === asgProjIdStr) {
+          const newResources = (p.assignedResources || []).filter(
+            (r) => r && r.id !== targetAsg.professionalId && (r.name || '').toLowerCase() !== (targetAsg.professionalName || '').toLowerCase()
+          );
+          return {
+            ...p,
+            workforceAssigned: newResources.length,
+            assignedResources: newResources,
+          };
+        }
+        return p;
+      };
+
+      setProjects((prev) => {
+        const updated = (prev || []).map(cleanupProjectObj);
+        try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+
+      // Update candidate availability to 'Available' in central workforce and partner pools
+      setWorkforce((prev) =>
+        (prev || []).map((w) =>
+          w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
+            ? { ...w, availability: 'Available', workingStatus: 'Available', currentProject: 'None' }
+            : w
+        )
+      );
+    }
 
     // Notify Manager
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
-      title: 'Assignment Declined by Talent',
-      message: `${targetAsg?.professionalName} declined assignment on "${targetAsg?.projectName}": ${reason}. Please select alternate talent.`,
+      title: 'Assignment Offer Declined by Candidate',
+      message: `${targetAsg?.professionalName || 'Candidate'} declined assignment offer on "${targetAsg?.projectName || 'Project'}": ${reason}.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -2760,85 +2935,95 @@ export const DataProvider = ({ children }) => {
     return requestWorkforceAssignment(projectId, workforceId, assignedRole);
   };
 
-  // Workforce Progress Update
-  const updateWorkforceProgress = (projectId, workforceId, { task, progress, status, description }) => {
-    const numProgress = Number(progress) || 0;
+  // Robust Flexible Workforce Progress & Sprint Updates
+  const updateWorkforceProgress = (arg1, arg2, arg3) => {
+    let targetAsgId = null;
+    let targetProjectId = null;
+    let numProgress = 0;
+    let taskName = null;
 
-    // 1. Update workforce list
-    setWorkforce((prev) =>
-      prev.map((w) => (w.id === workforceId ? { ...w, workProgress: numProgress, currentTask: task, workingStatus: status || 'Working', lastUpdated: 'Just now' } : w))
-    );
-    setPartnerWorkforce((prev) =>
-      prev.map((w) => (w.id === workforceId ? { ...w, workProgress: numProgress, currentTask: task, workingStatus: status || 'Working', lastUpdated: 'Just now' } : w))
-    );
+    if (typeof arg1 === 'string' && (typeof arg2 === 'number' || !isNaN(Number(arg2)))) {
+      // Signature: updateWorkforceProgress(asgId, 30)
+      targetAsgId = arg1;
+      numProgress = Number(arg2) || 0;
+    } else if (typeof arg1 === 'string' && typeof arg2 === 'string' && arg3 && typeof arg3 === 'object') {
+      // Signature: updateWorkforceProgress(projectId, workforceId, { progress, task })
+      targetProjectId = arg1;
+      targetAsgId = arg2;
+      numProgress = Number(arg3.progress) || 0;
+      taskName = arg3.task;
+    } else if (arg1 && typeof arg1 === 'object') {
+      targetAsgId = arg1.id;
+      numProgress = Number(arg1.progress) || 0;
+      taskName = arg1.task;
+    }
 
-    // 2. Update manager assignments
-    setManagerAssignments((prev) =>
-      prev.map((a) => (a.professionalId === workforceId || a.projectId === projectId ? { ...a, progress: numProgress, currentTask: task, status: status || 'Working' } : a))
-    );
+    numProgress = Math.max(0, Math.min(100, Math.round(numProgress)));
 
-    // 3. Update workforce user profile state
+    let updatedAsgObj = null;
+
+    // 1. Update manager assignments
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        const aIdStr = String(a.id || '').toLowerCase().trim();
+        const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+        const tIdStr = String(targetAsgId || '').toLowerCase().trim();
+        const pIdStr = String(targetProjectId || '').toLowerCase().trim();
+
+        const isMatch = (tIdStr && aIdStr === tIdStr) || (pIdStr && aProjIdStr === pIdStr);
+
+        if (isMatch) {
+          const isComplete = numProgress === 100;
+          updatedAsgObj = {
+            ...a,
+            progress: numProgress,
+            status: isComplete ? 'Completed' : (a.status === 'Completed' && numProgress < 100 ? 'Working' : (a.status === 'Pending Assignment Approval' ? 'Accepted' : a.status)),
+            currentTask: taskName || (isComplete ? 'All project sprint deliverables completed.' : `Sprint execution progress updated to ${numProgress}%.`),
+          };
+          return updatedAsgObj;
+        }
+        return a;
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    // 2. Update projects overall progress
+    setProjects((prev) => {
+      const updated = (prev || []).map((p) => {
+        if (!p) return p;
+        const pIdStr = String(p.id || '').toLowerCase().trim();
+        const tIdStr = String(targetAsgId || '').toLowerCase().trim();
+        const pIdMatch = pIdStr === tIdStr || (updatedAsgObj && String(updatedAsgObj.projectId || '').toLowerCase().trim() === pIdStr);
+
+        if (pIdMatch) {
+          const isComplete = numProgress === 100;
+          return {
+            ...p,
+            progress: numProgress,
+            status: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.status),
+            stage: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.stage),
+            recentUpdate: taskName || `Sprint execution progress updated to ${numProgress}%.`,
+          };
+        }
+        return p;
+      });
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    // 3. Update workforce user profile state if applicable
     setWorkforceUserProfile((prev) => ({
       ...prev,
       currentAssignment: {
-        ...prev.currentAssignment,
-        currentTask: task,
+        ...(prev.currentAssignment || {}),
+        currentTask: taskName || `Sprint progress ${numProgress}%`,
         progress: numProgress,
-        status: status || 'Working',
-        description: description || prev.currentAssignment.description,
+        status: numProgress === 100 ? 'Completed' : 'Working',
         lastUpdated: 'Just now',
       },
     }));
-
-    // 4. Update overall project progress
-    const updatePrjProgress = (p) => {
-      if (p.id === projectId || p.name.includes('E-Commerce')) {
-        return {
-          ...p,
-          progress: numProgress,
-          stage: numProgress >= 100 ? 'Completed' : 'Development',
-          status: numProgress >= 100 ? 'Completed' : 'In Progress',
-        };
-      }
-      return p;
-    };
-    setProjects((prev) => prev.map(updatePrjProgress));
-    setPartnerProjects((prev) => prev.map(updatePrjProgress));
-
-    // 5. Add to real-time activity stream
-    const newAct = {
-      id: `act-${Date.now()}`,
-      user: workforceUserProfile.name || 'Workforce Specialist',
-      action: `updated sprint task to "${task}" (${numProgress}% progress)`,
-      project: 'E-Commerce Platform Development',
-      time: 'Just now',
-      avatar: workforceUserProfile.avatar,
-    };
-    setActivities((prev) => [newAct, ...prev.slice(0, 15)]);
-    setPartnerActivities((prev) => [newAct, ...prev.slice(0, 15)]);
-
-    // 6. Notify Manager & Partner
-    const mNotif = {
-      id: `mnotif-${Date.now()}`,
-      title: 'Workforce Progress Updated',
-      message: `${workforceUserProfile.name} updated progress to ${numProgress}% on "${task}".`,
-      type: 'assignment',
-      unread: true,
-      time: 'Just now',
-      link: '/manager/assignments',
-    };
-    setManagerNotifications((prev) => [mNotif, ...prev]);
-
-    const pNotif = {
-      id: `pnotif-${Date.now()}`,
-      title: 'Project Sprint Progress Updated',
-      message: `Workforce updated task "${task}" with ${numProgress}% completion on your project.`,
-      type: 'progress',
-      unread: true,
-      time: 'Just now',
-      link: '/partner/project-progress',
-    };
-    setPartnerNotifications((prev) => [pNotif, ...prev]);
   };
 
   // =========================================================================
@@ -3241,36 +3426,125 @@ export const DataProvider = ({ children }) => {
   // Partner Actions
   const addPartner = (partner) => {
     const nextGlobalId = getNextGlobalUserId('Partner', clients, managers, partners, workforce);
+    const specialtiesArray = Array.isArray(partner.specialties)
+      ? partner.specialties
+      : String(partner.specialties || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+    const partnerId = partner.id || `prt-${nextGlobalId}`;
     const newPartner = {
       ...partner,
-      id: nextGlobalId,
+      id: partnerId,
       numericId: nextGlobalId,
+      name: partner.name || partner.companyName || 'Partner Organization',
+      companyName: partner.name || partner.companyName || 'Partner Organization',
+      contactPerson: partner.contactPerson || 'Contact Representative',
+      email: partner.email || '',
+      phone: partner.phone || '',
+      location: partner.location || partner.city || 'India',
+      city: partner.location || partner.city || 'India',
+      tier: partner.tier || 'Strategic Partner',
+      specialties: specialtiesArray,
+      status: partner.status || 'Active',
       joinedDate: new Date().toISOString().split('T')[0],
       suppliedProfessionals: Number(partner.suppliedProfessionals) || 0,
       activePlacements: 0,
       availabilityRate: '100%',
       rating: 4.8,
     };
-    setPartners((prev) => [newPartner, ...prev]);
+
+    setPartners((prev) => {
+      const filtered = (prev || []).filter((p) => p && p.id !== newPartner.id && (p.email || '').toLowerCase() !== (newPartner.email || '').toLowerCase());
+      const updated = [newPartner, ...filtered];
+      try {
+        localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // Also register user credentials for partner company login
+    if (newPartner.email) {
+      try {
+        const regStr = localStorage.getItem('flexistaff_registered_users');
+        let regList = regStr ? JSON.parse(regStr) : [];
+        if (!Array.isArray(regList)) regList = [];
+
+        const newUserObj = {
+          id: partnerId,
+          email: newPartner.email,
+          password: partner.tempPassword || partner.password || 'Password123!',
+          role: 'Partner Company',
+          name: newPartner.contactPerson,
+          companyName: newPartner.name,
+        };
+
+        const existingIdx = regList.findIndex(
+          (u) => u && u.email && u.email.toLowerCase() === newPartner.email.toLowerCase()
+        );
+        if (existingIdx >= 0) {
+          regList[existingIdx] = newUserObj;
+        } else {
+          regList.push(newUserObj);
+        }
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(regList));
+      } catch {}
+    }
 
     addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
+      user: adminProfile?.name || 'System Admin',
       action: 'Registered new staffing partner',
       target: newPartner.name,
       targetType: 'partner',
     });
 
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'New Partner Organization Registered',
+        message: `Partner company "${newPartner.name}" (${newPartner.contactPerson}) was added successfully.`,
+        type: 'request',
+        unread: true,
+        time: 'Just now',
+        link: '/admin/partners',
+      },
+      ...prev,
+    ]);
+
     return newPartner;
   };
 
   const updatePartner = (id, updatedData) => {
-    setPartners((prev) =>
-      prev.map((prt) => (prt.id === id ? { ...prt, ...updatedData } : prt))
-    );
+    setPartners((prev) => {
+      const updated = (prev || []).map((prt) => {
+        if (!prt) return prt;
+        if (prt.id === id || String(prt.id) === String(id) || prt.email === updatedData.email) {
+          const merged = { ...prt, ...updatedData };
+          if (updatedData.specialties) {
+            merged.specialties = Array.isArray(updatedData.specialties)
+              ? updatedData.specialties
+              : String(updatedData.specialties).split(',').map((s) => s.trim()).filter(Boolean);
+          }
+          return merged;
+        }
+        return prt;
+      });
+      try {
+        localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   const deletePartner = (id) => {
-    setPartners((prev) => prev.filter((prt) => prt.id !== id));
+    setPartners((prev) => {
+      const updated = (prev || []).filter((prt) => prt && prt.id !== id && String(prt.id) !== String(id) && prt.email !== id);
+      try {
+        localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   const clearPartners = () => {
