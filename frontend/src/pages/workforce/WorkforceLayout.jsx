@@ -71,7 +71,23 @@ export const WorkforceLayout = () => {
     workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
-    workforceUserProfile?.employmentType?.includes('Company');
+    workforceUserProfile?.employmentType?.includes('Company') ||
+    Boolean(user?.partnerCompany) ||
+    Boolean(user?.partnerCompanyId) ||
+    (Boolean(user?.companyName) && user?.companyName !== 'Enterprise Client') ||
+    user?.roleType === 'Professional' ||
+    user?.professionalType === 'PARTNER_EMPLOYEE' ||
+    user?.userType === 'PARTNER_EMPLOYEE' ||
+    user?.role === 'Partner Employee';
+
+  const partnerDisplay =
+    workforceUserProfile?.partnerCompany ||
+    workforceUserProfile?.partnerName ||
+    workforceUserProfile?.partner ||
+    user?.partnerCompany ||
+    user?.partnerName ||
+    (user?.companyName !== 'Enterprise Client' ? user?.companyName : null) ||
+    'Partner Employee';
 
   const sidebarContent = (
     <div className={`flex h-full flex-col justify-between border-r transition-colors ${
@@ -199,9 +215,7 @@ export const WorkforceLayout = () => {
               >
                 <span className={`w-2 h-2 rounded-full ${isCompanyEmployee ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
                 <span>
-                  {isCompanyEmployee
-                    ? workforceUserProfile?.partnerCompany || 'Partner Employee'
-                    : 'Independent Freelancer'}
+                  {isCompanyEmployee ? partnerDisplay : 'Independent Freelancer'}
                 </span>
               </span>
             </div>
@@ -282,7 +296,7 @@ export const WorkforceLayout = () => {
                 <div className="hidden lg:block text-left">
                   <p className="font-bold text-xs leading-none">{workforceUserProfile?.name || user?.name || 'Workforce Specialist'}</p>
                   <p className="text-[10px] text-[#737686] dark:text-slate-400 leading-tight mt-0.5">
-                    {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Partner Employee') : 'Independent Freelancer'}
+                    {isCompanyEmployee ? partnerDisplay : 'Independent Freelancer'}
                   </p>
                 </div>
                 <ChevronDown size={14} className="text-slate-400" />
@@ -300,7 +314,7 @@ export const WorkforceLayout = () => {
                       <p className="text-xs font-bold text-slate-900 dark:text-white">{workforceUserProfile?.name || user?.name || 'Professional / Freelancer'}</p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{workforceUserProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 text-[10px] font-bold text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
-                        {isCompanyEmployee ? (workforceUserProfile?.partnerCompany || 'Partner Employee') : 'Independent Freelancer'}
+                        {isCompanyEmployee ? partnerDisplay : 'Independent Freelancer'}
                       </span>
                     </div>
 

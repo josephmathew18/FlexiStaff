@@ -38,4 +38,15 @@ public class PartnerCompanyRegistrationRequest {
     private String status;
 
     private Integer suppliedProfessionals;
+
+    @com.fasterxml.jackson.annotation.JsonSetter
+    public void setSpecialties(Object obj) {
+        if (obj == null) {
+            this.specialties = null;
+        } else if (obj instanceof java.util.Collection<?> col) {
+            this.specialties = col.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
+        } else {
+            this.specialties = obj.toString();
+        }
+    }
 }

@@ -79,7 +79,21 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
         try {
             entityManager.createNativeQuery("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT', 'ROLE_PROFESSIONAL', 'ROLE_PARTNER'))").executeUpdate();
-            log.info("Successfully updated users_role_check constraint to include all roles including ROLE_PARTNER");
+            entityManager.createNativeQuery("ALTER TABLE freelancers ALTER COLUMN phone TYPE VARCHAR(50)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE clients ALTER COLUMN phone TYPE VARCHAR(50)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE client_profiles ALTER COLUMN contact_phone TYPE VARCHAR(50)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE client_profiles ALTER COLUMN logo_url TYPE TEXT").executeUpdate();
+            log.info("Successfully updated users_role_check constraint and column types");
+
+            // Ensure Admin user exists with proper email and password
+            String adminPasswordHash = "$2a$10$6eBhtAAPEY1Gq5UZhZWuK.XbGLJsbJo63rZZOjeo89FXJY4iG1AuO"; // admin123
+            entityManager.createNativeQuery(
+                "INSERT INTO users (id, full_name, email, password, role, active, created_at, updated_at) " +
+                "VALUES (4, 'System Administrator', 'admin@flexistaff.com', '" + adminPasswordHash + "', 'ROLE_ADMIN', true, NOW(), NOW()) " +
+                "ON CONFLICT (id) DO UPDATE SET email = 'admin@flexistaff.com', password = '" + adminPasswordHash + "', active = true, role = 'ROLE_ADMIN'"
+            ).executeUpdate();
+            log.info("Successfully ensured system administrator account (admin@flexistaff.com)");
         } catch (Exception ex) {
             log.debug("Role check constraint sync notice: {}", ex.getMessage());
         }

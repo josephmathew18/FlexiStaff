@@ -144,7 +144,7 @@ export const ClientLayout = () => {
 
   return (
     <div className={`flex h-screen overflow-hidden font-sans antialiased transition-colors ${
-      effectiveTheme === 'dark' ? 'bg-black text-white' : 'bg-slate-50 text-slate-900'
+      effectiveTheme === 'dark' ? 'bg-[#0b0a1a] text-white' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">

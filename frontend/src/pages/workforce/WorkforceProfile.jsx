@@ -19,6 +19,7 @@ import {
   X,
   Plus,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -33,9 +34,17 @@ const formatCapitalizedName = (str) => {
 };
 
 export const WorkforceProfile = () => {
+  const { user } = useAuth();
   const { workforceUserProfile, updateWorkforceUserProfile, partners = [], clients = [] } = useData() || {};
 
-  const displayPartnerName = getPartnerCompanyName(workforceUserProfile, partners, clients) || workforceUserProfile?.partnerCompany || workforceUserProfile?.partnerName;
+  const displayPartnerName =
+    getPartnerCompanyName(workforceUserProfile, partners, clients) ||
+    workforceUserProfile?.partnerCompany ||
+    workforceUserProfile?.partnerName ||
+    workforceUserProfile?.partner ||
+    user?.partnerCompany ||
+    user?.partnerName ||
+    (user?.companyName !== 'Enterprise Client' ? user?.companyName : null);
 
   const isCompanyEmployee =
     Boolean(workforceUserProfile?.partnerCompanyId) ||
@@ -48,7 +57,11 @@ export const WorkforceProfile = () => {
     workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
-    workforceUserProfile?.employmentType?.includes('Company');
+    workforceUserProfile?.employmentType?.includes('Company') ||
+    Boolean(user?.partnerCompany) ||
+    Boolean(user?.partnerCompanyId) ||
+    user?.roleType === 'Professional' ||
+    user?.professionalType === 'PARTNER_EMPLOYEE';
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
   const [formData, setFormData] = useState({
@@ -191,7 +204,7 @@ export const WorkforceProfile = () => {
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isCompanyEmployee
-                  ? `Technical professional represented by ${workforceUserProfile?.partnerCompany || 'Partner Organization'}.`
+                  ? `Technical professional represented by ${displayPartnerName || workforceUserProfile?.partnerCompany || 'Partner Organization'}.`
                   : 'Manage your direct technical profile, verified skills, and project matching settings.'}
               </p>
             </div>
@@ -209,7 +222,7 @@ export const WorkforceProfile = () => {
             <span className={`w-2 h-2 rounded-full ${isCompanyEmployee ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
             <span>
               {isCompanyEmployee
-                ? `Partner Employee • ${workforceUserProfile?.partnerCompany || 'Partner Organization'}`
+                ? `Partner Employee • ${displayPartnerName || workforceUserProfile?.partnerCompany || 'Partner Organization'}`
                 : 'Independent Freelancer'}
             </span>
           </span>

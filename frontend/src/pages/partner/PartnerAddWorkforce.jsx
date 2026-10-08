@@ -31,6 +31,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
@@ -59,6 +60,7 @@ const PRESET_SKILLS = [
 ];
 
 export const PartnerAddWorkforce = () => {
+  const { user } = useAuth();
   const { addPartnerProfessional, partnerProfile, workforce = [] } = useData() || {};
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -152,6 +154,19 @@ export const PartnerAddWorkforce = () => {
     setIsSubmitting(true);
 
     try {
+      const resolvedCompany =
+        partnerProfile?.companyName ||
+        partnerProfile?.name ||
+        user?.companyName ||
+        user?.partnerCompany ||
+        'Partner Organization';
+
+      const resolvedCompanyId =
+        partnerProfile?.id ||
+        partnerProfile?.numericId ||
+        user?.partnerCompanyId ||
+        user?.id;
+
       const payload = {
         name: formData.name.trim(),
         pseudonym: formData.name.trim(),
@@ -175,8 +190,17 @@ export const PartnerAddWorkforce = () => {
         github: formData.github.trim(),
         linkedin: formData.linkedin.trim(),
         portfolio: formData.portfolio.trim(),
-        partner: partnerProfile?.name || 'Partner Organization',
-        partnerCompany: partnerProfile?.name || 'Partner Organization',
+        partner: resolvedCompany,
+        partnerCompany: resolvedCompany,
+        partnerName: resolvedCompany,
+        companyName: resolvedCompany,
+        company: resolvedCompany,
+        partnerCompanyId: resolvedCompanyId,
+        roleType: 'Professional',
+        professionalType: 'PARTNER_EMPLOYEE',
+        source: 'Partner Company',
+        userType: 'PARTNER_EMPLOYEE',
+        employmentType: 'Partner Company Employee',
       };
 
       const partnerEmployees = (workforce || []).filter(

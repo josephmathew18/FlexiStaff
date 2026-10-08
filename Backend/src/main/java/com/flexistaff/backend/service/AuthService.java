@@ -26,7 +26,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -43,6 +45,7 @@ public class AuthService {
     private final UserService userService;
     private final com.flexistaff.backend.config.DatabaseSequenceRepairRunner sequenceRepairRunner;
 
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -61,29 +64,35 @@ public class AuthService {
         String companyName = null;
         Long partnerCompanyId = null;
 
-        if (user.getRole() == Role.ROLE_PARTNER) {
-            var pc = partnerCompanyRepository.findByUserId(user.getId())
-                    .or(() -> partnerCompanyRepository.findByEmailIgnoreCase(user.getEmail()));
-            if (pc.isPresent()) {
-                companyName = pc.get().getCompanyName();
-                partnerCompanyId = pc.get().getId();
-            }
-        } else if (user.getRole() == Role.ROLE_CLIENT) {
-            var cl = clientRepository.findByEmailIgnoreCase(user.getEmail())
-                    .or(() -> clientRepository.findByUserId(user.getId()));
-            if (cl.isPresent()) {
-                companyName = cl.get().getCompanyName();
-            }
-        } else if (user.getRole() == Role.ROLE_PROFESSIONAL) {
-            var fl = freelancerRepository.findByEmailIgnoreCase(user.getEmail())
-                    .or(() -> freelancerRepository.findByUserId(user.getId()));
-            if (fl.isPresent() && fl.get().getPartnerCompanyId() != null) {
-                partnerCompanyId = fl.get().getPartnerCompanyId();
-                var pc = partnerCompanyRepository.findById(partnerCompanyId);
+        try {
+            if (user.getRole() == Role.ROLE_PARTNER) {
+                var pc = partnerCompanyRepository.findByUserId(user.getId())
+                        .or(() -> partnerCompanyRepository.findByEmailIgnoreCase(user.getEmail()));
                 if (pc.isPresent()) {
                     companyName = pc.get().getCompanyName();
+                    partnerCompanyId = pc.get().getId();
+                }
+            } else if (user.getRole() == Role.ROLE_CLIENT) {
+                var cl = clientRepository.findByEmailIgnoreCase(user.getEmail())
+                        .or(() -> clientRepository.findByUserId(user.getId()));
+                if (cl.isPresent()) {
+                    companyName = cl.get().getCompanyName();
+                }
+            } else if (user.getRole() == Role.ROLE_PROFESSIONAL) {
+                var fl = freelancerRepository.findByEmailIgnoreCase(user.getEmail())
+                        .or(() -> freelancerRepository.findByUserId(user.getId()));
+                if (fl.isPresent() && fl.get().getPartnerCompanyId() != null) {
+                    final Long targetCoId = fl.get().getPartnerCompanyId();
+                    partnerCompanyId = targetCoId;
+                    var pc = partnerCompanyRepository.findById(targetCoId)
+                            .or(() -> partnerCompanyRepository.findByUserId(targetCoId));
+                    if (pc.isPresent()) {
+                        companyName = pc.get().getCompanyName();
+                    }
                 }
             }
+        } catch (Exception ex) {
+            log.warn("Company metadata lookup skipped for user {}: {}", user.getEmail(), ex.getMessage());
         }
 
         return AuthResponse.builder()

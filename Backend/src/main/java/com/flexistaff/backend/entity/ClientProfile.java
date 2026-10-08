@@ -25,8 +25,9 @@ public class ClientProfile extends BaseEntity {
 
     private String location;
 
-    @Column(name = "contact_phone", length = 10)
+    @Column(name = "contact_phone", length = 50)
     private String contactPhone;
 
+    @Column(name = "logo_url", columnDefinition = "TEXT")
     private String logoUrl;
 }

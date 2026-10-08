@@ -485,7 +485,7 @@ export const WorkforceManagement = () => {
   const handleDeleteWorkforceMember = (member) => {
     if (!member) return;
     if (window.confirm(`Are you sure you want to remove ${member.name} from the workforce roster?`)) {
-      deleteWorkforceMember(member.id);
+      deleteWorkforceMember(member);
       toast.success(`Removed ${member.name} from workforce.`);
       if (selectedTalent?.id === member.id) setSelectedTalent(null);
     }

@@ -18,10 +18,12 @@ import {
   DollarSign,
   FileCode2,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const WorkforceDashboard = () => {
+  const { user } = useAuth();
   const {
     workforceUserProfile,
     projects = [],
@@ -31,6 +33,7 @@ export const WorkforceDashboard = () => {
   } = useData() || {};
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompanyId) ||
     Boolean(workforceUserProfile?.partnerCompany) ||
     Boolean(workforceUserProfile?.partnerName) ||
     Boolean(workforceUserProfile?.partner) ||
@@ -39,7 +42,23 @@ export const WorkforceDashboard = () => {
     workforceUserProfile?.professionalType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
-    workforceUserProfile?.employmentType?.includes('Company');
+    workforceUserProfile?.employmentType?.includes('Company') ||
+    Boolean(user?.partnerCompany) ||
+    Boolean(user?.partnerCompanyId) ||
+    (Boolean(user?.companyName) && user?.companyName !== 'Enterprise Client') ||
+    user?.roleType === 'Professional' ||
+    user?.professionalType === 'PARTNER_EMPLOYEE' ||
+    user?.userType === 'PARTNER_EMPLOYEE' ||
+    user?.role === 'Partner Employee';
+
+  const partnerDisplay =
+    workforceUserProfile?.partnerCompany ||
+    workforceUserProfile?.partnerName ||
+    workforceUserProfile?.partner ||
+    user?.partnerCompany ||
+    user?.partnerName ||
+    (user?.companyName !== 'Enterprise Client' ? user?.companyName : null) ||
+    'Partner Organization';
 
   const rejectedProjectIds = React.useMemo(() => {
     const setObj = new Set();
@@ -179,7 +198,7 @@ export const WorkforceDashboard = () => {
               {isCompanyEmployee ? (
                 <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
                   <Building2 size={13} />
-                  <span>{workforceUserProfile?.partnerCompany || 'Partner Organization'}</span>
+                  <span>{partnerDisplay}</span>
                 </span>
               ) : (
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
@@ -190,7 +209,7 @@ export const WorkforceDashboard = () => {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome, {workforceUserProfile?.name || 'Workforce Specialist'}
+              Welcome, {workforceUserProfile?.name || user?.name || 'Workforce Specialist'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
               Review Company-approved project invitations, accept assignment offers, track sprint milestones, and maintain your availability.

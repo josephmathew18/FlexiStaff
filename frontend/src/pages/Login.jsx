@@ -94,9 +94,11 @@ export const Login = () => {
       toast.success(`Welcome back, ${result.user?.name || 'User'}!`);
       navigate(result.redirectPath || result.user?.portalPath || '/dashboard');
     } catch (err) {
+      console.error('Authentication submission error:', err);
       setIsLoading(false);
-      setErrorMessage('An unexpected authentication error occurred.');
-      toast.error('An unexpected authentication error occurred.');
+      const msg = err?.message || 'An unexpected authentication error occurred.';
+      setErrorMessage(msg);
+      toast.error(msg);
     }
   };
 

@@ -28,6 +28,8 @@ public class UserService {
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ClientProfileRepository clientProfileRepository;
     private final ClientRepository clientRepository;
+    private final com.flexistaff.backend.repository.FreelancerRepository freelancerRepository;
+    private final com.flexistaff.backend.repository.WorkforceAllocationRepository workforceAllocationRepository;
 
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id) {
@@ -108,14 +110,30 @@ public class UserService {
 
     @Transactional
     public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        if (userId == null) return;
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return;
+        }
 
         clientRepository.findByUserId(userId).ifPresent(clientRepository::delete);
         clientProfileRepository.findByUserId(userId).ifPresent(clientProfileRepository::delete);
-        professionalProfileRepository.findByUserId(userId).ifPresent(professionalProfileRepository::delete);
+        freelancerRepository.findByUserId(userId).ifPresent(f -> {
+            freelancerRepository.delete(f);
+            freelancerRepository.flush();
+        });
+        professionalProfileRepository.findByUserId(userId).ifPresent(p -> {
+            professionalProfileRepository.delete(p);
+            professionalProfileRepository.flush();
+        });
+        var allocations = workforceAllocationRepository.findByProfessionalId(userId);
+        if (!allocations.isEmpty()) {
+            workforceAllocationRepository.deleteAll(allocations);
+            workforceAllocationRepository.flush();
+        }
 
         userRepository.delete(user);
+        userRepository.flush();
     }
 
     public UserDto mapToUserDto(User user) {

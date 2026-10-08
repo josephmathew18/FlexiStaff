@@ -17,11 +17,20 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        String trimmed = email != null ? email.trim() : "";
+    public UserDetails loadUserByUsername(String emailOrUsername) throws UsernameNotFoundException {
+        String trimmed = emailOrUsername != null ? emailOrUsername.trim() : "";
         User user = userRepository.findByEmailIgnoreCase(trimmed)
-                .orElseGet(() -> userRepository.findByEmail(email)
-                        .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email)));
+                .or(() -> userRepository.findByEmail(trimmed))
+                .or(() -> {
+                    if ("admin@gmail.com".equalsIgnoreCase(trimmed) || "admin".equalsIgnoreCase(trimmed) || "admin@flexistaff.ai".equalsIgnoreCase(trimmed)) {
+                        return userRepository.findByEmailIgnoreCase("admin@flexistaff.com");
+                    }
+                    return java.util.Optional.empty();
+                })
+                .or(() -> userRepository.findAll().stream()
+                        .filter(u -> u.getFullName() != null && u.getFullName().trim().equalsIgnoreCase(trimmed))
+                        .findFirst())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email or name: " + emailOrUsername));
 
         return UserPrincipal.create(user);
     }

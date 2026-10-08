@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useData } from '../../context/DataContext';
+import { useData, getNextGlobalUserId } from '../../context/DataContext';
 import { useForm } from 'react-hook-form';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -282,8 +282,8 @@ const addManagerSchema = yup.object().shape({
   dob: yup.string().required('Date of birth is required'),
   address: yup.string().required('Address is required'),
   employeeId: yup.string().nullable().optional(),
-  jobTitle: yup.string().required('Job title is required'),
-  department: yup.string().required('Department is required'),
+  jobTitle: yup.string().default('HR Manager').optional(),
+  department: yup.string().default('Human Resources').optional(),
   experience: yup.string().required('Experience is required'),
   joinDate: yup.string().required('Joining date is required'),
   bio: yup.string().required('Bio is required'),
@@ -318,6 +318,8 @@ export const ManagerManagement = () => {
     clearManagers,
     projects = [],
     workforce = [],
+    clients = [],
+    partners = [],
     managerAssignments = [],
   } = useData();
 
@@ -325,13 +327,29 @@ export const ManagerManagement = () => {
     refreshManagers?.();
   }, []);
 
+  const nextManagerId = useMemo(() => {
+    return getNextGlobalUserId('Manager', clients, managers, partners, workforce);
+  }, [clients, managers, partners, workforce]);
+
   // Separate Active Manager vs Previous Managers (Resigned, Terminated, Inactive)
   const activeManager = useMemo(() => {
-    return managers.find((m) => m.status === 'Active' || m.status === 'Suspended') || null;
+    const found = managers.find((m) => {
+      const s = String(m?.status || '').toLowerCase().trim();
+      return s === 'active' || s === 'suspended';
+    });
+    if (found) return found;
+    // Fallback: pick the first non-terminated/non-resigned manager if available
+    return managers.find((m) => {
+      const s = String(m?.status || '').toLowerCase().trim();
+      return s !== 'resigned' && s !== 'terminated' && s !== 'inactive';
+    }) || null;
   }, [managers]);
 
   const previousManagers = useMemo(() => {
-    return managers.filter((m) => m.status === 'Resigned' || m.status === 'Terminated' || m.status === 'Inactive');
+    return managers.filter((m) => {
+      const s = String(m?.status || '').toLowerCase().trim();
+      return s === 'resigned' || s === 'terminated' || s === 'inactive';
+    });
   }, [managers]);
 
   const manager = activeManager;
@@ -359,6 +377,8 @@ export const ManagerManagement = () => {
     resolver: yupResolver(addManagerSchema),
     defaultValues: {
       accountStatus: 'Active',
+      jobTitle: 'HR Manager',
+      department: 'Human Resources',
       joinDate: new Date().toISOString().split('T')[0],
     },
   });
@@ -420,8 +440,8 @@ export const ManagerManagement = () => {
         dob: data.dob,
         address: data.address,
         avatar: addAvatar || '',
-        jobTitle: data.jobTitle,
-        department: data.department,
+        jobTitle: data.jobTitle || 'HR Manager',
+        department: data.department || 'Human Resources',
         experience: data.experience,
         joinDate: data.joinDate,
         bio: data.bio,
@@ -729,40 +749,40 @@ export const ManagerManagement = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
-                    <span>Employee ID</span>
-                    <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400">PostgreSQL User ID</span>
+                  <label className="text-xs font-semibold text-[#434655] dark:text-slate-300">
+                    Employee ID
                   </label>
                   <input
                     type="text"
-                    value="Auto-assigned (PostgreSQL User ID)"
+                    value={`#${nextManagerId}`}
                     disabled
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-slate-400">Assigned automatically via PostgreSQL user ID</p>
                 </div>
-                <FormInput
-                  label="Job Title"
-                  name="jobTitle"
-                  register={registerAdd}
-                  error={errorsAdd.jobTitle}
-                  placeholder="Senior Enterprise Delivery Lead"
-                  required
-                />
-                <FormInput
-                  label="Department"
-                  name="department"
-                  register={registerAdd}
-                  error={errorsAdd.department}
-                  placeholder="Enterprise Workforce Operations"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role & Title</label>
+                  <input
+                    type="text"
+                    value="HR Manager"
+                    disabled
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Department</label>
+                  <input
+                    type="text"
+                    value="Human Resources"
+                    disabled
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-not-allowed"
+                  />
+                </div>
                 <FormInput
                   label="Experience"
                   name="experience"
                   register={registerAdd}
                   error={errorsAdd.experience}
-                  placeholder="Enter experience (years)"
+                  placeholder="Enter experience (e.g. 5+ Years)"
                   required
                 />
                 <FormInput
@@ -773,15 +793,6 @@ export const ManagerManagement = () => {
                   error={errorsAdd.joinDate}
                   required
                 />
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role</label>
-                  <input
-                    type="text"
-                    value="HR Manager"
-                    disabled
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed"
-                  />
-                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -1235,40 +1246,40 @@ export const ManagerManagement = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <div className="space-y-1.5">
-                <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
-                  <span>Employee ID</span>
-                  <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400">PostgreSQL User ID</span>
+                <label className="text-xs font-semibold text-[#434655] dark:text-slate-300">
+                  Employee ID
                 </label>
                 <input
                   type="text"
-                  value="Auto-assigned (PostgreSQL User ID)"
+                  value={`#${nextManagerId}`}
                   disabled
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-not-allowed"
                 />
-                <p className="text-[10px] text-slate-400">Assigned automatically via PostgreSQL user ID</p>
               </div>
-              <FormInput
-                label="Job Title"
-                name="jobTitle"
-                register={registerAdd}
-                error={errorsAdd.jobTitle}
-                placeholder="Senior Enterprise Delivery Lead"
-                required
-              />
-              <FormInput
-                label="Department"
-                name="department"
-                register={registerAdd}
-                error={errorsAdd.department}
-                placeholder="Enterprise Workforce Operations"
-                required
-              />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role & Title</label>
+                <input
+                  type="text"
+                  value="HR Manager"
+                  disabled
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Department</label>
+                <input
+                  type="text"
+                  value="Human Resources"
+                  disabled
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-not-allowed"
+                />
+              </div>
               <FormInput
                 label="Experience"
                 name="experience"
                 register={registerAdd}
                 error={errorsAdd.experience}
-                placeholder="Enter experience (years)"
+                placeholder="Enter experience (e.g. 5+ Years)"
                 required
               />
               <FormInput
@@ -1279,15 +1290,6 @@ export const ManagerManagement = () => {
                 error={errorsAdd.joinDate}
                 required
               />
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role</label>
-                <input
-                  type="text"
-                  value="HR Manager"
-                  disabled
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed"
-                />
-              </div>
             </div>
 
             <div className="space-y-1.5">

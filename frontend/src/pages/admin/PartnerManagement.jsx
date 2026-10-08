@@ -528,7 +528,7 @@ export const PartnerManagement = () => {
       ...data,
       companyName: data.companyName || data.name,
       suppliedProfessionals: 0,
-      specialties: [],
+      specialties: data.specialties || '',
     });
     toast.success(`Partner Organization ${data.name || data.companyName} registered successfully!`);
     reset();

@@ -22,7 +22,7 @@ public class Freelancer extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(length = 10)
+    @Column(length = 50)
     private String phone;
 
     @Column(nullable = false)

@@ -306,13 +306,7 @@ export const DataProvider = ({ children }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          list = parsed.filter((m) => {
-            if (!m) return false;
-            const empId = String(m.employeeId || m.id || '');
-            const email = String(m.email || '').toLowerCase();
-            const name = String(m.name || '').toLowerCase();
-            return !empId.includes('2236') && !email.includes('thomas') && !name.includes('thomas');
-          });
+          list = parsed.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)));
         }
       }
     } catch {
@@ -331,12 +325,39 @@ export const DataProvider = ({ children }) => {
       list = [];
     }
 
+    let deletedIds = new Set();
+    try {
+      const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+      if (delWfStr) {
+        const parsed = JSON.parse(delWfStr);
+        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+      }
+      const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
+      if (delAccStr) {
+        const parsed = JSON.parse(delAccStr);
+        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+      }
+    } catch {}
+
     return list.filter((w) => {
       if (!w) return false;
       const roleLower = (w.role || w.title || w.roleType || w.category || '').toLowerCase().trim();
       const userRoleLower = (w.userRole || w.user_role || '').toLowerCase().trim();
       const emailLower = (w.email || '').toLowerCase().trim();
       const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+      const idStr = String(w.id || '').toLowerCase().trim();
+      const numIdStr = String(w.numericId || '').toLowerCase().trim();
+      const uIdStr = String(w.userId || '').toLowerCase().trim();
+
+      if (
+        deletedIds.has(idStr) ||
+        deletedIds.has(numIdStr) ||
+        deletedIds.has(uIdStr) ||
+        (emailLower && deletedIds.has(emailLower)) ||
+        (nameLower && deletedIds.has(nameLower))
+      ) {
+        return false;
+      }
 
       if (
         roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
@@ -495,20 +516,13 @@ export const DataProvider = ({ children }) => {
         }
       }
 
-      // Purge manager assignments of Sharon Tomy
-      // Purge fake demo HR manager from localStorage
+      // Keep managers list valid in localStorage
       const mgrStr = localStorage.getItem('flexistaff_managers');
       if (mgrStr) {
         try {
           const mgrList = JSON.parse(mgrStr);
           if (Array.isArray(mgrList)) {
-            const cleanMgr = mgrList.filter((m) => {
-              if (!m) return false;
-              const empId = String(m.employeeId || m.id || '');
-              const email = String(m.email || '').toLowerCase();
-              const name = String(m.name || '').toLowerCase();
-              return !empId.includes('2236') && !email.includes('thomas') && !name.includes('thomas');
-            });
+            const cleanMgr = mgrList.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)));
             localStorage.setItem('flexistaff_managers', JSON.stringify(cleanMgr));
             setManagers(cleanMgr);
           }
@@ -529,17 +543,6 @@ export const DataProvider = ({ children }) => {
           setManagerAssignments(updatedAsg);
         }
       }
-
-      // Purge projects, milestones, workforce, and partner company datas for clean system state
-      localStorage.removeItem('flexistaff_projects');
-      localStorage.removeItem('flexistaff_workforce');
-      localStorage.removeItem('flexistaff_partners');
-      localStorage.removeItem('flexistaff_manager_assignments');
-      localStorage.removeItem('flexistaff_allocations');
-      setProjects([]);
-      setWorkforce([]);
-      setPartners([]);
-      setManagerAssignments([]);
     } catch { }
 
     refreshAllData();
@@ -704,27 +707,42 @@ export const DataProvider = ({ children }) => {
       const res = await api.managers.getAll();
       if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
         const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
-        const mapped = rawList.map((m) => ({
-          ...m,
-          id: m.userId || m.id,
-          numericId: m.userId || m.id,
-          employeeId: m.employeeId || m.userId || m.id,
-          name: m.name || m.fullName || '',
-          email: m.email || '',
-          phone: m.phone || '',
-          jobTitle: m.jobTitle || 'HR Manager',
-          department: m.department || 'Enterprise Workforce Operations',
-          experience: m.experience || '8+ Years',
-          status: m.status || 'Active',
-          avatar: m.avatar || '',
-          assignedProjectsCount: m.assignedProjectsCount || 0,
-        }));
-        setManagers(mapped);
-        return mapped;
+        if (rawList.length > 0) {
+          const mapped = rawList.map((m) => ({
+            ...m,
+            id: m.userId || m.id,
+            numericId: m.userId || m.id,
+            employeeId: m.employeeId || m.userId || m.id,
+            name: m.name || m.fullName || '',
+            email: m.email || '',
+            phone: m.phone || '',
+            jobTitle: m.jobTitle || 'HR Manager',
+            department: m.department || 'Enterprise Workforce Operations',
+            experience: m.experience || '8+ Years',
+            status: m.status || 'Active',
+            avatar: m.avatar || '',
+            assignedProjectsCount: m.assignedProjectsCount || 0,
+          }));
+          setManagers(mapped);
+          try {
+            localStorage.setItem('flexistaff_managers', JSON.stringify(mapped));
+          } catch { }
+          return mapped;
+        }
       }
     } catch (err) {
       console.warn('Could not refresh managers from backend API:', err);
     }
+    try {
+      const saved = localStorage.getItem('flexistaff_managers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setManagers(parsed);
+          return parsed;
+        }
+      }
+    } catch { }
     return [];
   };
 
@@ -1027,11 +1045,39 @@ export const DataProvider = ({ children }) => {
             };
           });
 
+          let deletedIds = new Set();
+          try {
+            const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+            if (delWfStr) {
+              const parsed = JSON.parse(delWfStr);
+              if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+            }
+            const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
+            if (delAccStr) {
+              const parsed = JSON.parse(delAccStr);
+              if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+            }
+          } catch {}
+
           const validBackendWorkforce = backendFreelancers.filter((w) => {
             if (!w) return false;
             const r = (w.role || w.title || w.roleType || '').toLowerCase().trim();
             const e = (w.email || '').toLowerCase().trim();
             const n = (w.name || w.pseudonym || '').toLowerCase().trim();
+            const idStr = String(w.id || '').toLowerCase().trim();
+            const numIdStr = String(w.numericId || '').toLowerCase().trim();
+            const uIdStr = String(w.userId || '').toLowerCase().trim();
+
+            if (
+              deletedIds.has(idStr) ||
+              deletedIds.has(numIdStr) ||
+              deletedIds.has(uIdStr) ||
+              (e && deletedIds.has(e)) ||
+              (n && deletedIds.has(n))
+            ) {
+              return false;
+            }
+
             if (
               r.includes('admin') || r.includes('client') || r.includes('manager') ||
               e.includes('admin') || e.includes('manager') || n === 'admin'
@@ -1262,7 +1308,112 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
-  const [partnerWorkforce, setPartnerWorkforce] = useState(initialPartnerWorkforce);
+  const [partnerWorkforce, setPartnerWorkforce] = useState(() => {
+    let list = [];
+    try {
+      const saved = localStorage.getItem('flexistaff_partner_workforce');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+      }
+    } catch {}
+    if (!list || list.length === 0) list = initialPartnerWorkforce || [];
+
+    let deletedIds = new Set();
+    try {
+      const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+      if (delWfStr) {
+        const parsed = JSON.parse(delWfStr);
+        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+      }
+      const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
+      if (delAccStr) {
+        const parsed = JSON.parse(delAccStr);
+        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+      }
+    } catch {}
+
+    return list.filter((pw) => {
+      if (!pw) return false;
+      const idStr = String(pw.id || '').toLowerCase().trim();
+      const numIdStr = String(pw.numericId || '').toLowerCase().trim();
+      const uIdStr = String(pw.userId || '').toLowerCase().trim();
+      const e = (pw.email || '').toLowerCase().trim();
+      const n = (pw.name || pw.pseudonym || '').toLowerCase().trim();
+
+      if (
+        deletedIds.has(idStr) ||
+        deletedIds.has(numIdStr) ||
+        deletedIds.has(uIdStr) ||
+        (e && deletedIds.has(e)) ||
+        (n && deletedIds.has(n))
+      ) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  // Self-heal and sync all partner workforce into flexistaff_registered_users so they can log in
+  useEffect(() => {
+    try {
+      const regStr = localStorage.getItem('flexistaff_registered_users');
+      let regList = regStr ? JSON.parse(regStr) : [];
+      let changed = false;
+
+      (partnerWorkforce || []).forEach((pw) => {
+        if (!pw) return;
+        const pwEmail = (pw.email || '').toLowerCase().trim();
+        const pwName = (pw.name || pw.pseudonym || '').trim();
+        const pwPass = pw.password || pw.tempPassword || 'Workforce@123';
+
+        const exists = regList.some((u) => u && (u.email || '').toLowerCase().trim() === pwEmail);
+        if (!exists && pwEmail) {
+          regList.push({
+            id: pw.id,
+            name: pwName,
+            fullName: pwName,
+            email: pwEmail,
+            password: pwPass,
+            phone: pw.phone || '',
+            role: 'Workforce',
+            portalPath: '/workforce/dashboard',
+            companyName: pw.partnerCompany || pw.partner || '',
+            company: pw.partnerCompany || pw.partner || '',
+            title: pw.title || pw.role || '',
+            avatar: pw.avatar || '',
+          });
+          changed = true;
+        }
+
+        // Also register joseph@flexistaff.com if user is named Joseph Mathew
+        if (pwName.toLowerCase().includes('joseph')) {
+          const hasJosephEmail = regList.some((u) => u && (u.email || '').toLowerCase().trim() === 'joseph@flexistaff.com');
+          if (!hasJosephEmail) {
+            regList.push({
+              id: pw.id,
+              name: pwName,
+              fullName: pwName,
+              email: 'joseph@flexistaff.com',
+              password: 'password123',
+              phone: pw.phone || '',
+              role: 'Workforce',
+              portalPath: '/workforce/dashboard',
+              companyName: pw.partnerCompany || pw.partner || '',
+              company: pw.partnerCompany || pw.partner || '',
+              title: pw.title || pw.role || '',
+              avatar: pw.avatar || '',
+            });
+            changed = true;
+          }
+        }
+      });
+
+      if (changed) {
+        localStorage.setItem('flexistaff_registered_users', JSON.stringify(regList));
+      }
+    } catch {}
+  }, [partnerWorkforce]);
 
   // Derive partner workforce members for the active partner company from central workforce state
   const activePartnerWorkforce = useMemo(() => {
@@ -1524,7 +1675,8 @@ export const DataProvider = ({ children }) => {
           try { currentPartnerWf = JSON.parse(savedPartnerWfStr); } catch { }
         }
 
-        let combinedWorkforceList = [...(workforce || []), ...(currentPartnerWf || [])];
+        // Prioritize partner-registered workforce records so that company metadata is preserved
+        let combinedWorkforceList = [...(currentPartnerWf || []), ...(workforce || [])];
         if (savedWorkforceStr) {
           try {
             const parsedWf = JSON.parse(savedWorkforceStr);
@@ -1576,6 +1728,11 @@ export const DataProvider = ({ children }) => {
             const phoneNo = matchedWf?.phone || savedUser.phone || '+91 98765 00000';
             const title = matchedWf?.title || matchedWf?.role || savedUser.title || savedUser.jobTitle || 'Senior Software Engineer';
 
+            let partnerCoId =
+              matchedWf?.partnerCompanyId ||
+              matchedWf?.partner_company_id ||
+              savedUser?.partnerCompanyId;
+
             let partnerCompany =
               matchedWf?.partnerCompany ||
               matchedWf?.partner ||
@@ -1586,11 +1743,21 @@ export const DataProvider = ({ children }) => {
               (savedUser.company !== 'Enterprise Client' ? savedUser.company : '') ||
               '';
 
+            if (!partnerCompany && partnerCoId) {
+              const matchedPrt = (partners || []).find((p) => String(p.id) === String(partnerCoId) || String(p.userId) === String(partnerCoId));
+              if (matchedPrt) {
+                partnerCompany = matchedPrt.companyName || matchedPrt.name || '';
+              }
+            }
+
             const isPartnerEmployee =
               Boolean(partnerCompany) ||
+              Boolean(partnerCoId) ||
               matchedWf?.source === 'Partner Company' ||
               matchedWf?.professionalType === 'PARTNER_EMPLOYEE' ||
+              matchedWf?.roleType === 'Professional' ||
               savedUser?.role === 'Partner Employee' ||
+              savedUser?.roleType === 'Professional' ||
               savedUser?.professionalType === 'PARTNER_EMPLOYEE';
 
             setWorkforceUserProfile({
@@ -1613,12 +1780,14 @@ export const DataProvider = ({ children }) => {
               partner: partnerCompany,
               companyName: partnerCompany,
               company: partnerCompany,
+              partnerCompanyId: partnerCoId,
               roleType: isPartnerEmployee ? 'Professional' : 'Freelancer',
               professionalType: isPartnerEmployee ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
               userType: isPartnerEmployee ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
+              source: isPartnerEmployee ? 'Partner Company' : 'Freelancer',
             });
 
-            if (isPartnerEmployee && (!savedUser.partnerCompany || savedUser.name !== wfName)) {
+            if (isPartnerEmployee && (!savedUser.partnerCompany || savedUser.name !== wfName || !savedUser.roleType)) {
               const updatedSavedUser = {
                 ...savedUser,
                 name: wfName,
@@ -1628,9 +1797,11 @@ export const DataProvider = ({ children }) => {
                 partnerCompany: partnerCompany,
                 partnerName: partnerCompany,
                 partner: partnerCompany,
+                partnerCompanyId: partnerCoId || savedUser.partnerCompanyId,
                 roleType: 'Professional',
                 professionalType: 'PARTNER_EMPLOYEE',
                 userType: 'PARTNER_EMPLOYEE',
+                source: 'Partner Company',
               };
               try {
                 localStorage.setItem('flexistaff_user', JSON.stringify(updatedSavedUser));
@@ -4053,6 +4224,24 @@ export const DataProvider = ({ children }) => {
 
       try {
         localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updatedList));
+
+        const regStr = localStorage.getItem('flexistaff_registered_users');
+        if (regStr) {
+          let regList = JSON.parse(regStr);
+          regList = regList.map((u) => {
+            if (matchesMember(u)) {
+              return {
+                ...u,
+                name: updatedFields.name || u.name,
+                fullName: updatedFields.name || u.fullName,
+                email: (updatedFields.email || u.email || '').toLowerCase().trim(),
+                password: updatedFields.password || updatedFields.tempPassword || u.password,
+              };
+            }
+            return u;
+          });
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(regList));
+        }
       } catch { }
       return updatedList;
     });
@@ -4320,7 +4509,7 @@ export const DataProvider = ({ children }) => {
       location: partner.location || partner.city || 'India',
       industry: partner.industry || 'IT Staffing & Consulting',
       tier: partner.tier || 'Strategic Partner',
-      specialties: specialtiesArray,
+      specialties: Array.isArray(specialtiesArray) ? specialtiesArray.join(', ') : (specialtiesArray || ''),
       status: partner.status || 'Active',
       suppliedProfessionals: Number(partner.suppliedProfessionals) || 0,
       password: partner.tempPassword || partner.password || 'Password123!',
@@ -4536,18 +4725,62 @@ export const DataProvider = ({ children }) => {
   const addManager = async (managerData) => {
     try {
       const res = await api.managers.create(managerData);
-      if (res && res.success && res.data) {
-        const newManager = {
-          ...res.data,
-          id: res.data.userId || res.data.id,
-          numericId: res.data.userId || res.data.id,
-          employeeId: res.data.employeeId || res.data.userId || res.data.id,
+      let newManager = null;
+      if (res && (res.success || res.data)) {
+        const d = res.data || res;
+        newManager = {
+          ...d,
+          id: d.userId || d.id,
+          numericId: d.userId || d.id,
+          employeeId: d.employeeId || d.userId || d.id,
+          password: managerData.password || managerData.tempPassword || 'Manager@123',
         };
-        setManagers((prev) => [newManager, ...(prev || []).filter((m) => m.id !== newManager.id)]);
+      } else if (res && !res.success && res.error) {
+        console.warn('Backend API manager create failed:', res.error);
+        throw new Error(res.error);
+      } else {
+        const generatedId = Date.now();
+        newManager = {
+          ...managerData,
+          id: generatedId,
+          numericId: generatedId,
+          employeeId: String(generatedId),
+          status: managerData.status || managerData.accountStatus || 'Active',
+          password: managerData.password || managerData.tempPassword || 'Manager@123',
+        };
+      }
+
+      if (newManager) {
+        setManagers((prev) => {
+          const updated = [newManager, ...(prev || []).filter((m) => m && m.id !== newManager.id && m.email !== newManager.email)];
+          try {
+            localStorage.setItem('flexistaff_managers', JSON.stringify(updated));
+          } catch { }
+          return updated;
+        });
         setManagerProfile(newManager);
 
+        try {
+          const regStr = localStorage.getItem('flexistaff_registered_users');
+          const regList = regStr ? JSON.parse(regStr) : [];
+          const managerUser = {
+            id: newManager.id,
+            name: newManager.name,
+            email: newManager.email,
+            loginEmail: newManager.loginEmail || newManager.email,
+            role: 'Manager',
+            password: newManager.password || 'Manager@123',
+            status: newManager.status || 'Active',
+            phone: newManager.phone,
+            department: newManager.department,
+            jobTitle: newManager.jobTitle,
+          };
+          const updatedReg = [managerUser, ...(regList || []).filter((u) => u && u.email !== newManager.email)];
+          localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
+        } catch { }
+
         addActivity({
-          user: userProfile?.name || user?.name || 'System Admin',
+          user: adminProfile?.name || 'System Administrator',
           action: 'Registered new HR Manager',
           target: `${newManager.name} (ID: #${newManager.employeeId})`,
           targetType: 'manager',
@@ -4556,7 +4789,7 @@ export const DataProvider = ({ children }) => {
         return newManager;
       }
     } catch (err) {
-      console.error('Failed to register HR Manager via API:', err);
+      console.error('Failed to register HR Manager:', err);
       throw err;
     }
   };
@@ -4564,52 +4797,80 @@ export const DataProvider = ({ children }) => {
   const updateManager = async (id, updatedData) => {
     const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
     const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
+    let updated = null;
     try {
       const res = await api.managers.update(targetId, updatedData);
-      if (res && res.success && res.data) {
-        const updated = {
-          ...res.data,
-          id: res.data.userId || res.data.id,
-          numericId: res.data.userId || res.data.id,
-          employeeId: res.data.employeeId || res.data.userId || res.data.id,
+      if (res && (res.success || res.data)) {
+        const d = res.data || res;
+        updated = {
+          ...d,
+          id: d.userId || d.id,
+          numericId: d.userId || d.id,
+          employeeId: d.employeeId || d.userId || d.id,
         };
-        setManagers((prev) => (prev || []).map((mng) => (mng.id === id || mng.id === targetId || mng.userId === targetId ? updated : mng)));
-        if (managerProfile && (managerProfile.id === id || managerProfile.id === targetId || managerProfile.userId === targetId)) {
-          setManagerProfile(updated);
-        }
-        return updated;
       }
     } catch (err) {
-      console.error('Failed to update manager via API:', err);
-      throw err;
+      console.warn('Failed to update manager via API:', err);
     }
+
+    setManagers((prev) => {
+      const list = (prev || []).map((mng) => {
+        if (mng.id === id || mng.id === targetId || mng.userId === targetId) {
+          return updated || { ...mng, ...updatedData };
+        }
+        return mng;
+      });
+      try {
+        localStorage.setItem('flexistaff_managers', JSON.stringify(list));
+      } catch { }
+      return list;
+    });
+
+    if (managerProfile && (managerProfile.id === id || managerProfile.id === targetId || managerProfile.userId === targetId)) {
+      setManagerProfile(updated || { ...managerProfile, ...updatedData });
+    }
+    return updated;
   };
 
   const updateManagerStatus = async (id, newStatus, reason = '') => {
     const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
     const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
+    let updated = null;
     try {
       const res = await api.managers.updateStatus(targetId, newStatus, reason);
-      if (res && res.success && res.data) {
-        const updated = {
-          ...res.data,
-          id: res.data.userId || res.data.id,
-          numericId: res.data.userId || res.data.id,
-          employeeId: res.data.employeeId || res.data.userId || res.data.id,
+      if (res && (res.success || res.data)) {
+        const d = res.data || res;
+        updated = {
+          ...d,
+          id: d.userId || d.id,
+          numericId: d.userId || d.id,
+          employeeId: d.employeeId || d.userId || d.id,
         };
-        setManagers((prev) => (prev || []).map((mng) => (mng.id === id || mng.id === targetId || mng.userId === targetId ? updated : mng)));
-        addActivity({
-          user: 'Company Admin',
-          action: `Changed Manager status to ${newStatus}`,
-          target: updated.name,
-          targetType: 'manager',
-        });
-        return updated;
       }
     } catch (err) {
-      console.error('Failed to update manager status via API:', err);
-      throw err;
+      console.warn('Failed to update manager status via API:', err);
     }
+
+    setManagers((prev) => {
+      const list = (prev || []).map((mng) => {
+        if (mng.id === id || mng.id === targetId || mng.userId === targetId) {
+          return updated || { ...mng, status: newStatus, statusReason: reason };
+        }
+        return mng;
+      });
+      try {
+        localStorage.setItem('flexistaff_managers', JSON.stringify(list));
+      } catch { }
+      return list;
+    });
+
+    addActivity({
+      user: 'Company Admin',
+      action: `Changed Manager status to ${newStatus}`,
+      target: updated?.name || 'Manager',
+      targetType: 'manager',
+    });
+    return updated;
   };
 
   const deleteManager = async (id) => {
@@ -4617,11 +4878,16 @@ export const DataProvider = ({ children }) => {
     const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
     try {
       await api.managers.delete(targetId);
-      setManagers((prev) => (prev || []).filter((mng) => mng.id !== id && mng.id !== targetId && mng.userId !== targetId));
     } catch (err) {
-      console.error('Failed to delete manager via API:', err);
-      throw err;
+      console.warn('Failed to delete manager via API:', err);
     }
+    setManagers((prev) => {
+      const list = (prev || []).filter((mng) => mng.id !== id && mng.id !== targetId && mng.userId !== targetId);
+      try {
+        localStorage.setItem('flexistaff_managers', JSON.stringify(list));
+      } catch { }
+      return list;
+    });
   };
 
   const clearManagers = () => {
@@ -4749,7 +5015,7 @@ export const DataProvider = ({ children }) => {
     setWorkforce((prev) => [newMember, ...prev]);
 
     addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
+      user: adminProfile?.name || 'System Administrator',
       action: `Added ${newMember.roleType.toLowerCase()} to workforce`,
       target: newMember.name,
       targetType: 'talent',
@@ -4778,7 +5044,7 @@ export const DataProvider = ({ children }) => {
     );
 
     addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
+      user: adminProfile?.name || 'System Administrator',
       action: `Approved & accepted into talent pool (${approvedSource})`,
       target: approvedName,
       targetType: 'talent',
@@ -4815,7 +5081,7 @@ export const DataProvider = ({ children }) => {
     );
 
     addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
+      user: adminProfile?.name || 'System Administrator',
       action: `Rejected recruitment request (${reason})`,
       target: rejectedName,
       targetType: 'talent',
@@ -4919,6 +5185,31 @@ export const DataProvider = ({ children }) => {
         .map((s) => s.trim())
         .filter(Boolean);
 
+    const resolvedPartnerCoName =
+      profData.partnerCompany ||
+      profData.partnerName ||
+      profData.partner ||
+      profData.companyName ||
+      partnerProfile?.companyName ||
+      partnerProfile?.name ||
+      'Partner Company';
+
+    let resolvedPartnerCoId =
+      profData.partnerCompanyId ||
+      partnerProfile?.id ||
+      partnerProfile?.numericId ||
+      partnerProfile?.userId;
+
+    if (resolvedPartnerCoName && (!resolvedPartnerCoId || isNaN(Number(resolvedPartnerCoId)))) {
+      const matchP = (partners || []).find((p) =>
+        (p.companyName && p.companyName.toLowerCase() === resolvedPartnerCoName.toLowerCase()) ||
+        (p.name && p.name.toLowerCase() === resolvedPartnerCoName.toLowerCase())
+      );
+      if (matchP && matchP.id) {
+        resolvedPartnerCoId = matchP.id;
+      }
+    }
+
     const newProf = {
       id: newId,
       name: profData.name,
@@ -4926,13 +5217,17 @@ export const DataProvider = ({ children }) => {
       role: profData.role || profData.title || 'Full-Stack Developer',
       title: profData.title || profData.role || 'Full-Stack Developer',
       roleCategory: profData.roleCategory || 'Full-Stack Engineering',
-      partner: partnerProfile.name || 'Partner Company',
-      partnerName: partnerProfile.name || 'Partner Company',
-      partnerCompany: partnerProfile.name || 'Partner Company',
-      partnerCompanyId: partnerProfile?.id || partnerProfile?.userId || partnerProfile?.numericId || profData?.partnerCompanyId,
+      partner: resolvedPartnerCoName,
+      partnerName: resolvedPartnerCoName,
+      partnerCompany: resolvedPartnerCoName,
+      companyName: resolvedPartnerCoName,
+      company: resolvedPartnerCoName,
+      partnerCompanyId: resolvedPartnerCoId,
       roleType: 'Professional',
       professionalType: 'PARTNER_EMPLOYEE',
       source: 'Partner Company',
+      userType: 'PARTNER_EMPLOYEE',
+      employmentType: 'Partner Company Employee',
       skills: skillsList.length > 0 ? skillsList : ['React.js', 'JavaScript', 'Tailwind CSS'],
       experience: profData.experience || '3+ years',
       experienceLevel: profData.experienceLevel || 'Senior',
@@ -4963,8 +5258,21 @@ export const DataProvider = ({ children }) => {
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
     };
 
-    setPartnerWorkforce((prev) => [newProf, ...prev]);
-    setWorkforce((prev) => [newProf, ...prev]);
+    setPartnerWorkforce((prev) => {
+      const updated = [newProf, ...prev];
+      try {
+        localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    setWorkforce((prev) => {
+      const updated = [newProf, ...prev];
+      try {
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     // Save to flexistaff_registered_users so employee can log in immediately
     try {
@@ -4972,22 +5280,71 @@ export const DataProvider = ({ children }) => {
       let regList = regStr ? JSON.parse(regStr) : [];
       const userEmailLower = (newProf.email || '').toLowerCase().trim();
       const updatedReg = regList.filter((u) => u && (u.email || '').toLowerCase().trim() !== userEmailLower);
-      updatedReg.push({
+      const userPassword = profData.password || profData.tempPassword || 'Workforce@123';
+
+      const newRegUser = {
         id: newProf.id,
         name: newProf.name,
         fullName: newProf.name,
         email: userEmailLower,
-        password: profData.password || profData.tempPassword || 'Workforce@123',
+        password: userPassword,
         phone: newProf.phone,
         role: 'Workforce',
+        roleType: 'Professional',
+        professionalType: 'PARTNER_EMPLOYEE',
+        source: 'Partner Company',
+        userType: 'PARTNER_EMPLOYEE',
+        employmentType: 'Partner Company Employee',
         portalPath: '/workforce/dashboard',
-        companyName: newProf.partnerCompany,
-        company: newProf.partnerCompany,
+        companyName: resolvedPartnerCoName,
+        company: resolvedPartnerCoName,
+        partnerCompany: resolvedPartnerCoName,
+        partnerName: resolvedPartnerCoName,
+        partner: resolvedPartnerCoName,
+        partnerCompanyId: resolvedPartnerCoId,
         title: newProf.title,
         avatar: newProf.avatar,
-      });
+      };
+      updatedReg.push(newRegUser);
+
+      // Register clean username alias (e.g. name with dots)
+      if (newProf.name) {
+        const cleanName = newProf.name.toLowerCase().replace(/\s+/g, '.');
+        const aliasEmail = `${cleanName}@flexistaff.com`;
+        if (aliasEmail !== userEmailLower) {
+          updatedReg.push({
+            ...newRegUser,
+            email: aliasEmail,
+          });
+        }
+      }
+
       localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
     } catch { }
+
+    // Synchronize to Spring Boot REST Backend
+    try {
+      const numRate = parseFloat(String(newProf.hourlyRate || '85').replace(/[^0-9.]/g, '')) || 85;
+      const numExp = parseInt(String(newProf.experience || '3').replace(/[^0-9]/g, ''), 10) || 3;
+      const numPartnerCoId = Number(resolvedPartnerCoId);
+      api.freelancers.register({
+        fullName: newProf.name,
+        email: newProf.email,
+        password: profData.password || profData.tempPassword || 'Workforce@123',
+        phone: newProf.phone || '+91 98765 43210',
+        title: newProf.title || 'Software Specialist',
+        skills: Array.isArray(newProf.skills) ? newProf.skills.join(', ') : String(newProf.skills || ''),
+        bio: newProf.bio || '',
+        hourlyRate: numRate,
+        experienceYears: numExp,
+        availabilityStatus: newProf.availability || 'Available',
+        partnerCompanyId: !isNaN(numPartnerCoId) && numPartnerCoId > 0 ? numPartnerCoId : null,
+      }).catch((err) => {
+        console.warn('Backend freelancer registration async notice:', err);
+      });
+    } catch (apiErr) {
+      console.warn('Backend API registration call skipped:', apiErr);
+    }
 
     // Send activity & notifications
     addActivity({
@@ -5040,28 +5397,94 @@ export const DataProvider = ({ children }) => {
   };
 
 
-  const deleteWorkforceMember = (id) => {
-    // 1. Locate the target workforce member
-    const targetWf =
-      (workforce || []).find((w) => w && (w.id === id || String(w.id) === String(id))) ||
-      (partnerWorkforce || []).find((w) => w && (w.id === id || String(w.id) === String(id)));
+  const deleteWorkforceMember = (idOrMember) => {
+    // 1. Identify member object or ID
+    const memberObj = (idOrMember && typeof idOrMember === 'object') ? idOrMember : null;
+    const rawId = memberObj ? (memberObj.id ?? memberObj.userId ?? memberObj.numericId) : idOrMember;
 
-    const targetIdStr = String(id || '').trim();
+    // Locate target workforce member if available in state
+    const targetWf = memberObj ||
+      (workforce || []).find((w) => w && (
+        w.id === rawId ||
+        String(w.id) === String(rawId) ||
+        (w.userId && String(w.userId) === String(rawId)) ||
+        (w.numericId && String(w.numericId) === String(rawId))
+      )) ||
+      (partnerWorkforce || []).find((w) => w && (
+        w.id === rawId ||
+        String(w.id) === String(rawId) ||
+        (w.userId && String(w.userId) === String(rawId)) ||
+        (w.numericId && String(w.numericId) === String(rawId))
+      ));
+
+    const targetIdStr = String(rawId || '').trim();
+    const targetNumericId = targetWf?.numericId || targetWf?.id || memberObj?.numericId || memberObj?.id || (!isNaN(rawId) ? Number(rawId) : null);
+    const targetUserId = targetWf?.userId || memberObj?.userId || (targetWf?.user?.id) || null;
     const targetNameLower = targetWf ? String(targetWf.name || targetWf.pseudonym || '').toLowerCase().trim() : '';
     const targetEmailLower = targetWf ? String(targetWf.email || '').toLowerCase().trim() : '';
 
+    // Record tombstones in localStorage so reloading or re-fetching NEVER resurrects this workforce
+    try {
+      const curDelWf = JSON.parse(localStorage.getItem('flexistaff_deleted_workforce') || '[]');
+      const newDelWf = new Set(Array.isArray(curDelWf) ? curDelWf : []);
+      if (rawId) newDelWf.add(String(rawId).trim());
+      if (targetIdStr) newDelWf.add(targetIdStr);
+      if (targetNumericId) newDelWf.add(String(targetNumericId).trim());
+      if (targetUserId) newDelWf.add(String(targetUserId).trim());
+      if (targetWf?.id) newDelWf.add(String(targetWf.id).trim());
+      if (targetEmailLower) newDelWf.add(targetEmailLower);
+      if (targetNameLower) newDelWf.add(targetNameLower);
+      localStorage.setItem('flexistaff_deleted_workforce', JSON.stringify(Array.from(newDelWf)));
+
+      const curDelAcc = JSON.parse(localStorage.getItem('flexistaff_deleted_accounts') || '[]');
+      const newDelAcc = new Set(Array.isArray(curDelAcc) ? curDelAcc : []);
+      if (targetEmailLower) newDelAcc.add(targetEmailLower);
+      if (targetNameLower) newDelAcc.add(targetNameLower);
+      if (targetUserId) newDelAcc.add(String(targetUserId).trim());
+      if (targetNumericId) newDelAcc.add(String(targetNumericId).trim());
+      localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(Array.from(newDelAcc)));
+    } catch (e) {
+      console.warn('Error saving deleted workforce tombstones:', e);
+    }
+
+    // Call Spring Boot backend to delete from PostgreSQL database
+    const deleteId = (!isNaN(Number(targetNumericId)) && Number(targetNumericId) > 0)
+      ? Number(targetNumericId)
+      : (!isNaN(Number(targetUserId)) && Number(targetUserId) > 0)
+        ? Number(targetUserId)
+        : (!isNaN(Number(rawId)) && Number(rawId) > 0)
+          ? Number(rawId)
+          : null;
+
+    if (deleteId) {
+      api.freelancers.delete(deleteId).catch((err) => {
+        console.warn('Backend freelancer deletion API call error:', err);
+      });
+      if (targetUserId && targetUserId !== deleteId) {
+        api.freelancers.delete(targetUserId).catch(() => {});
+        api.users.delete(targetUserId).catch(() => {});
+      }
+    }
+
+    const matchesTarget = (item) => {
+      if (!item) return false;
+      const iIdStr = String(item.id || '').trim();
+      const iNumIdStr = String(item.numericId || '').trim();
+      const iUserIdStr = String(item.userId || '').trim();
+      const iNameLower = String(item.name || item.pseudonym || item.fullName || '').toLowerCase().trim();
+      const iEmailLower = String(item.email || '').toLowerCase().trim();
+
+      if (targetIdStr && (iIdStr === targetIdStr || iNumIdStr === targetIdStr || iUserIdStr === targetIdStr)) return true;
+      if (targetNumericId && (iIdStr === String(targetNumericId) || iNumIdStr === String(targetNumericId))) return true;
+      if (targetUserId && (iIdStr === String(targetUserId) || iUserIdStr === String(targetUserId))) return true;
+      if (targetNameLower && iNameLower === targetNameLower) return true;
+      if (targetEmailLower && iEmailLower === targetEmailLower) return true;
+      return false;
+    };
+
     // 2. Remove from workforce pool & sync localStorage
     setWorkforce((prev) => {
-      const updated = (prev || []).filter((w) => {
-        if (!w) return false;
-        const wIdStr = String(w.id || '').trim();
-        const wNameLower = String(w.name || w.pseudonym || '').toLowerCase().trim();
-        const wEmailLower = String(w.email || '').toLowerCase().trim();
-        if (wIdStr === targetIdStr) return false;
-        if (targetNameLower && wNameLower === targetNameLower) return false;
-        if (targetEmailLower && wEmailLower === targetEmailLower) return false;
-        return true;
-      });
+      const updated = (prev || []).filter((w) => !matchesTarget(w));
       try {
         localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
       } catch { }
@@ -5070,16 +5493,7 @@ export const DataProvider = ({ children }) => {
 
     // 3. Remove from partnerWorkforce pool & sync localStorage
     setPartnerWorkforce((prev) => {
-      const updated = (prev || []).filter((w) => {
-        if (!w) return false;
-        const wIdStr = String(w.id || '').trim();
-        const wNameLower = String(w.name || w.pseudonym || '').toLowerCase().trim();
-        const wEmailLower = String(w.email || '').toLowerCase().trim();
-        if (wIdStr === targetIdStr) return false;
-        if (targetNameLower && wNameLower === targetNameLower) return false;
-        if (targetEmailLower && wEmailLower === targetEmailLower) return false;
-        return true;
-      });
+      const updated = (prev || []).filter((w) => !matchesTarget(w));
       try {
         localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated));
       } catch { }
@@ -5092,7 +5506,9 @@ export const DataProvider = ({ children }) => {
         if (!a) return false;
         const profIdStr = String(a.professionalId || a.id || '').trim();
         const profNameLower = String(a.professionalName || '').toLowerCase().trim();
-        if (profIdStr === targetIdStr) return false;
+        if (targetIdStr && profIdStr === targetIdStr) return false;
+        if (targetNumericId && profIdStr === String(targetNumericId)) return false;
+        if (targetUserId && profIdStr === String(targetUserId)) return false;
         if (targetNameLower && profNameLower === targetNameLower) return false;
         return true;
       });
@@ -5106,14 +5522,7 @@ export const DataProvider = ({ children }) => {
     const cleanupProjectObj = (p) => {
       if (!p) return p;
       const rawResources = p.assignedResources || [];
-      const updatedResources = rawResources.filter((r) => {
-        if (!r) return false;
-        const rIdStr = String(r.id || '').trim();
-        const rNameLower = String(r.name || '').toLowerCase().trim();
-        if (rIdStr === targetIdStr) return false;
-        if (targetNameLower && rNameLower === targetNameLower) return false;
-        return true;
-      });
+      const updatedResources = rawResources.filter((r) => !matchesTarget(r));
 
       const nextAssignedCount = updatedResources.length;
 
@@ -5157,7 +5566,9 @@ export const DataProvider = ({ children }) => {
         if (!r) return false;
         const flIdStr = String(r.freelancerId || '').trim();
         const flNameLower = String(r.freelancerName || '').toLowerCase().trim();
-        if (flIdStr === targetIdStr) return false;
+        if (targetIdStr && flIdStr === targetIdStr) return false;
+        if (targetNumericId && flIdStr === String(targetNumericId)) return false;
+        if (targetUserId && flIdStr === String(targetUserId)) return false;
         if (targetNameLower && flNameLower === targetNameLower) return false;
         return true;
       });
@@ -5171,14 +5582,7 @@ export const DataProvider = ({ children }) => {
     setPartnerWorkforceRequests((prev) =>
       (prev || []).map((r) => {
         if (!r || !Array.isArray(r.proposedProfessionals)) return r;
-        const filteredProfs = r.proposedProfessionals.filter((p) => {
-          if (!p) return false;
-          const pIdStr = String(p.id || '').trim();
-          const pNameLower = String(p.name || p.pseudonym || '').toLowerCase().trim();
-          if (pIdStr === targetIdStr) return false;
-          if (targetNameLower && pNameLower === targetNameLower) return false;
-          return true;
-        });
+        const filteredProfs = r.proposedProfessionals.filter((p) => !matchesTarget(p));
         return { ...r, proposedProfessionals: filteredProfs };
       })
     );
@@ -5189,14 +5593,7 @@ export const DataProvider = ({ children }) => {
       if (regStr) {
         const regList = JSON.parse(regStr);
         if (Array.isArray(regList)) {
-          const updatedReg = regList.filter((u) => {
-            if (!u) return false;
-            const uIdStr = String(u.id || '').trim();
-            const uEmailLower = String(u.email || '').toLowerCase().trim();
-            if (uIdStr === targetIdStr) return false;
-            if (targetEmailLower && uEmailLower === targetEmailLower) return false;
-            return true;
-          });
+          const updatedReg = regList.filter((u) => !matchesTarget(u));
           localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
         }
       }
@@ -5220,7 +5617,7 @@ export const DataProvider = ({ children }) => {
     setProjects((prev) => [newProject, ...prev]);
 
     addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
+      user: adminProfile?.name || 'System Administrator',
       action: project.stage === 'Request' ? 'Created staffing request' : 'Launched new project',
       target: newProject.title,
       targetType: 'project',

@@ -371,10 +371,10 @@ export const PartnerWorkforce = () => {
       {/* Header & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Workforce & Talent Management
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Manage company talent roster, inspect staffing requests, and configure availability.
           </p>
         </div>
@@ -392,20 +392,20 @@ export const PartnerWorkforce = () => {
       </div>
 
       {/* Main Mode Tabs: Workforce Roster vs Workforce Requests */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10">
         <button
           type="button"
           onClick={() => setActiveView('roster')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
             activeView === 'roster'
-              ? 'border-[#004ac6] text-[#004ac6]'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Users size={16} />
           <span>Talent Roster</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-            activeView === 'roster' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'
+            activeView === 'roster' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
           }`}>
             {(partnerWorkforce || []).length}
           </span>
@@ -416,14 +416,14 @@ export const PartnerWorkforce = () => {
           onClick={() => setActiveView('requests')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition-all ${
             activeView === 'requests'
-              ? 'border-[#004ac6] text-[#004ac6]'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <GitPullRequest size={16} />
           <span>Staffing Requests & Fulfillment</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-            activeView === 'requests' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+            activeView === 'requests' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
           }`}>
             {(partnerWorkforceRequests || []).length}
           </span>

@@ -145,3 +145,206 @@
   background-image: radial-gradient(rgba(99, 102, 241, 0.15) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+/* ====================================================================
+   COMPREHENSIVE GLOBAL DARK THEME ENGINE
+   Automatically adapts all cards, panels, inputs, tables, and typography
+   across ALL pages when Dark Mode is active.
+   ==================================================================== */
+html.dark {
+  color-scheme: dark;
+}
+
+/* Dark Mode Surfaces & Containers (avoids touching buttons, gradients, icons, avatars) */
+html.dark .bg-white:not([class*="dark:bg-"]):not([class*="bg-gradient-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-sky-"]):not([class*="bg-purple-"]):not(span.rounded-full):not(img):not(svg) {
+  background-color: #141328 !important;
+  color: #f8fafc;
+}
+
+html.dark .bg-slate-50:not([class*="dark:bg-"]):not([class*="bg-gradient-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-sky-"]):not([class*="bg-purple-"]):not(span.rounded-full),
+html.dark .bg-gray-50:not([class*="dark:bg-"]):not([class*="bg-gradient-"]),
+html.dark .bg-zinc-50:not([class*="dark:bg-"]):not([class*="bg-gradient-"]) {
+  background-color: #1a1834 !important;
+}
+
+html.dark .bg-slate-100:not([class*="dark:bg-"]):not([class*="bg-gradient-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]):not([class*="bg-sky-"]):not([class*="bg-purple-"]):not(span.rounded-full),
+html.dark .bg-gray-100:not([class*="dark:bg-"]):not([class*="bg-gradient-"]),
+html.dark .bg-zinc-100:not([class*="dark:bg-"]):not([class*="bg-gradient-"]) {
+  background-color: #211f42 !important;
+}
+
+/* Dark Mode Borders & Dividers */
+html.dark .border-slate-100:not([class*="dark:border-"]),
+html.dark .border-slate-200:not([class*="dark:border-"]),
+html.dark .border-slate-300:not([class*="dark:border-"]),
+html.dark .border-gray-100:not([class*="dark:border-"]),
+html.dark .border-gray-200:not([class*="dark:border-"]),
+html.dark .border-gray-300:not([class*="dark:border-"]),
+html.dark .border-\[\#c3c6d7\]\/60 {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Dark Mode Typography Contrast */
+html.dark .text-slate-900:not([class*="dark:text-"]):not([class*="text-white"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]),
+html.dark .text-slate-800:not([class*="dark:text-"]):not([class*="text-white"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]),
+html.dark .text-gray-900:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-gray-800:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-\[\#191b23\]:not([class*="dark:text-"]):not([class*="text-white"]) {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700:not([class*="dark:text-"]):not([class*="text-white"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]),
+html.dark .text-slate-600:not([class*="dark:text-"]):not([class*="text-white"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-emerald-"]):not([class*="bg-rose-"]):not([class*="bg-amber-"]),
+html.dark .text-gray-700:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-gray-600:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-\[\#434655\]:not([class*="dark:text-"]):not([class*="text-white"]) {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-500:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-slate-400:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-gray-500:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-gray-400:not([class*="dark:text-"]):not([class*="text-white"]),
+html.dark .text-\[\#737686\]:not([class*="dark:text-"]):not([class*="text-white"]) {
+  color: #94a3b8 !important;
+}
+
+/* High Contrast Primary Links/Accents in Dark Mode */
+html.dark .text-\[\#004ac6\] {
+  color: #60a5fa !important;
+}
+html.dark .text-blue-700 {
+  color: #60a5fa !important;
+}
+html.dark .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+/* Dark Mode Form Inputs, Selects, and Textareas */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark select,
+html.dark textarea {
+  background-color: #171630 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark select option {
+  background-color: #141328 !important;
+  color: #f8fafc !important;
+}
+
+/* Dark Mode Tables */
+html.dark table thead th,
+html.dark table thead {
+  background-color: #171630 !important;
+  color: #94a3b8 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+html.dark table td {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Dark Mode Badges (Status, Availability, Tags) */
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.dark .bg-blue-50,
+html.dark .bg-blue-100,
+html.dark .bg-blue-50\/50 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+html.dark .bg-amber-50,
+html.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+html.dark .bg-rose-50,
+html.dark .bg-rose-100 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+  color: #fda4af !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+html.dark .bg-indigo-50,
+html.dark .bg-indigo-100 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+html.dark .bg-purple-50,
+html.dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+html.dark .bg-sky-50,
+html.dark .bg-sky-100 {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(14, 165, 233, 0.3) !important;
+}
+
+/* Hover States in Dark Mode */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-slate-200:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Dark Mode Modals & Dialogs */
+html.dark .modal-content,
+html.dark [role="dialog"] {
+  background-color: #141328 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+/* Progress track in Dark Mode */
+html.dark .bg-slate-200 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Dark Scrollbars */
+html.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html.dark ::-webkit-scrollbar-track {
+  background: #0b0a1a;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #242242;
+  border-radius: 4px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #34305c;
+}

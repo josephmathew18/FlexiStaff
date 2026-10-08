@@ -191,16 +191,56 @@ public class FreelancerService {
 
     @Transactional
     public void deleteFreelancer(Long id) {
-        Freelancer freelancer = freelancerRepository.findById(id).orElse(null);
+        if (id == null) return;
+        Freelancer freelancer = freelancerRepository.findById(id)
+                .or(() -> freelancerRepository.findByUserId(id))
+                .orElse(null);
+
+        User user = null;
         if (freelancer != null) {
-            freelancerRepository.delete(freelancer);
-            if (freelancer.getUser() != null) {
-                userRepository.delete(freelancer.getUser());
+            user = freelancer.getUser();
+            if (user == null && freelancer.getEmail() != null) {
+                user = userRepository.findByEmailIgnoreCase(freelancer.getEmail()).orElse(null);
             }
         } else {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Freelancer", "id", id));
+            user = userRepository.findById(id).orElse(null);
+            if (user != null) {
+                final Long uId = user.getId();
+                final String uEmail = user.getEmail();
+                freelancer = freelancerRepository.findByUserId(uId)
+                        .or(() -> freelancerRepository.findByEmailIgnoreCase(uEmail))
+                        .orElse(null);
+            }
+        }
+
+        if (freelancer == null && user == null) {
+            return;
+        }
+
+        // 1. Delete associated workforce allocations and professional profiles
+        if (user != null) {
+            final Long targetUserId = user.getId();
+            var allocations = workforceAllocationRepository.findByProfessionalId(targetUserId);
+            if (!allocations.isEmpty()) {
+                workforceAllocationRepository.deleteAll(allocations);
+                workforceAllocationRepository.flush();
+            }
+            professionalProfileRepository.findByUserId(targetUserId).ifPresent(p -> {
+                professionalProfileRepository.delete(p);
+                professionalProfileRepository.flush();
+            });
+        }
+
+        // 2. Delete freelancer record
+        if (freelancer != null) {
+            freelancerRepository.delete(freelancer);
+            freelancerRepository.flush();
+        }
+
+        // 3. Delete user record
+        if (user != null) {
             userRepository.delete(user);
+            userRepository.flush();
         }
     }
 

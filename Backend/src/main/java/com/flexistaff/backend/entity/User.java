@@ -35,7 +35,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private Boolean active = true;
 
-    @Column(name = "avatar_url")
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
