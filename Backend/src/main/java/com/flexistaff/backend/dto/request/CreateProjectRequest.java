@@ -27,7 +27,6 @@ public class CreateProjectRequest {
     @PositiveOrZero(message = "Budget cannot be negative")
     private BigDecimal budget;
 
-    @FutureOrPresent(message = "Start date cannot be in the past")
     private LocalDate startDate;
 
     private LocalDate endDate;

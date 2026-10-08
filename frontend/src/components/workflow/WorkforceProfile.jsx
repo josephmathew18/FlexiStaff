@@ -19,16 +19,20 @@ import {
   DollarSign,
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 
 export const WorkforceProfile = ({ isOpen = false, onClose, candidate }) => {
+  const { partners = [], clients = [] } = useData() || {};
   if (!isOpen || !candidate) return null;
+
+  const resolvedPartnerName = getPartnerCompanyName(candidate, partners, clients);
 
   const isProfessional =
     candidate.roleType === 'Professional' ||
     candidate.source === 'Partner Company' ||
-    Boolean(candidate.partnerCompany || candidate.partner);
+    Boolean(candidate.partnerCompanyId || candidate.partnerCompany || candidate.partner || resolvedPartnerName);
 
-  const partnerName = candidate.partnerCompany || candidate.partner || candidate.partnerName;
+  const partnerName = resolvedPartnerName || candidate.partnerCompany || candidate.partner || candidate.partnerName;
 
   const skillsList = Array.isArray(candidate.skills)
     ? candidate.skills

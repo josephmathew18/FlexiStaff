@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MessageSquare,
   Send,
@@ -16,59 +16,51 @@ import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const ClientMessages = () => {
-  const { clientProfile } = useData() || {};
+  const { clientProfile, managers = [], partners = [] } = useData() || {};
 
-  const [activeChannelId, setActiveChannelId] = useState('ch-1');
+  const assignedManager = managers[0] || null;
+  const primaryPartner = partners[0] || null;
+
+  const initialChannels = useMemo(() => {
+    const list = [];
+    if (assignedManager) {
+      list.push({
+        id: `mgr-${assignedManager.id}`,
+        name: `${assignedManager.name} (HR Manager)`,
+        role: assignedManager.jobTitle || 'HR Delivery Lead',
+        avatar: assignedManager.avatar || '',
+        online: true,
+        lastMessage: 'Direct communication channel with your assigned FlexiStaff Manager.',
+        lastTime: 'Active',
+        messages: [],
+      });
+    }
+    if (primaryPartner) {
+      list.push({
+        id: `ptn-${primaryPartner.id}`,
+        name: primaryPartner.companyName || primaryPartner.name || 'Partner Company Pod',
+        role: 'Engineering Partner',
+        avatar: primaryPartner.logoUrl || '',
+        online: false,
+        lastMessage: 'Direct channel with your partner engineering squad lead.',
+        lastTime: '',
+        messages: [],
+      });
+    }
+    return list;
+  }, [assignedManager, primaryPartner]);
+
+  const [channels, setChannels] = useState(initialChannels);
+  const [activeChannelId, setActiveChannelId] = useState(initialChannels[0]?.id || '');
   const [inputText, setInputText] = useState('');
 
-  const [channels, setChannels] = useState([
-    {
-      id: 'ch-1',
-      name: 'Alex Vance (Lead Manager)',
-      role: 'Senior Delivery Lead',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
-      online: true,
-      lastMessage: 'The sprint deliverables are on track for Friday review.',
-      lastTime: '10:42 AM',
-      messages: [
-        {
-          id: 'm-1',
-          sender: 'Alex Vance',
-          isClient: false,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
-          text: 'Hello David! Welcome to your FlexiStaff project workspace. I am your assigned Delivery Lead.',
-          time: '10:30 AM',
-        },
-        {
-          id: 'm-2',
-          sender: 'Alex Vance',
-          isClient: false,
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80',
-          text: 'The sprint deliverables are on track for Friday review.',
-          time: '10:42 AM',
-        },
-      ],
-    },
-    {
-      id: 'ch-2',
-      name: 'TechCorp Partner Pod',
-      role: 'Engineering Partner',
-      avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=160&q=80',
-      online: false,
-      lastMessage: 'Resource allocations for Q3 have been confirmed.',
-      lastTime: 'Yesterday',
-      messages: [
-        {
-          id: 'm-3',
-          sender: 'TechCorp Support',
-          isClient: false,
-          avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=160&q=80',
-          text: 'Resource allocations for Q3 have been confirmed.',
-          time: 'Yesterday',
-        },
-      ],
-    },
-  ]);
+  useEffect(() => {
+    setChannels(initialChannels);
+    if (!activeChannelId && initialChannels.length > 0) {
+      setActiveChannelId(initialChannels[0].id);
+    }
+  }, [initialChannels, activeChannelId]);
+
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
 
   const handleSendMessage = (e) => {
@@ -77,9 +69,9 @@ export const ClientMessages = () => {
 
     const newMessage = {
       id: `m-${Date.now()}`,
-      sender: clientProfile?.name || 'David Sterling',
+      sender: clientProfile?.name || clientProfile?.companyName || 'Client',
       isClient: true,
-      avatar: clientProfile?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+      avatar: clientProfile?.avatar || '',
       text: inputText.trim(),
       time: 'Just now',
     };

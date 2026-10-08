@@ -52,7 +52,7 @@ export const ClientSupport = () => {
       if (submitSupportTicket) {
         submitSupportTicket({
           senderRole: 'Client',
-          senderName: `${clientProfile?.company || 'Client Organization'} (${clientProfile?.contactPerson || 'Client Lead'})`,
+          senderName: clientProfile?.company ? `${clientProfile.company} (${clientProfile.contactPerson || ''})` : (clientProfile?.contactPerson || ''),
           senderEmail: clientProfile?.email || 'client@flexistaff.com',
           ...formData,
         });

@@ -23,8 +23,8 @@ export const ClientProfile = () => {
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: clientProfile?.contactPerson || clientProfile?.name || 'Client Contact',
-    company: clientProfile?.company || clientProfile?.companyName || 'Client Organization',
+    name: clientProfile?.contactPerson || clientProfile?.name || '',
+    company: clientProfile?.company || clientProfile?.companyName || '',
     email: clientProfile?.email || '',
     phone: clientProfile?.phone || '',
     address: clientProfile?.address || clientProfile?.location || '',
@@ -36,8 +36,8 @@ export const ClientProfile = () => {
   React.useEffect(() => {
     if (clientProfile) {
       setFormData({
-        name: clientProfile.name || clientProfile.contactPerson || 'Client Contact',
-        company: clientProfile.company || clientProfile.companyName || 'Client Organization',
+        name: clientProfile.contactPerson || clientProfile.name || '',
+        company: clientProfile.company || clientProfile.companyName || '',
         email: clientProfile.email || '',
         phone: clientProfile.phone || '',
         address: clientProfile.address || clientProfile.location || '',

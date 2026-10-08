@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   User,
   UserPlus,
@@ -235,6 +235,7 @@ const FormInput = ({
   className = '',
   disabled = false,
   helperText,
+  autoComplete = 'off',
   ...rest
 }) => {
   const isError = Boolean(error);
@@ -254,6 +255,7 @@ const FormInput = ({
       )}
       <input
         type={type}
+        autoComplete={autoComplete}
         {...(register ? register(name) : {})}
         disabled={disabled}
         placeholder={placeholder}
@@ -279,7 +281,7 @@ const addManagerSchema = yup.object().shape({
   phone: yup.string().required('Direct phone number is required'),
   dob: yup.string().required('Date of birth is required'),
   address: yup.string().required('Address is required'),
-  employeeId: yup.string().required('Employee ID is required'),
+  employeeId: yup.string().nullable().optional(),
   jobTitle: yup.string().required('Job title is required'),
   department: yup.string().required('Department is required'),
   experience: yup.string().required('Experience is required'),
@@ -308,6 +310,7 @@ const editManagerSchema = yup.object().shape({
 export const ManagerManagement = () => {
   const {
     managers = [],
+    refreshManagers,
     addManager,
     updateManager,
     updateManagerStatus,
@@ -317,6 +320,10 @@ export const ManagerManagement = () => {
     workforce = [],
     managerAssignments = [],
   } = useData();
+
+  useEffect(() => {
+    refreshManagers?.();
+  }, []);
 
   // Separate Active Manager vs Previous Managers (Resigned, Terminated, Inactive)
   const activeManager = useMemo(() => {
@@ -351,7 +358,6 @@ export const ManagerManagement = () => {
   } = useForm({
     resolver: yupResolver(addManagerSchema),
     defaultValues: {
-      employeeId: 1,
       accountStatus: 'Active',
       joinDate: new Date().toISOString().split('T')[0],
     },
@@ -405,55 +411,63 @@ export const ManagerManagement = () => {
   const completedProjectsCount = managerProjects.filter((p) => p.stage === 'Completed' || p.status === 'Completed').length;
 
   // Form Submissions
-  const onAddManagerSubmit = (data) => {
-    const managerPayload = {
-      employeeId: data.employeeId,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      dob: data.dob,
-      address: data.address,
-      avatar: addAvatar || '',
-      jobTitle: data.jobTitle,
-      department: data.department,
-      experience: data.experience,
-      joinDate: data.joinDate,
-      bio: data.bio,
-      status: data.accountStatus || 'Active',
-      loginEmail: data.loginEmail,
-    };
+  const onAddManagerSubmit = async (data) => {
+    try {
+      const managerPayload = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        dob: data.dob,
+        address: data.address,
+        avatar: addAvatar || '',
+        jobTitle: data.jobTitle,
+        department: data.department,
+        experience: data.experience,
+        joinDate: data.joinDate,
+        bio: data.bio,
+        status: data.accountStatus || 'Active',
+        loginEmail: data.loginEmail || data.email,
+        password: data.tempPassword || data.password || 'Manager@123',
+      };
 
-    if (activeManager) {
-      updateManagerStatus(activeManager.id, 'Resigned', 'Replaced by new manager appointment');
+      if (activeManager) {
+        await updateManagerStatus(activeManager.id, 'Resigned', 'Replaced by new manager appointment');
+      }
+
+      await addManager(managerPayload);
+
+      toast.success(`HR Manager profile for ${data.name} successfully registered!`);
+      resetAdd();
+      setIsAddModalOpen(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to register HR Manager');
     }
-
-    addManager(managerPayload);
-
-    toast.success(`HR Manager profile for ${data.name} successfully registered!`);
-    resetAdd();
-    setIsAddModalOpen(false);
   };
 
-  const onEditManagerSubmit = (data) => {
+  const onEditManagerSubmit = async (data) => {
     if (!manager) return;
-    updateManager(manager.id, {
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      jobTitle: data.jobTitle,
-      department: data.department,
-      experience: data.experience,
-      bio: data.bio,
-      status: data.status,
-      avatar: editAvatar,
-    });
+    try {
+      await updateManager(manager.id, {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        jobTitle: data.jobTitle,
+        department: data.department,
+        experience: data.experience,
+        bio: data.bio,
+        status: data.status,
+        avatar: editAvatar,
+      });
 
-    if (data.status === 'Resigned' || data.status === 'Terminated') {
-      toast.info(`Manager moved to Previous Managers history list as ${data.status}`);
-    } else {
-      toast.success('HR Manager profile updated successfully!');
+      if (data.status === 'Resigned' || data.status === 'Terminated') {
+        toast.info(`Manager moved to Previous Managers history list as ${data.status}`);
+      } else {
+        toast.success('HR Manager profile updated successfully!');
+      }
+      setIsEditModalOpen(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update HR Manager');
     }
-    setIsEditModalOpen(false);
   };
 
   const handleOpenEdit = () => {
@@ -477,11 +491,15 @@ export const ManagerManagement = () => {
     setIsStatusConfirmModalOpen(true);
   };
 
-  const confirmStatusChange = () => {
+  const confirmStatusChange = async () => {
     if (!pendingStatusTarget.newStatus || !manager) return;
-    updateManagerStatus(manager.id, pendingStatusTarget.newStatus, pendingStatusTarget.reason);
-    toast.success(`HR Manager status updated to ${pendingStatusTarget.newStatus}`);
-    setIsStatusConfirmModalOpen(false);
+    try {
+      await updateManagerStatus(manager.id, pendingStatusTarget.newStatus, pendingStatusTarget.reason);
+      toast.success(`HR Manager status updated to ${pendingStatusTarget.newStatus}`);
+      setIsStatusConfirmModalOpen(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update manager status');
+    }
   };
 
   if (!manager) {
@@ -700,24 +718,29 @@ export const ManagerManagement = () => {
 
             {/* Section 2: Professional Information */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400">
                   <Briefcase size={14} />
                 </div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                   2. Professional Information
                 </h4>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <FormInput
-                  label="Employee ID"
-                  name="employeeId"
-                  register={registerAdd}
-                  error={errorsAdd.employeeId}
-                  placeholder="MNG-001"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
+                    <span>Employee ID</span>
+                    <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400">PostgreSQL User ID</span>
+                  </label>
+                  <input
+                    type="text"
+                    value="Auto-assigned (PostgreSQL User ID)"
+                    disabled
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                  />
+                  <p className="text-[10px] text-slate-400">Assigned automatically via PostgreSQL user ID</p>
+                </div>
                 <FormInput
                   label="Job Title"
                   name="jobTitle"
@@ -751,23 +774,23 @@ export const ManagerManagement = () => {
                   required
                 />
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Role</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role</label>
                   <input
                     type="text"
                     value="HR Manager"
                     disabled
-                    className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 cursor-not-allowed"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Professional Bio</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Professional Bio</label>
                 <textarea
                   {...registerAdd('bio')}
                   rows={3}
                   placeholder="Enter background, squad leadership experience, and delivery governance credentials..."
-                  className="w-full rounded-xl border border-[#c3c6d7] bg-white p-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+                  className="w-full rounded-xl border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-[#004ac6] placeholder-slate-400 dark:placeholder-slate-500"
                 />
                 {errorsAdd.bio && (
                   <span className="text-[11px] font-medium text-rose-600">{errorsAdd.bio.message}</span>
@@ -777,11 +800,11 @@ export const ManagerManagement = () => {
 
             {/* Section 3: Account Credentials */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
                   <KeyRound size={14} />
                 </div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                   3. Account Credentials
                 </h4>
               </div>
@@ -817,11 +840,11 @@ export const ManagerManagement = () => {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <div className="pt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="rounded-xl border border-slate-300 dark:border-white/10 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
               >
                 Cancel
               </button>
@@ -1137,11 +1160,11 @@ export const ManagerManagement = () => {
         <form onSubmit={handleSubmitAdd(onAddManagerSubmit)} className="space-y-6 pt-1">
           {/* Section 1: Personal Information */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-100 text-[#004ac6]">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400">
                 <Users size={14} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                 1. Personal Information & Media Photo
               </h4>
             </div>
@@ -1201,24 +1224,29 @@ export const ManagerManagement = () => {
 
           {/* Section 2: Professional Information */}
           <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400">
                 <Briefcase size={14} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                 2. Professional Information
               </h4>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <FormInput
-                label="Employee ID"
-                name="employeeId"
-                register={registerAdd}
-                error={errorsAdd.employeeId}
-                placeholder="1"
-                required
-              />
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-xs font-semibold text-[#434655] dark:text-slate-300">
+                  <span>Employee ID</span>
+                  <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400">PostgreSQL User ID</span>
+                </label>
+                <input
+                  type="text"
+                  value="Auto-assigned (PostgreSQL User ID)"
+                  disabled
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-slate-400">Assigned automatically via PostgreSQL user ID</p>
+              </div>
               <FormInput
                 label="Job Title"
                 name="jobTitle"
@@ -1252,23 +1280,23 @@ export const ManagerManagement = () => {
                 required
               />
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Role</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Role</label>
                 <input
                   type="text"
                   value="HR Manager"
                   disabled
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-xs font-bold text-slate-600 cursor-not-allowed"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 px-3.5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Professional Bio</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Professional Bio</label>
               <textarea
                 {...registerAdd('bio')}
                 rows={3}
                 placeholder="Enter background, squad leadership experience, and delivery governance credentials..."
-                className="w-full rounded-xl border border-[#c3c6d7] bg-white p-3 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+                className="w-full rounded-xl border border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-[#004ac6] placeholder-slate-400 dark:placeholder-slate-500"
               />
               {errorsAdd.bio && (
                 <span className="text-[11px] font-medium text-rose-600">{errorsAdd.bio.message}</span>
@@ -1278,11 +1306,11 @@ export const ManagerManagement = () => {
 
           {/* Section 3: Account Credentials */}
           <div className="space-y-4 pt-2">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-white/10">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
                 <KeyRound size={14} />
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                 3. Account Credentials
               </h4>
             </div>
@@ -1318,11 +1346,11 @@ export const ManagerManagement = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={() => setIsAddModalOpen(false)}
-              className="rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="rounded-xl border border-slate-300 dark:border-white/10 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
             >
               Cancel
             </button>

@@ -22,6 +22,7 @@ public class Freelancer extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(length = 10)
     private String phone;
 
     @Column(nullable = false)
@@ -48,6 +49,13 @@ public class Freelancer extends BaseEntity {
     @Builder.Default
     @Column(nullable = false)
     private String status = "Active";
+
+    @Column(name = "partner_company_id")
+    private Long partnerCompanyId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_company_id", insertable = false, updatable = false)
+    private PartnerCompany partnerCompany;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")

@@ -62,6 +62,7 @@ export const WorkforceLayout = () => {
   };
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompanyId) ||
     Boolean(workforceUserProfile?.partnerCompany) ||
     Boolean(workforceUserProfile?.partnerName) ||
     Boolean(workforceUserProfile?.partner) ||

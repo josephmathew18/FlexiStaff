@@ -26,5 +26,23 @@ public class FreelancerDto {
     private BigDecimal hourlyRate;
     private String availabilityStatus;
     private String status;
+    private String roleType;
+    private String professionalType;
+    private String source;
+    private String approvalStatus;
+    private String verificationStatus;
+    private String accountStatus;
+    private Long partnerCompanyId;
+    private String partnerCompany;
+    private String partnerName;
+    private String partnerCompanyName;
+    private String currentProject;
+    private Long currentProjectId;
+    private String currentProjectName;
+    private String currentProjectClient;
+    private String currentProjectRole;
+    private String currentAssignmentStatus;
+    private String currentProjectStatus;
+    private Boolean isCurrentlyWorking;
     private LocalDateTime createdAt;
 }

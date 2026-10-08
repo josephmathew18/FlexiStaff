@@ -41,44 +41,235 @@ export const getNextGlobalUserId = (role, clients = [], managers = [], partners 
   return maxExisting + 1;
 };
 
-const DEFAULT_CLIENTS = [
-  {
-    id: 'cli-01',
-    numericId: 101,
-    name: 'TechCorp Enterprise Solutions',
-    companyName: 'TechCorp Enterprise Solutions',
-    contactPerson: 'Enterprise Client Contact',
-    email: 'client@flexistaff.com',
-    phone: '+91 98765 00000',
-    logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
-    industry: 'Enterprise Software & Cloud',
-    tier: 'Tier 1 Enterprise Client',
-    status: 'Active',
-    location: 'Bengaluru, India',
-    joinedDate: '2026-01-15',
-    activeProjects: 2,
-    totalSpent: '₹12,50,000',
-    description: 'Global enterprise client leveraging FlexiStaff for cloud scaling.',
-  },
-  {
-    id: 'cli-02',
-    numericId: 102,
-    name: 'Acme Financial Guild',
-    companyName: 'Acme Financial Guild',
-    contactPerson: 'Sarah Jenkins',
-    email: 'sarah@acmefinance.com',
-    phone: '+91 98123 45678',
-    logo: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=200&q=80',
-    industry: 'FinTech & Machine Learning',
-    tier: 'Enterprise Client',
-    status: 'Active',
-    location: 'Mumbai, India',
-    joinedDate: '2026-02-10',
-    activeProjects: 1,
-    totalSpent: '₹8,20,000',
-    description: 'Financial engineering partner company.',
-  },
-];
+const DEFAULT_CLIENTS = [];
+
+export const calculateOverallCompletionProgress = (completedCount) => {
+  const count = Number(completedCount) || 0;
+  if (count === 1) return 10;
+  if (count === 2) return 30;
+  if (count === 3) return 55;
+  if (count === 4) return 80;
+  if (count >= 5) return 100;
+  return 0;
+};
+
+export const getPartnerCompanyName = (member, partners = [], clients = []) => {
+  if (!member) return '';
+
+  const clientNames = new Set(
+    (clients || []).flatMap((c) => [
+      c?.companyName?.toLowerCase().trim(),
+      c?.name?.toLowerCase().trim()
+    ]).filter(Boolean)
+  );
+
+  const targetId = member.partnerCompanyId || member.partnerId || member.companyId;
+  if (targetId) {
+    const idStr = String(targetId).trim();
+    const matchedPartner = (partners || []).find(
+      (p) => p && (String(p.id) === idStr || String(p.numericId) === idStr || String(p.userId) === idStr)
+    );
+    if (matchedPartner && (matchedPartner.companyName || matchedPartner.name)) {
+      const name = (matchedPartner.companyName || matchedPartner.name).trim();
+      if (
+        name !== 'Partner Company' &&
+        name !== 'Partner Organization' &&
+        name !== 'FlexiStaff Partner' &&
+        !clientNames.has(name.toLowerCase())
+      ) {
+        return name;
+      }
+    }
+  }
+
+  const memberPartnerName = member.partnerCompanyName || member.partnerCompany || member.partnerName || member.partner;
+  if (
+    memberPartnerName &&
+    typeof memberPartnerName === 'string' &&
+    memberPartnerName.trim() !== '' &&
+    memberPartnerName !== 'Partner Company' &&
+    memberPartnerName !== 'Partner Organization' &&
+    memberPartnerName !== 'Partner Professional' &&
+    memberPartnerName !== 'Independent Freelancer' &&
+    memberPartnerName !== 'Freelancer' &&
+    memberPartnerName !== 'FlexiStaff Partner' &&
+    !clientNames.has(memberPartnerName.toLowerCase().trim())
+  ) {
+    return memberPartnerName.trim();
+  }
+
+  if (member.partnerEmail) {
+    const pEmail = String(member.partnerEmail).toLowerCase().trim();
+    const matched = (partners || []).find((p) => p && (p.email || '').toLowerCase().trim() === pEmail);
+    if (matched && (matched.companyName || matched.name)) {
+      const name = (matched.companyName || matched.name).trim();
+      if (
+        name !== 'Partner Company' &&
+        name !== 'Partner Organization' &&
+        name !== 'FlexiStaff Partner' &&
+        !clientNames.has(name.toLowerCase())
+      ) {
+        return name;
+      }
+    }
+  }
+
+  return '';
+};
+
+export const mapBackendProjectToFrontend = (p) => {
+  if (!p) return p;
+
+  const skillsArr = Array.isArray(p.requiredSkills)
+    ? p.requiredSkills
+    : typeof p.requiredSkills === 'string'
+    ? p.requiredSkills.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  let formattedStatus = p.status;
+  if (p.status === 'PENDING_APPROVAL') formattedStatus = 'Pending Admin Approval';
+  else if (p.status === 'APPROVED') formattedStatus = 'Approved';
+  else if (p.status === 'IN_PROGRESS') formattedStatus = 'In Progress';
+  else if (p.status === 'REJECTED' || p.status === 'DECLINED') formattedStatus = 'Rejected';
+  else if (p.status === 'COMPLETED') formattedStatus = 'Completed';
+
+  const defaultStandardizedMilestones = [
+    { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: p.startDate || '2026-10-15', completed: false, commits: [] },
+    { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: p.startDate || '2026-11-01', completed: false, commits: [] },
+    { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: p.endDate || '2026-12-15', completed: false, commits: [] },
+    { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: p.endDate || '2027-01-20', completed: false, commits: [] },
+    { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: p.endDate || '2027-02-28', completed: false, commits: [] },
+  ];
+
+  let rawMs = p.milestones || [];
+  // Filter out legacy demo 3 milestones
+  let cleanMs = rawMs.filter((m) => {
+    if (!m || !m.title) return false;
+    const titleLower = String(m.title).toLowerCase();
+    const isLegacyDemo =
+      titleLower.includes('kickoff') ||
+      titleLower.includes('feature engineering') ||
+      titleLower.includes('handover') ||
+      titleLower.includes('architecture blueprint') ||
+      titleLower.includes('uat & sign-off');
+    return !isLegacyDemo;
+  });
+
+  let mappedMilestones = cleanMs.map((m) => {
+    const isCompleted = m.status === 'COMPLETED' || m.status === 'Completed' || m.progressPercentage === 100 || Boolean(m.completed);
+    const isStarted = !isCompleted && (m.status === 'IN_PROGRESS' || m.status === 'In Progress' || (m.progressPercentage > 0 && m.progressPercentage < 100));
+    const formattedMsStatus = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+
+    return {
+      id: m.id || `ms-${Math.random().toString(16).substring(2, 6)}`,
+      title: m.title,
+      description: m.description || '',
+      status: formattedMsStatus,
+      dueDate: m.dueDate || p.endDate || p.deadline || '2027-02-28',
+      progressPercentage: m.progressPercentage || (isCompleted ? 100 : isStarted ? 50 : 0),
+      completed: isCompleted,
+      commits: m.commits || [],
+    };
+  });
+
+  mappedMilestones = defaultStandardizedMilestones.map((defMs, idx) => {
+    const existing = mappedMilestones.find((m) => m.title && m.title.toLowerCase().trim() === defMs.title.toLowerCase().trim()) || mappedMilestones[idx];
+    if (existing) {
+      const isCompleted = existing.completed || existing.status === 'Completed' || existing.status === 'COMPLETED' || existing.progressPercentage === 100;
+      const isStarted = !isCompleted && (existing.status === 'In Progress' || existing.status === 'IN_PROGRESS' || (existing.progressPercentage > 0 && existing.progressPercentage < 100));
+      const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+
+      return {
+        ...defMs,
+        ...existing,
+        id: existing.id || defMs.id,
+        title: defMs.title,
+        status: statusText,
+        completed: isCompleted,
+        dueDate: existing.dueDate || defMs.dueDate,
+        commits: existing.commits || [],
+      };
+    }
+    return defMs;
+  });
+
+  const completedCount = mappedMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
+  const computedProgress = calculateOverallCompletionProgress(completedCount);
+
+  const assignedResources =
+    p.allocations && p.allocations.length > 0
+      ? p.allocations
+          .filter((a) => {
+            if (!a) return false;
+            const st = String(a.status || '').toLowerCase().trim();
+            return !st.includes('declined') && !st.includes('reject') && !st.includes('cancel');
+          })
+          .map((a) => ({
+            id: a.professionalId || a.id,
+            allocationId: a.id,
+            professionalId: a.professionalId,
+            name: a.professionalName,
+            professionalName: a.professionalName,
+            email: a.professionalEmail,
+            role: a.roleInProject || '',
+            roleInProject: a.roleInProject || '',
+            status: a.status,
+            workforceType: a.workforceType || (a.partnerCompanyName || a.partnerCompanyId ? 'Partner Company' : 'Independent Freelancer'),
+            partnerCompanyId: a.partnerCompanyId || null,
+            partnerCompanyName: a.partnerCompanyName || a.partnerCompany || null,
+            partnerCompany: a.partnerCompanyName || a.partnerCompany || null,
+            partnerName: a.partnerCompanyName || a.partnerCompany || null,
+            hourlyRate: a.hourlyRate || (a.billableRate ? `$${a.billableRate}/hr` : ''),
+            workload: a.workload || (a.allocatedHoursPerWeek ? `${a.allocatedHoursPerWeek}h/wk` : ''),
+            experience: a.experience || '',
+            skills: a.skills,
+            avatar: a.avatar || '',
+            phone: a.phone || '',
+          }))
+      : [];
+
+  const clientOrg = p.clientCompanyName || p.companyName || '';
+  const clientContact = p.clientName || p.contactPerson || '';
+
+  const clientDisplay = clientOrg || clientContact || '';
+
+  return {
+    ...p,
+    id: p.id,
+    serialId: p.id,
+    dbId: p.id,
+    name: p.title || p.name,
+    title: p.title || p.name,
+    description: p.description || '',
+    requiredSkills: skillsArr,
+    techStack: skillsArr.join(', '),
+    clientId: p.clientId,
+    client: clientDisplay,
+    clientName: clientContact,
+    clientCompanyName: clientOrg,
+    companyName: clientOrg,
+    contactPerson: clientContact,
+    manager: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin') ? p.manager : 'Unassigned',
+    managerName: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin') ? p.manager : 'Unassigned',
+    managerId: p.managerId || null,
+    managerEmail: p.managerEmail || null,
+    managerPhone: p.managerPhone || null,
+    status: computedProgress >= 100 ? 'Completed' : formattedStatus,
+    stage: computedProgress >= 100 ? 'Completed' : formattedStatus,
+    progress: computedProgress,
+    progressPercentage: computedProgress,
+    workforceRequired: p.allocations ? Math.max(2, p.allocations.length) : 2,
+    workforceAssigned: assignedResources.length,
+    assignedResources,
+    allocations: p.allocations || [],
+    startDate: p.startDate,
+    targetEndDate: p.endDate,
+    endDate: p.endDate,
+    deadline: p.endDate,
+    milestones: mappedMilestones,
+    createdDate: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+  };
+};
 
 const DataContext = createContext(null);
 
@@ -106,12 +297,66 @@ export const DataProvider = ({ children }) => {
     } catch {
       // Ignore
     }
-    return initialPartners || [];
+    return [];
   });
   const [managers, setManagers] = useState(() => {
-    let list = initialManagers || [];
+    let list = [];
     try {
       const saved = localStorage.getItem('flexistaff_managers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter((m) => {
+            if (!m) return false;
+            const empId = String(m.employeeId || m.id || '');
+            const email = String(m.email || '').toLowerCase();
+            const name = String(m.name || '').toLowerCase();
+            return !empId.includes('2236') && !email.includes('thomas') && !name.includes('thomas');
+          });
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return list;
+  });
+
+  const [workforce, setWorkforce] = useState(() => {
+    let list = [];
+    try {
+      const saved = localStorage.getItem('flexistaff_workforce');
+      if (saved) list = JSON.parse(saved);
+    } catch { }
+    if (!list || !Array.isArray(list)) {
+      list = [];
+    }
+
+    return list.filter((w) => {
+      if (!w) return false;
+      const roleLower = (w.role || w.title || w.roleType || w.category || '').toLowerCase().trim();
+      const userRoleLower = (w.userRole || w.user_role || '').toLowerCase().trim();
+      const emailLower = (w.email || '').toLowerCase().trim();
+      const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+
+      if (
+        roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
+        roleLower.includes('admin') || roleLower.includes('manager') || roleLower.includes('client') ||
+        userRoleLower.includes('admin') || userRoleLower.includes('manager') || userRoleLower.includes('client') ||
+        roleLower === 'role_admin' || roleLower === 'role_manager' || roleLower === 'role_client' ||
+        emailLower.includes('admin') || emailLower.includes('manager') ||
+        nameLower === 'admin'
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  });
+
+  const [projects, setProjects] = useState(() => {
+    let list = [];
+    try {
+      const saved = localStorage.getItem('flexistaff_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -121,71 +366,15 @@ export const DataProvider = ({ children }) => {
     } catch {
       // Ignore
     }
-    return list.map((m, idx) => {
-      if (!m) return m;
-      const rawNum = Number(String(m.id || m.userId || m.numericId || '').replace(/\D/g, '')) || (idx + 1);
-      return { ...m, id: rawNum, numericId: rawNum, employeeId: rawNum };
-    });
-  });
-
-  const [workforce, setWorkforce] = useState(() => {
-    let list = [];
-    try {
-      const saved = localStorage.getItem('flexistaff_workforce');
-      if (saved) list = JSON.parse(saved);
-    } catch {}
-    if (!list || list.length === 0) {
-      list = [];
-    }
-    return list.filter((w) => {
-      if (!w) return false;
-      const emailLower = (w.email || '').toLowerCase().trim();
-      const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
-      const roleLower = (w.role || w.title || w.category || '').toLowerCase().trim();
-
-      if (emailLower.includes('sharon') || nameLower.includes('sharon')) return false;
-      if (emailLower.includes('admin') || roleLower.includes('admin')) return false;
-
-      const isPartnerCompany =
-        roleLower === 'partner company' ||
-        roleLower === 'partner' ||
-        roleLower === 'role_partner' ||
-        nameLower === 'infosys' ||
-        nameLower === 'partner' ||
-        nameLower === 'partner company' ||
-        emailLower === 'partner@infosys.com' ||
-        emailLower === 'partner@gmail.com' ||
-        emailLower === 'partner@flexistaff.com';
-
-      return !isPartnerCompany;
-    });
-  });
-
-  const [projects, setProjects] = useState(() => {
-    let list = initialProjects || [];
-    try {
-      const saved = localStorage.getItem('flexistaff_projects');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed;
-        }
-      }
-    } catch {
-      // Ignore
-    }
     return list.map((p) => {
       if (!p) return p;
       const cleanId = typeof p.id === 'number' ? p.id : (Number(String(p.id).replace(/\D/g, '')) || p.id);
-      const isPetrolPump =
-        String(p.id || '').includes('7142') ||
-        String(p.name || p.title || p.projectName || '').toLowerCase().includes('petrol');
 
-      let stage = isPetrolPump ? 'Completed' : p.stage;
-      let status = isPetrolPump ? 'Completed' : p.status;
-      let numProg = isPetrolPump ? 100 : (Number(p.progress) || 0);
+      let stage = p.stage;
+      let status = p.status;
+      let numProg = Number(p.progress) || 0;
 
-      if (stage === 'Completed' || status === 'Completed' || numProg >= 100 || isPetrolPump) {
+      if (stage === 'Completed' || status === 'Completed' || numProg >= 100) {
         stage = 'Completed';
         status = 'Completed';
         numProg = 100;
@@ -226,25 +415,25 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_clients', JSON.stringify(clients));
-    } catch {}
+    } catch { }
   }, [clients]);
 
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_workforce', JSON.stringify(workforce));
-    } catch {}
+    } catch { }
   }, [workforce]);
 
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_projects', JSON.stringify(projects));
-    } catch {}
+    } catch { }
   }, [projects]);
 
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_partners', JSON.stringify(partners));
-    } catch {}
+    } catch { }
   }, [partners]);
 
   // Cleanup deleted accounts (Sharon Tomy, admin@gmail.com, admin@flexistaff.ai)
@@ -254,7 +443,11 @@ export const DataProvider = ({ children }) => {
       let deletedList = JSON.parse(deletedStr);
       if (!Array.isArray(deletedList)) deletedList = [];
 
-      const targetDeleted = ['sharon@flexistaff.com', 'sharon.tomy@flexistaff.com', 'sharon', 'admin@gmail.com', 'admin@flexistaff.ai'];
+      // Filter out admin accounts from deletedList so genuine admin is never locked out
+      deletedList = deletedList.filter((e) => e !== 'admin@gmail.com' && e !== 'admin@flexistaff.ai');
+      localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(deletedList));
+
+      const targetDeleted = ['sharon@flexistaff.com', 'sharon.tomy@flexistaff.com', 'sharon'];
       let listChanged = false;
       targetDeleted.forEach((email) => {
         if (!deletedList.includes(email)) {
@@ -276,9 +469,7 @@ export const DataProvider = ({ children }) => {
 
         if (
           emailLower.includes('sharon') ||
-          nameLower.includes('sharon') ||
-          emailLower === 'admin@gmail.com' ||
-          emailLower === 'admin@flexistaff.ai'
+          nameLower.includes('sharon')
         ) {
           localStorage.removeItem('flexistaff_user');
           localStorage.removeItem('flexistaff_role');
@@ -305,6 +496,25 @@ export const DataProvider = ({ children }) => {
       }
 
       // Purge manager assignments of Sharon Tomy
+      // Purge fake demo HR manager from localStorage
+      const mgrStr = localStorage.getItem('flexistaff_managers');
+      if (mgrStr) {
+        try {
+          const mgrList = JSON.parse(mgrStr);
+          if (Array.isArray(mgrList)) {
+            const cleanMgr = mgrList.filter((m) => {
+              if (!m) return false;
+              const empId = String(m.employeeId || m.id || '');
+              const email = String(m.email || '').toLowerCase();
+              const name = String(m.name || '').toLowerCase();
+              return !empId.includes('2236') && !email.includes('thomas') && !name.includes('thomas');
+            });
+            localStorage.setItem('flexistaff_managers', JSON.stringify(cleanMgr));
+            setManagers(cleanMgr);
+          }
+        } catch { }
+      }
+
       const asgStr = localStorage.getItem('flexistaff_manager_assignments');
       if (asgStr) {
         const asgList = JSON.parse(asgStr);
@@ -320,61 +530,242 @@ export const DataProvider = ({ children }) => {
         }
       }
 
-      // Purge projects assignedResources of Sharon Tomy
-      const projStr = localStorage.getItem('flexistaff_projects');
-      if (projStr) {
-        const projList = JSON.parse(projStr);
-        if (Array.isArray(projList)) {
-          const updatedProj = projList.map((p) => {
-            if (!p) return p;
-            const rawRes = p.assignedResources || [];
-            const cleanRes = rawRes.filter((r) => {
-              if (!r) return false;
-              const rEmail = (r.email || r.professionalEmail || '').toLowerCase();
-              const rName = (r.name || r.professionalName || '').toLowerCase();
-              return !rEmail.includes('sharon') && !rName.includes('sharon');
-            });
-            return {
-              ...p,
-              assignedResources: cleanRes,
-              workforceAssigned: cleanRes.length,
-            };
-          });
-          localStorage.setItem('flexistaff_projects', JSON.stringify(updatedProj));
-          setProjects(updatedProj);
-        }
-      }
+      // Purge projects, milestones, workforce, and partner company datas for clean system state
+      localStorage.removeItem('flexistaff_projects');
+      localStorage.removeItem('flexistaff_workforce');
+      localStorage.removeItem('flexistaff_partners');
+      localStorage.removeItem('flexistaff_manager_assignments');
+      localStorage.removeItem('flexistaff_allocations');
+      setProjects([]);
+      setWorkforce([]);
+      setPartners([]);
+      setManagerAssignments([]);
+    } catch { }
 
-      // Purge partner company organizations from central workforce roster in localStorage
-      const wfStr = localStorage.getItem('flexistaff_workforce');
-      if (wfStr) {
-        const wfList = JSON.parse(wfStr);
-        if (Array.isArray(wfList)) {
-          const cleanWf = wfList.filter((w) => {
-            if (!w) return false;
-            const emailLower = (w.email || '').toLowerCase().trim();
-            const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
-            const roleLower = (w.role || w.title || '').toLowerCase().trim();
-            const isPartnerCompany =
-              roleLower === 'partner company' ||
-              roleLower === 'partner' ||
-              roleLower === 'role_partner' ||
-              nameLower === 'infosys' ||
-              nameLower === 'partner' ||
-              nameLower === 'partner company' ||
-              emailLower === 'partner@infosys.com' ||
-              emailLower === 'partner@gmail.com' ||
-              emailLower === 'partner@flexistaff.com';
-            return !isPartnerCompany;
-          });
-          localStorage.setItem('flexistaff_workforce', JSON.stringify(cleanWf));
-          setWorkforce(cleanWf);
-        }
-      }
-    } catch {}
-
-    refreshClients();
+    refreshAllData();
   }, []);
+
+  const refreshPartners = async () => {
+    try {
+      const res = await api.partners.getAll();
+      if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
+        const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped = rawList.map((p) => {
+          const specialtiesArray = Array.isArray(p.specialties)
+            ? p.specialties
+            : String(p.specialties || '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+          return {
+            ...p,
+            id: p.id,
+            numericId: p.id,
+            userId: p.userId || p.id,
+            name: p.companyName || p.name || 'Partner Company',
+            companyName: p.companyName || p.name || 'Partner Company',
+            contactPerson: p.contactPerson || 'Contact Representative',
+            email: p.email || '',
+            phone: p.phone || '',
+            location: p.location || p.city || 'India',
+            city: p.city || p.location || 'India',
+            tier: p.tier || 'Strategic Partner',
+            industry: p.industry || 'Technology Staffing',
+            specialties: specialtiesArray,
+            status: p.status || 'Active',
+            joinedDate: p.joinedDate || (p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+            suppliedProfessionals: Number(p.suppliedProfessionals) || 0,
+            activePlacements: p.activePlacements || 0,
+            availabilityRate: p.availabilityRate || '100%',
+            rating: p.rating || 4.8,
+          };
+        });
+        setPartners(mapped);
+        try {
+          localStorage.setItem('flexistaff_partners', JSON.stringify(mapped));
+        } catch {}
+        return mapped;
+      }
+    } catch (err) {
+      console.warn('Could not refresh partners from backend API:', err);
+    }
+    return [];
+  };
+
+  const refreshWorkforce = async (currentPartners = partners) => {
+    try {
+      const res = await api.freelancers.getAll();
+      if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
+        const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped = rawList.map((f) => {
+          const resolvedPartnerName = getPartnerCompanyName(f, currentPartners, clients);
+          return {
+            ...f,
+            id: f.id || f.userId,
+            numericId: f.id || f.userId,
+            userId: f.userId || f.id,
+            name: f.name || f.fullName,
+            pseudonym: f.name || f.fullName,
+            email: f.email,
+            phone: f.phone,
+            role: f.title || 'Software Professional',
+            title: f.title || 'Software Professional',
+            roleCategory: 'Engineering',
+            skills: Array.isArray(f.skills)
+              ? f.skills
+              : String(f.skills || '')
+                  .split(/[,+]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+            bio: f.bio || '',
+            experience: f.experienceYears ? `${f.experienceYears} years` : '3+ years',
+            experienceYears: f.experienceYears || 3,
+            experienceLevel: 'Senior',
+            hourlyRate: f.hourlyRate ? `$${f.hourlyRate}/hr` : '$85/hr',
+            availability: f.availabilityStatus || 'Available',
+            isCurrentlyWorking: Boolean(f.isCurrentlyWorking || f.currentProject || f.currentProjectName),
+            currentProject: f.currentProject || f.currentProjectName || null,
+            currentProjectId: f.currentProjectId || null,
+            currentProjectName: f.currentProjectName || f.currentProject || null,
+            currentProjectClient: f.currentProjectClient || null,
+            currentProjectRole: f.currentProjectRole || null,
+            currentAssignmentStatus: f.currentAssignmentStatus || null,
+            currentProjectStatus: f.currentProjectStatus || null,
+            assignedProject: f.currentProjectName || f.currentProject || null,
+            clientName: f.currentProjectClient || null,
+            workingStatus: (f.isCurrentlyWorking || f.currentProject || f.currentProjectName || f.availabilityStatus === 'Assigned' || f.availabilityStatus === 'Busy') ? 'Working' : 'Available',
+            partnerCompanyId: f.partnerCompanyId,
+            partnerCompany: resolvedPartnerName || f.partnerCompanyName || f.partnerCompany || f.partnerName,
+            partnerName: resolvedPartnerName || f.partnerCompanyName || f.partnerCompany || f.partnerName,
+            roleType: f.partnerCompanyId ? 'Professional' : 'Freelancer',
+            source: f.partnerCompanyId ? 'Partner Company' : 'Freelancer',
+            professionalType: f.partnerCompanyId ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
+            userRole: 'ROLE_PROFESSIONAL',
+          };
+        });
+
+        setWorkforce(mapped);
+        try {
+          localStorage.setItem('flexistaff_workforce', JSON.stringify(mapped));
+        } catch {}
+        return mapped;
+      }
+    } catch (err) {
+      console.warn('Could not refresh workforce from backend API:', err);
+    }
+    return [];
+  };
+
+  const refreshAllocations = async () => {
+    try {
+      const res = await api.workforce.getAll();
+      if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
+        const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped = rawList.map((a) => ({
+          id: a.id,
+          allocationId: a.id,
+          projectId: a.projectId,
+          projectName: a.projectTitle,
+          professionalId: a.professionalId,
+          professionalName: a.professionalName,
+          professionalEmail: a.professionalEmail,
+          role: a.roleInProject,
+          roleInProject: a.roleInProject,
+          allocatedHoursPerWeek: a.allocatedHoursPerWeek,
+          billableRate: a.billableRate,
+          status: a.status === 'ASSIGNED' ? 'Approved' : a.status === 'PENDING' ? 'Pending Admin Approval' : a.status,
+          createdAt: a.createdAt,
+          workforceType: a.workforceType || (a.partnerCompanyName || a.partnerCompanyId ? 'Partner Company' : 'Independent Freelancer'),
+          partnerCompanyId: a.partnerCompanyId || null,
+          partnerCompanyName: a.partnerCompanyName || a.partnerCompany || null,
+          partnerCompany: a.partnerCompanyName || a.partnerCompany || null,
+          partnerName: a.partnerCompanyName || a.partnerCompany || null,
+          roleType: a.roleType || 'Professional',
+          hourlyRate: a.hourlyRate || (a.billableRate ? `$${a.billableRate}/hr` : '$95/hr'),
+          workload: a.workload || (a.allocatedHoursPerWeek ? `${a.allocatedHoursPerWeek}h/wk` : '40h/wk'),
+          experience: a.experience || '3+ years',
+          skills: a.skills,
+          avatar: a.avatar || '',
+          phone: a.phone || '',
+        }));
+        setManagerAssignments(mapped);
+        try {
+          localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(mapped));
+        } catch {}
+        return mapped;
+      }
+    } catch (err) {
+      console.warn('Could not refresh allocations from backend API:', err);
+    }
+  };
+
+  const refreshManagers = async () => {
+    try {
+      const res = await api.managers.getAll();
+      if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
+        const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        const mapped = rawList.map((m) => ({
+          ...m,
+          id: m.userId || m.id,
+          numericId: m.userId || m.id,
+          employeeId: m.employeeId || m.userId || m.id,
+          name: m.name || m.fullName || '',
+          email: m.email || '',
+          phone: m.phone || '',
+          jobTitle: m.jobTitle || 'HR Manager',
+          department: m.department || 'Enterprise Workforce Operations',
+          experience: m.experience || '8+ Years',
+          status: m.status || 'Active',
+          avatar: m.avatar || '',
+          assignedProjectsCount: m.assignedProjectsCount || 0,
+        }));
+        setManagers(mapped);
+        return mapped;
+      }
+    } catch (err) {
+      console.warn('Could not refresh managers from backend API:', err);
+    }
+    return [];
+  };
+
+  const refreshAllData = async () => {
+    await refreshClients();
+    const fetchedPartners = await refreshPartners();
+    await refreshProjects();
+    await refreshWorkforce(fetchedPartners && fetchedPartners.length > 0 ? fetchedPartners : partners);
+    await refreshAllocations();
+    await refreshManagers();
+  };
+
+  const refreshProjects = async () => {
+    try {
+      const res = await api.projects.getAll();
+      if (res && (res.success || Array.isArray(res.data) || Array.isArray(res))) {
+        const rawList = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        const mappedList = await Promise.all(
+          rawList.map(async (p) => {
+            let pMilestones = p.milestones || [];
+            try {
+              const msRes = await api.milestones.getByProject(p.id);
+              if (msRes && (msRes.success || Array.isArray(msRes.data))) {
+                pMilestones = Array.isArray(msRes.data) ? msRes.data : msRes;
+              }
+            } catch (msErr) {
+              console.warn(`Could not fetch milestones for project ${p.id}:`, msErr);
+            }
+            return mapBackendProjectToFrontend({ ...p, milestones: pMilestones });
+          })
+        );
+        setProjects(mappedList);
+        try {
+          localStorage.setItem('flexistaff_projects', JSON.stringify(mappedList));
+        } catch {}
+        return mappedList;
+      }
+    } catch (err) {
+      console.warn('Could not refresh projects from backend API:', err);
+    }
+  };
 
   const refreshClients = async () => {
     let mappedBackendClients = [];
@@ -384,9 +775,9 @@ export const DataProvider = ({ children }) => {
         mappedBackendClients = res.data.map((c) => ({
           id: c.userId || c.id,
           numericId: c.userId || c.id,
-          name: c.companyName || c.name || 'Client Organization',
-          companyName: c.companyName || c.name || 'Client Organization',
-          contactPerson: c.name || c.contactPerson || c.companyName || 'Client Contact',
+          name: c.companyName || c.name || '',
+          companyName: c.companyName || c.name || '',
+          contactPerson: c.name || c.contactPerson || c.companyName || '',
           email: c.email || '',
           phone: c.phone || c.contactPhone || '',
           logo: c.logoUrl || c.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
@@ -403,66 +794,21 @@ export const DataProvider = ({ children }) => {
       console.warn('Could not fetch clients from backend API:', err.message);
     }
 
-    let registeredUsersClients = [];
-    try {
-      const regStr = localStorage.getItem('flexistaff_registered_users');
-      if (regStr) {
-        const regList = JSON.parse(regStr);
-        if (Array.isArray(regList)) {
-          regList.forEach((u) => {
-            if (u && (u.role === 'Client' || u.role === 'ROLE_CLIENT')) {
-              registeredUsersClients.push({
-                id: u.id || `cli-${Date.now()}`,
-                numericId: u.id || Date.now(),
-                name: u.companyName || u.company || u.name || 'Registered Client',
-                companyName: u.companyName || u.company || u.name || 'Registered Client',
-                contactPerson: u.fullName || u.name || u.contactPerson || 'Client Contact',
-                email: u.email || '',
-                phone: u.phone || '',
-                logo: u.avatar || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
-                industry: u.industry || 'Enterprise Technology',
-                tier: u.tier || 'Enterprise Client',
-                status: u.status || 'Active',
-                location: u.location || u.address || 'India',
-                joinedDate: u.joinedDate || new Date().toISOString().split('T')[0],
-                activeProjects: 0,
-                totalSpent: '₹0',
-              });
-            }
-          });
-        }
-      }
-      const savedUserStr = localStorage.getItem('flexistaff_user');
-      if (savedUserStr) {
-        const savedUser = JSON.parse(savedUserStr);
-        if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
-          registeredUsersClients.push({
-            id: savedUser.id || 'cli-logged',
-            numericId: savedUser.id || 999,
-            name: savedUser.companyName || savedUser.company || savedUser.name || 'Logged Client Organization',
-            companyName: savedUser.companyName || savedUser.company || savedUser.name || 'Logged Client Organization',
-            contactPerson: savedUser.fullName || savedUser.name || savedUser.contactPerson || 'Client Contact',
-            email: savedUser.email || '',
-            phone: savedUser.phone || '',
-            logo: savedUser.avatar || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
-            industry: savedUser.industry || 'Enterprise Technology',
-            tier: savedUser.tier || 'Enterprise Client',
-            status: 'Active',
-            location: savedUser.location || savedUser.address || 'India',
-            joinedDate: new Date().toISOString().split('T')[0],
-            activeProjects: 0,
-            totalSpent: '₹0',
-          });
-        }
-      }
-    } catch {}
-
     setClients((prevLocal) => {
-      const combined = [...mappedBackendClients, ...registeredUsersClients, ...(prevLocal || []), ...DEFAULT_CLIENTS];
+      const isDemoRecord = (c) => {
+        if (!c) return true;
+        const e = (c.email || '').toLowerCase();
+        const n = (c.name || c.companyName || '').toLowerCase();
+        const idStr = String(c.id || '');
+        return e.includes('sarah@acmefinance') || n.includes('acme financial') || idStr === '102' || idStr === 'cli-02' || idStr.startsWith('usr-') || idStr.startsWith('cli-');
+      };
+
+      const cleanPrevLocal = (prevLocal || []).filter((c) => !isDemoRecord(c));
+      const combined = mappedBackendClients.length > 0 ? mappedBackendClients : cleanPrevLocal;
       const unique = [];
       const seen = new Set();
       combined.forEach((item) => {
-        if (!item) return;
+        if (!item || isDemoRecord(item)) return;
         const key = (item.email || item.name || item.id || '').toLowerCase().trim();
         if (key && !seen.has(key)) {
           seen.add(key);
@@ -471,7 +817,7 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_clients', JSON.stringify(unique));
-      } catch {}
+      } catch { }
       return unique;
     });
   };
@@ -479,7 +825,7 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_managers', JSON.stringify(managers));
-    } catch {}
+    } catch { }
   }, [managers]);
 
 
@@ -519,9 +865,9 @@ export const DataProvider = ({ children }) => {
     const newClient = {
       id: assignedId || Date.now(),
       numericId: numericId || assignedId || Date.now(),
-      name: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
-      companyName: clientData.companyName || clientData.company || clientData.name || 'Client Organization',
-      contactPerson: clientData.fullName || clientData.contactPerson || clientData.name || 'Contact Person',
+      name: clientData.companyName || clientData.company || clientData.name || '',
+      companyName: clientData.companyName || clientData.company || clientData.name || '',
+      contactPerson: clientData.fullName || clientData.contactPerson || clientData.name || '',
       email: clientData.email || '',
       phone: clientData.phone || '',
       logo: clientData.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
@@ -558,22 +904,30 @@ export const DataProvider = ({ children }) => {
     return { success: true, client: newClient };
   };
 
-  const deleteClient = (idOrEmail) => {
-    setClients((prev) => prev.filter((c) => c.id !== idOrEmail && c.email !== idOrEmail));
+  const deleteClient = async (idOrEmail) => {
+    const numId = typeof idOrEmail === 'number' ? idOrEmail : Number(String(idOrEmail).replace(/\D/g, ''));
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.clients.delete(numId);
+      } catch (err) {
+        console.warn('Backend client delete warning:', err);
+      }
+    }
+    setClients((prev) => prev.filter((c) => c.id !== idOrEmail && c.numericId !== idOrEmail && c.email !== idOrEmail));
     try {
       const savedStr = localStorage.getItem('flexistaff_clients');
       if (savedStr) {
         const list = JSON.parse(savedStr);
-        const updated = list.filter((c) => c && c.id !== idOrEmail && c.email !== idOrEmail);
+        const updated = list.filter((c) => c && c.id !== idOrEmail && c.numericId !== idOrEmail && c.email !== idOrEmail);
         localStorage.setItem('flexistaff_clients', JSON.stringify(updated));
       }
       const regStr = localStorage.getItem('flexistaff_registered_users');
       if (regStr) {
         const regList = JSON.parse(regStr);
-        const updatedReg = regList.filter((u) => u && u.id !== idOrEmail && u.email !== idOrEmail);
+        const updatedReg = regList.filter((u) => u && u.id !== idOrEmail && u.numericId !== idOrEmail && u.email !== idOrEmail);
         localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
       }
-    } catch {}
+    } catch { }
   };
 
   const clearClients = () => {
@@ -594,23 +948,143 @@ export const DataProvider = ({ children }) => {
           localStorage.removeItem('flexistaff_role');
         }
       }
-    } catch {}
+    } catch { }
   };
 
 
 
 
 
-  // Sync projects and data with Spring Boot backend when available
+  const [dashboardStats, setDashboardStats] = useState(null);
+
+  const refreshDashboardStats = async () => {
+    try {
+      const res = await api.dashboard.getAdmin();
+      if (res && res.success && res.data) {
+        setDashboardStats(res.data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch admin dashboard stats from API:', err);
+    }
+  };
+
+  // Sync projects, freelancers, and stats with Spring Boot backend when available
   useEffect(() => {
     async function syncBackendData() {
+      // 1. Fetch dashboard metrics calculated from PostgreSQL database
+      refreshDashboardStats();
+
+      // 2. Sync Freelancers from PostgreSQL database
       try {
-        const projRes = await api.projects.getAll();
-        if (projRes && projRes.success && Array.isArray(projRes.data) && projRes.data.length > 0) {
-          setProjects(projRes.data);
+        const flRes = await api.freelancers.getAll();
+        if (flRes && flRes.success && Array.isArray(flRes.data)) {
+          const backendFreelancers = flRes.data.map((f) => {
+            const isPartnerEmp = Boolean(f.partnerCompanyId || f.partnerCompany || f.partnerName || f.partnerCompanyName);
+            const pName = f.partnerCompany || f.partnerName || f.partnerCompanyName || (isPartnerEmp ? 'Partner Organization' : '');
+
+            return {
+              id: f.id || f.userId,
+              numericId: f.userId || f.id,
+              userId: f.userId || f.id,
+              partnerCompanyId: f.partnerCompanyId || null,
+              partnerCompany: pName,
+              partnerName: pName,
+              partnerCompanyName: pName,
+              partner: pName,
+              name: f.name || f.fullName || 'Freelancer',
+              pseudonym: f.name || f.fullName || 'Freelancer',
+              email: f.email || '',
+              phone: f.phone || '',
+              role: f.role || f.title || 'Freelancer',
+              title: f.title || f.role || 'Freelancer',
+              category: isPartnerEmp ? 'Partner Employee' : 'Independent Freelancer',
+              roleType: isPartnerEmp ? 'Professional' : (f.roleType || 'Freelancer'),
+              professionalType: isPartnerEmp ? 'PARTNER_EMPLOYEE' : (f.professionalType || 'FREELANCER'),
+              source: isPartnerEmp ? 'Partner Company' : (f.source || 'Freelancer'),
+              type: isPartnerEmp ? 'professional' : 'freelancer',
+              skills: typeof f.skills === 'string' ? f.skills.split(',').map((s) => s.trim()).filter(Boolean) : (Array.isArray(f.skills) ? f.skills : []),
+              experience: f.experienceYears ? `${f.experienceYears}+ years` : (f.experience || '3+ years'),
+              hourlyRate: f.hourlyRate ? (String(f.hourlyRate).startsWith('$') ? f.hourlyRate : `$${f.hourlyRate}/hr`) : '$50/hr',
+              availability: f.availabilityStatus || f.availability || 'Available',
+              availabilityStatus: f.availabilityStatus || f.availability || 'Available',
+              isCurrentlyWorking: Boolean(f.isCurrentlyWorking || f.currentProject || f.currentProjectName),
+              currentProject: f.currentProject || f.currentProjectName || null,
+              currentProjectId: f.currentProjectId || null,
+              currentProjectName: f.currentProjectName || f.currentProject || null,
+              currentProjectClient: f.currentProjectClient || null,
+              currentProjectRole: f.currentProjectRole || null,
+              currentAssignmentStatus: f.currentAssignmentStatus || null,
+              currentProjectStatus: f.currentProjectStatus || null,
+              assignedProject: f.currentProjectName || f.currentProject || null,
+              clientName: f.currentProjectClient || null,
+              workingStatus: (f.isCurrentlyWorking || f.currentProject || f.currentProjectName || f.availabilityStatus === 'Assigned' || f.availabilityStatus === 'Busy') ? 'Working' : 'Available',
+              approvalStatus: f.approvalStatus || f.status || 'Approved',
+              verificationStatus: f.verificationStatus || f.status || 'Approved',
+              accountStatus: f.accountStatus || f.status || 'Active',
+              status: f.status || 'Active',
+              joinedDate: f.createdAt ? String(f.createdAt).split('T')[0] : new Date().toISOString().split('T')[0],
+              bio: f.bio || '',
+            };
+          });
+
+          const validBackendWorkforce = backendFreelancers.filter((w) => {
+            if (!w) return false;
+            const r = (w.role || w.title || w.roleType || '').toLowerCase().trim();
+            const e = (w.email || '').toLowerCase().trim();
+            const n = (w.name || w.pseudonym || '').toLowerCase().trim();
+            if (
+              r.includes('admin') || r.includes('client') || r.includes('manager') ||
+              e.includes('admin') || e.includes('manager') || n === 'admin'
+            ) {
+              return false;
+            }
+            return true;
+          });
+
+          setWorkforce(validBackendWorkforce);
+          try {
+            localStorage.setItem('flexistaff_workforce', JSON.stringify(validBackendWorkforce));
+          } catch {}
         }
       } catch (err) {
-        // Keep initial prototype dataset if backend is loading or unavailable
+        console.warn('Could not sync freelancers from backend API:', err);
+      }
+
+      // 3. Sync projects from PostgreSQL database
+      try {
+        const savedUserStr = localStorage.getItem('flexistaff_user');
+        let currentUserId = null;
+        let userRole = null;
+        if (savedUserStr) {
+          try {
+            const u = JSON.parse(savedUserStr);
+            currentUserId = u.id || u.numericId || u.userId;
+            userRole = u.role;
+          } catch {}
+        }
+
+        let backendProjects = [];
+        if (currentUserId && (userRole === 'Client' || userRole === 'ROLE_CLIENT')) {
+          const clientProjRes = await api.projects.getByClient(currentUserId);
+          if (clientProjRes && clientProjRes.success && Array.isArray(clientProjRes.data)) {
+            backendProjects = clientProjRes.data;
+          }
+        }
+
+        const projRes = await api.projects.getAll();
+        if (projRes && projRes.success && Array.isArray(projRes.data) && projRes.data.length > 0) {
+          const merged = [...projRes.data];
+          backendProjects.forEach((bp) => {
+            if (!merged.some((p) => String(p.id) === String(bp.id))) {
+              merged.push(bp);
+            }
+          });
+          setProjects(merged.map(mapBackendProjectToFrontend));
+        } else if (backendProjects.length > 0) {
+          setProjects(backendProjects.map(mapBackendProjectToFrontend));
+        }
+      } catch (err) {
+        console.warn('Backend sync error:', err);
       }
     }
     syncBackendData();
@@ -625,6 +1099,7 @@ export const DataProvider = ({ children }) => {
         if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
           return {
             ...initialClientProfile,
+            id: savedUser.id || savedUser.numericId || savedUser.userId || initialClientProfile.id,
             name: savedUser.name || savedUser.fullName || initialClientProfile.name,
             contactPerson: savedUser.name || savedUser.fullName || initialClientProfile.contactPerson,
             email: savedUser.email || initialClientProfile.email,
@@ -651,6 +1126,7 @@ export const DataProvider = ({ children }) => {
           if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
             setClientProfile((prev) => ({
               ...prev,
+              id: savedUser.id || savedUser.numericId || savedUser.userId || prev.id,
               name: savedUser.name || savedUser.fullName || prev.name,
               contactPerson: savedUser.name || savedUser.fullName || prev.contactPerson,
               email: savedUser.email || prev.email,
@@ -683,7 +1159,7 @@ export const DataProvider = ({ children }) => {
           try {
             const parsed = JSON.parse(savedPartnersStr);
             if (Array.isArray(parsed)) currentPartnersList = parsed;
-          } catch {}
+          } catch { }
         }
 
         if (savedUserStr) {
@@ -790,14 +1266,22 @@ export const DataProvider = ({ children }) => {
 
   // Derive partner workforce members for the active partner company from central workforce state
   const activePartnerWorkforce = useMemo(() => {
+    const pId = partnerProfile?.id || partnerProfile?.userId || partnerProfile?.numericId;
+    const pIdStr = pId ? String(pId).trim() : '';
     const partnerNameLower = (partnerProfile?.name || partnerProfile?.companyName || '').toLowerCase().trim();
     const partnerEmailLower = (partnerProfile?.email || '').toLowerCase().trim();
 
-    if (!partnerNameLower && !partnerEmailLower) return partnerWorkforce || [];
-
     const matchedFromCentral = (workforce || []).filter((w) => {
       if (!w) return false;
-      const wCompany = (w.partnerCompany || w.partner || w.partnerName || '').toLowerCase().trim();
+      const wPartnerId = w.partnerCompanyId || w.partnerId || w.companyId;
+      const wPartnerIdStr = wPartnerId ? String(wPartnerId).trim() : '';
+
+      if (pIdStr && wPartnerIdStr && pIdStr === wPartnerIdStr) {
+        return true;
+      }
+
+      const resolvedName = getPartnerCompanyName(w, partners, clients);
+      const wCompany = (resolvedName || w.partnerCompany || w.partner || w.partnerName || '').toLowerCase().trim();
       const wEmail = (w.partnerEmail || w.email || '').toLowerCase().trim();
 
       if (partnerNameLower && wCompany && (wCompany === partnerNameLower || wCompany.includes(partnerNameLower) || partnerNameLower.includes(wCompany))) {
@@ -820,7 +1304,7 @@ export const DataProvider = ({ children }) => {
     });
 
     return unique;
-  }, [workforce, partnerWorkforce, partnerProfile]);
+  }, [workforce, partnerWorkforce, partnerProfile, partners, clients]);
   const [partnerWorkforceRequests, setPartnerWorkforceRequests] = useState(initialPartnerWorkforceRequests);
   const [partnerNotifications, setPartnerNotifications] = useState(initialPartnerNotifications);
   const [partnerActivities, setPartnerActivities] = useState(initialPartnerActivities);
@@ -834,7 +1318,7 @@ export const DataProvider = ({ children }) => {
       const savedManagersStr = localStorage.getItem('flexistaff_managers');
       let currentManagersList = [];
       if (savedManagersStr) {
-        try { currentManagersList = JSON.parse(savedManagersStr); } catch {}
+        try { currentManagersList = JSON.parse(savedManagersStr); } catch { }
       }
       if (savedUserStr) {
         const savedUser = JSON.parse(savedUserStr);
@@ -882,7 +1366,7 @@ export const DataProvider = ({ children }) => {
           };
         }
       }
-    } catch {}
+    } catch { }
     return initialManagerProfile;
   });
 
@@ -894,7 +1378,7 @@ export const DataProvider = ({ children }) => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
       }
-    } catch {}
+    } catch { }
     if (list.length === 0) list = initialManagerAssignments || [];
 
     const uniqueList = [];
@@ -926,20 +1410,20 @@ export const DataProvider = ({ children }) => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch { }
     return [];
   });
 
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(managerAssignments));
-    } catch {}
+    } catch { }
   }, [managerAssignments]);
 
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(freelancerRequests));
-    } catch {}
+    } catch { }
   }, [freelancerRequests]);
 
   // Sync Manager Profile with registered user data
@@ -953,7 +1437,7 @@ export const DataProvider = ({ children }) => {
           try {
             const parsed = JSON.parse(savedManagersStr);
             if (Array.isArray(parsed) && parsed.length > 0) currentManagersList = parsed;
-          } catch {}
+          } catch { }
         }
 
         if (savedUserStr) {
@@ -1011,7 +1495,7 @@ export const DataProvider = ({ children }) => {
             });
           }
         }
-      } catch {}
+      } catch { }
     };
 
     syncManagerProfileData();
@@ -1037,7 +1521,7 @@ export const DataProvider = ({ children }) => {
 
         let currentPartnerWf = partnerWorkforce || [];
         if (savedPartnerWfStr) {
-          try { currentPartnerWf = JSON.parse(savedPartnerWfStr); } catch {}
+          try { currentPartnerWf = JSON.parse(savedPartnerWfStr); } catch { }
         }
 
         let combinedWorkforceList = [...(workforce || []), ...(currentPartnerWf || [])];
@@ -1045,7 +1529,7 @@ export const DataProvider = ({ children }) => {
           try {
             const parsedWf = JSON.parse(savedWorkforceStr);
             if (Array.isArray(parsedWf)) combinedWorkforceList = [...combinedWorkforceList, ...parsedWf];
-          } catch {}
+          } catch { }
         }
 
         if (savedUserStr) {
@@ -1084,7 +1568,7 @@ export const DataProvider = ({ children }) => {
                     );
                   });
                 }
-              } catch {}
+              } catch { }
             }
 
             const wfName = matchedWf?.name || matchedWf?.pseudonym || savedUser.name || savedUser.fullName || 'Workforce Specialist';
@@ -1150,11 +1634,11 @@ export const DataProvider = ({ children }) => {
               };
               try {
                 localStorage.setItem('flexistaff_user', JSON.stringify(updatedSavedUser));
-              } catch {}
+              } catch { }
             }
           }
         }
-      } catch {}
+      } catch { }
     };
 
     syncWorkforceProfileData();
@@ -1179,13 +1663,13 @@ export const DataProvider = ({ children }) => {
           try {
             const u = JSON.parse(savedUserStr);
             if (u && typeof u === 'object') usersToSync.push(u);
-          } catch {}
+          } catch { }
         }
         if (registeredUsersStr) {
           try {
             const list = JSON.parse(registeredUsersStr);
             if (Array.isArray(list)) usersToSync = [...usersToSync, ...list];
-          } catch {}
+          } catch { }
         }
         if (applicationsStr) {
           try {
@@ -1210,12 +1694,12 @@ export const DataProvider = ({ children }) => {
                 }
               });
             }
-          } catch {}
+          } catch { }
         }
 
         const workforceUsers = usersToSync.filter((u) => {
           if (!u || !u.email) return false;
-          const r = String(u.role || u.userType || '').toLowerCase().trim();
+          const r = String(u.role || u.userType || u.userRole || '').toLowerCase().trim();
           const emailLower = (u.email || '').toLowerCase().trim();
           const nameLower = (u.name || u.fullName || '').toLowerCase().trim();
 
@@ -1230,25 +1714,17 @@ export const DataProvider = ({ children }) => {
             emailLower === 'partner@gmail.com' ||
             emailLower === 'partner@flexistaff.com';
 
-          if (
-            emailLower.includes('sharon') ||
-            nameLower.includes('sharon') ||
-            emailLower.includes('admin') ||
-            r.includes('admin') ||
-            r.includes('client') ||
-            r.includes('manager') ||
-            isPartnerCompany
-          ) {
+          const isNonWorkforceRole =
+            r === 'admin' || r === 'manager' || r === 'client' ||
+            r === 'role_admin' || r === 'role_manager' || r === 'role_client' ||
+            r.includes('admin') || r.includes('manager') || r.includes('client') ||
+            emailLower.includes('admin') || emailLower.includes('manager') ||
+            nameLower === 'admin' || nameLower === 'manager' || nameLower === 'client';
+
+          if (emailLower.includes('sharon') || nameLower.includes('sharon') || isPartnerCompany || isNonWorkforceRole) {
             return false;
           }
-          return (
-            r.includes('workforce') ||
-            r.includes('freelancer') ||
-            r.includes('professional') ||
-            r.includes('talent') ||
-            Boolean(u.hourlyRate) ||
-            Boolean(u.skills)
-          );
+          return true;
         });
 
         if (workforceUsers.length === 0) return;
@@ -1277,6 +1753,8 @@ export const DataProvider = ({ children }) => {
             if (!exists && (userEmail || userName)) {
               hasNewEntries = true;
               const isPartner = Boolean(u.partnerCompany || u.partnerName);
+              const genericRoles = ['workforce', 'freelancer', 'professional', 'talent', 'role_workforce', 'role_professional'];
+              const rawRole = u.title || u.jobTitle || (u.role && !genericRoles.includes(String(u.role).toLowerCase().trim()) ? u.role : '') || 'Software Engineer';
               const newWfMember = {
                 id: u.id || `wf-reg-${Date.now()}-${Math.random().toString().slice(-4)}`,
                 numericId: u.numericId || u.id || Date.now(),
@@ -1284,18 +1762,18 @@ export const DataProvider = ({ children }) => {
                 pseudonym: u.name || u.fullName || 'Independent Freelancer',
                 email: u.email,
                 phone: u.phone || '+91 98765 00000',
-                title: u.title || u.jobTitle || u.role || 'Full-Stack Software Engineer',
-                role: u.title || u.jobTitle || u.role || 'Full-Stack Software Engineer',
-                category: 'Independent Freelancer',
+                title: rawRole,
+                role: rawRole,
+                category: isPartner ? 'Partner Employee' : 'Independent Freelancer',
                 roleType: isPartner ? 'Professional' : 'Freelancer',
                 professionalType: isPartner ? 'PARTNER_EMPLOYEE' : 'FREELANCER',
                 source: isPartner ? 'Partner Company' : 'Freelancer Registration',
                 partnerCompany: u.partnerCompany || '',
-                partnerName: u.partnerCompany || 'Independent Freelancer',
+                partnerName: u.partnerCompany || (isPartner ? 'Partner Organization' : 'Independent Freelancer'),
                 skills: Array.isArray(u.skills)
                   ? u.skills
                   : (u.skills ? String(u.skills).split(',').map((s) => s.trim()) : ['React.js', 'Node.js']),
-                hourlyRate: u.hourlyRate || '$85/hr',
+                hourlyRate: u.hourlyRate ? (typeof u.hourlyRate === 'number' ? `$${u.hourlyRate}/hr` : u.hourlyRate) : '$50/hr',
                 experience: u.experience || '3+ Years',
                 location: u.location || 'Bengaluru, India',
                 bio: u.bio || 'Specialized engineering professional registered on FlexiStaff.',
@@ -1316,7 +1794,7 @@ export const DataProvider = ({ children }) => {
           if (hasNewEntries) {
             try {
               localStorage.setItem('flexistaff_workforce', JSON.stringify(updatedList));
-            } catch {}
+            } catch { }
             return updatedList;
           }
           return prevWorkforce;
@@ -1335,6 +1813,118 @@ export const DataProvider = ({ children }) => {
     };
   }, []);
 
+  // Sync assigned squad members (e.g. Mathuchan18) into central workforce roster
+  useEffect(() => {
+    const squadCandidates = [];
+
+    // 1. Collect from projects assignedResources
+    (projects || []).forEach((p) => {
+      if (p && Array.isArray(p.assignedResources)) {
+        p.assignedResources.forEach((res) => {
+          if (res && (res.name || res.professionalName)) {
+            squadCandidates.push({
+              id: res.id || res.professionalId || `wf-squad-${Date.now()}`,
+              numericId: res.id || Date.now(),
+              name: res.name || res.professionalName || 'Workforce Specialist',
+              pseudonym: res.name || res.professionalName || 'Workforce Specialist',
+              email: res.email || res.professionalEmail || '',
+              phone: res.phone || '+91 98765 00000',
+              title: res.role || res.title || 'Workforce Specialist',
+              role: res.role || res.title || 'Workforce Specialist',
+              category: 'Independent Freelancer',
+              roleType: res.roleType || 'Freelancer',
+              professionalType: res.professionalType || 'FREELANCER',
+              source: res.source || 'Freelancer',
+              partnerCompany: res.partnerName || '',
+              partnerName: res.partnerName || 'Independent Freelancer',
+              skills: res.skills || ['React.js', 'Node.js', 'PostgreSQL'],
+              hourlyRate: res.hourlyRate || '$85/hr',
+              experience: res.experience || '3+ Years',
+              location: res.location || 'Bengaluru, India',
+              bio: res.bio || 'Assigned engineering squad specialist.',
+              status: res.status || 'Active',
+              availability: 'Available',
+              approvalStatus: 'Approved',
+              verificationStatus: 'Approved',
+              accountStatus: 'Active',
+              avatar: res.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(res.name || 'Workforce')}`,
+            });
+          }
+        });
+      }
+    });
+
+    // 2. Collect from managerAssignments
+    (managerAssignments || []).forEach((asg) => {
+      if (asg && (asg.professionalName || asg.name)) {
+        squadCandidates.push({
+          id: asg.professionalId || asg.id || `wf-asg-${Date.now()}`,
+          numericId: asg.professionalId || asg.id || Date.now(),
+          name: asg.professionalName || asg.name || 'Workforce Specialist',
+          pseudonym: asg.professionalName || asg.name || 'Workforce Specialist',
+          email: asg.email || asg.professionalEmail || '',
+          phone: asg.phone || '+91 98765 00000',
+          title: asg.role || 'Workforce Specialist',
+          role: asg.role || 'Workforce Specialist',
+          category: 'Independent Freelancer',
+          roleType: asg.roleType || 'Freelancer',
+          professionalType: asg.professionalType || 'FREELANCER',
+          source: asg.source || 'Freelancer',
+          partnerCompany: asg.partnerName || '',
+          partnerName: asg.partnerName || 'Independent Freelancer',
+          skills: asg.skills || ['React.js', 'Node.js'],
+          hourlyRate: asg.hourlyRate || '$85/hr',
+          experience: asg.experience || '3+ Years',
+          location: asg.location || 'Bengaluru, India',
+          bio: asg.notes || 'Assigned engineering squad specialist.',
+          status: asg.status || 'Active',
+          availability: 'Available',
+          approvalStatus: 'Approved',
+          verificationStatus: 'Approved',
+          accountStatus: 'Active',
+          avatar: asg.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(asg.professionalName || 'Workforce')}`,
+        });
+      }
+    });
+
+    if (squadCandidates.length > 0) {
+      setWorkforce((prev) => {
+        let list = [...(prev || [])];
+        let added = false;
+        squadCandidates.forEach((cand) => {
+          const candName = (cand.name || '').toLowerCase().trim();
+          const candEmail = (cand.email || '').toLowerCase().trim();
+          const candId = String(cand.id || '').toLowerCase().trim();
+
+          const isNonWorkforce =
+            candName === 'admin' || candName === 'manager' || candName === 'client' ||
+            candEmail.includes('admin') || candEmail.includes('manager');
+
+          const exists = list.some((w) => {
+            if (!w) return false;
+            const wId = String(w.id || '').toLowerCase().trim();
+            const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+            const wEmail = (w.email || '').toLowerCase().trim();
+            return (candId && wId === candId) || (candName && wName === candName) || (candEmail && wEmail && wEmail === candEmail);
+          });
+
+          if (!exists && !isNonWorkforce) {
+            list = [cand, ...list];
+            added = true;
+          }
+        });
+
+        if (added) {
+          try {
+            localStorage.setItem('flexistaff_workforce', JSON.stringify(list));
+          } catch {}
+          return list;
+        }
+        return prev;
+      });
+    }
+  }, [projects, managerAssignments]);
+
   // Sync Client Profile with registered user data
   useEffect(() => {
     const syncClientProfileData = () => {
@@ -1343,7 +1933,7 @@ export const DataProvider = ({ children }) => {
         const savedClientsStr = localStorage.getItem('flexistaff_clients');
         let currentClientsList = clients;
         if (savedClientsStr) {
-          try { currentClientsList = JSON.parse(savedClientsStr); } catch {}
+          try { currentClientsList = JSON.parse(savedClientsStr); } catch { }
         }
 
         if (savedUserStr) {
@@ -1359,8 +1949,8 @@ export const DataProvider = ({ children }) => {
               return (cEmail && userEmail && cEmail === userEmail) || (cName && userName && cName === userName);
             });
 
-            const companyName = matchedCli?.name || matchedCli?.companyName || savedUser.companyName || savedUser.company || 'Enterprise Client Organization';
-            const contactPerson = matchedCli?.contactPerson || savedUser.name || savedUser.contactPerson || 'Client Contact';
+            const companyName = matchedCli?.name || matchedCli?.companyName || savedUser.companyName || savedUser.company || '';
+            const contactPerson = matchedCli?.contactPerson || savedUser.name || savedUser.contactPerson || '';
 
             setClientProfile({
               id: matchedCli?.id || savedUser.id || 'cli-101',
@@ -1380,7 +1970,7 @@ export const DataProvider = ({ children }) => {
             });
           }
         }
-      } catch {}
+      } catch { }
     };
 
     syncClientProfileData();
@@ -1406,7 +1996,7 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_freelancer_applications', JSON.stringify(freelancerApplications));
-    } catch {}
+    } catch { }
   }, [freelancerApplications]);
 
   const addFreelancerApplication = async (appData) => {
@@ -1578,7 +2168,77 @@ export const DataProvider = ({ children }) => {
   // GitHub-style Milestone Commit System State for Workforce Module
   const [projectMilestones, setProjectMilestones] = useState({});
 
+  const getDefaultProjectMilestones = (pId) => [
+    { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: 'Sprint 1', commits: [] },
+    { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 2', commits: [] },
+    { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 3', commits: [] },
+    { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 4', commits: [] },
+    { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 5', commits: [] },
+  ];
+
+  const syncMilestoneProgressToState = (pId, updatedMilestones) => {
+    const completedCount = (updatedMilestones || []).filter(
+      (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.status === 'COMPLETED'
+    ).length;
+
+    const calculatedProgress = calculateOverallCompletionProgress(completedCount);
+    const isComplete = calculatedProgress >= 100;
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
+    setProjects((prevProjects) => {
+      const updated = (prevProjects || []).map((p) => {
+        if (!p) return p;
+        const normId = String(p.id || p.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (normId === normPId || String(p.id) === String(pId)) {
+          if (p.status === 'Rejected' || p.status === 'Declined' || p.status === 'Cancelled') {
+            return p;
+          }
+          return {
+            ...p,
+            progress: calculatedProgress,
+            status: isComplete ? 'Completed' : (calculatedProgress > 0 ? 'In Progress' : p.status),
+            stage: isComplete ? 'Completed' : (calculatedProgress > 0 ? 'In Progress' : p.stage),
+            recentUpdate: isComplete ? 'All sprint deliverables completed.' : `Milestone progress updated to ${calculatedProgress}%.`,
+          };
+        }
+        return p;
+      });
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setManagerAssignments((prevAssignments) => {
+      const updated = (prevAssignments || []).map((a) => {
+        if (!a) return a;
+        const normId = String(a.id || a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (normId === normPId || String(a.projectId) === String(pId) || String(a.id) === String(pId)) {
+          if (a.status === 'Declined' || a.status === 'Rejected' || a.status === 'Cancelled') {
+            return a;
+          }
+          return {
+            ...a,
+            progress: calculatedProgress,
+            status: isComplete ? 'Completed' : (a.status === 'Pending' ? 'Accepted' : a.status),
+            currentTask: isComplete ? 'All sprint deliverables completed.' : `Milestone progress updated to ${calculatedProgress}%.`,
+          };
+        }
+        return a;
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    return calculatedProgress;
+  };
+
   const addMilestoneCommit = (projectId, milestoneId, commitData) => {
+    // 1. Check if workforce assignment is rejected/declined
+    const asgStatus = String(commitData?.assignmentStatus || commitData?.status || '').toLowerCase();
+    if (asgStatus === 'declined' || asgStatus === 'rejected' || asgStatus === 'cancelled') {
+      console.warn('Rejected or declined workforce assignments cannot update or complete milestones.');
+      return null;
+    }
+
     const newCommit = {
       id: `cmt-${Date.now()}`,
       commitHash: Math.random().toString(16).substring(2, 9),
@@ -1586,42 +2246,39 @@ export const DataProvider = ({ children }) => {
       ...commitData,
     };
 
-    const pId = projectId || 'PRJ-2026-001';
+    const pId = projectId || (projects[0]?.id || 1);
+
+    // 2. Persist update to PostgreSQL backend if numeric ID
+    if (milestoneId) {
+      const numericMsId = Number(String(milestoneId).replace(/\D/g, ''));
+      if (numericMsId) {
+        const msStatus = (commitData.milestoneStatus === 'Completed' || commitData.status === 'Completed') ? 'COMPLETED' : 'IN_PROGRESS';
+        api.milestones.updateProgress(numericMsId, {
+          status: msStatus,
+          authorRole: commitData.authorRole,
+          authorSkills: Array.isArray(commitData.authorSkills) ? commitData.authorSkills.join(', ') : commitData.authorSkills,
+          milestoneSkillDomain: commitData.assignedSkill || '',
+        }).catch((err) => console.warn('Milestone API sync fallback:', err));
+      }
+    }
 
     setProjectMilestones((prev) => {
-      const projectMs = prev[pId] || [
-        {
-          id: milestoneId || 'ms-01',
-          title: 'Milestone 1: Core Deliverables',
-          status: 'In Progress',
-          commits: [],
-        },
-      ];
+      const projectMs = (prev[pId] && prev[pId].length > 0) ? prev[pId] : getDefaultProjectMilestones(pId);
+      const targetStatus = commitData.milestoneStatus || commitData.status || 'In Progress';
 
       const updated = projectMs.map((ms) => {
         if (ms.id === milestoneId || (!milestoneId && ms.status === 'In Progress')) {
           return {
             ...ms,
+            status: targetStatus,
+            completed: targetStatus === 'Completed',
             commits: [newCommit, ...(ms.commits || [])],
           };
         }
         return ms;
       });
 
-      // Recalculate progress percentage for this project
-      const totalMs = updated.length || 1;
-      const completedMs = updated.filter((m) => m.status === 'Completed').length;
-      const inProgressMs = updated.filter((m) => m.status === 'In Progress').length;
-      const calculatedProgress = Math.min(100, Math.round(((completedMs + inProgressMs * 0.5) / totalMs) * 100));
-
-      // Update project progress in state
-      setProjects((prevProjects) =>
-        prevProjects.map((p) =>
-          p.id === pId || p.projectId === pId
-            ? { ...p, progress: calculatedProgress }
-            : p
-        )
-      );
+      syncMilestoneProgressToState(pId, updated);
 
       return {
         ...prev,
@@ -1629,11 +2286,12 @@ export const DataProvider = ({ children }) => {
       };
     });
 
-    // Notify Admin, Manager, and Client feeds
+    // 3. Broadcast real-time notifications to Admin, Manager, Client, and Partner Company
+    const msTitle = commitData.milestoneTitle || commitData.milestoneName || 'Milestone';
     const notifPayload = {
       id: `notif-${Date.now()}`,
-      title: `Git Commit Progress: ${newCommit.commitHash}`,
-      message: `${newCommit.authorName} committed: "${newCommit.commitMessage}"`,
+      title: `Milestone Update: ${msTitle} (${commitData.milestoneStatus || 'Updated'})`,
+      message: `${newCommit.authorName || 'Specialist'} logged commit #${newCommit.commitHash}: "${newCommit.commitMessage || newCommit.workCompleted}"`,
       time: 'Just now',
       unread: true,
       link: '/projects',
@@ -1642,33 +2300,21 @@ export const DataProvider = ({ children }) => {
     setNotifications((prev) => [notifPayload, ...prev]);
     setManagerNotifications((prev) => [{ ...notifPayload, link: '/manager/projects' }, ...prev]);
     setClientNotifications((prev) => [{ ...notifPayload, link: '/client/progress' }, ...prev]);
+    setPartnerNotifications((prev) => [{ ...notifPayload, link: '/partner/projects' }, ...prev]);
 
     return newCommit;
   };
 
   const updateMilestoneStatus = (projectId, milestoneId, newStatus) => {
-    const pId = projectId || 'PRJ-2026-001';
+    const pId = projectId || (projects[0]?.id || 1);
 
     setProjectMilestones((prev) => {
-      const projectMs = prev[pId] || [];
+      const projectMs = (prev[pId] && prev[pId].length > 0) ? prev[pId] : getDefaultProjectMilestones(pId);
       const updated = projectMs.map((ms) =>
         ms.id === milestoneId ? { ...ms, status: newStatus } : ms
       );
 
-      // Recalculate progress percentage
-      const totalMs = updated.length || 1;
-      const completedMs = updated.filter((m) => m.status === 'Completed').length;
-      const inProgressMs = updated.filter((m) => m.status === 'In Progress').length;
-      const calculatedProgress = Math.min(100, Math.round(((completedMs + inProgressMs * 0.5) / totalMs) * 100));
-
-      // Sync overall project progress bar
-      setProjects((prevProjects) =>
-        prevProjects.map((p) =>
-          p.id === pId || p.projectId === pId
-            ? { ...p, progress: calculatedProgress }
-            : p
-        )
-      );
+      syncMilestoneProgressToState(pId, updated);
 
       return {
         ...prev,
@@ -1705,13 +2351,34 @@ export const DataProvider = ({ children }) => {
     setAdminProfile((prev) => ({ ...prev, ...data }));
   };
 
-  const updatePartnerProfile = (data) => {
+  const updatePartnerProfile = async (data) => {
     const updatedSpecialtiesStr = Array.isArray(data.specialties)
       ? data.specialties.join(', ')
       : data.specialties;
     const updatedSpecialtiesArr = Array.isArray(data.specialties)
       ? data.specialties
       : String(data.specialties || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+    const partnerId = data.id || partnerProfile?.id || partnerProfile?.numericId;
+    const rawNum = typeof partnerId === 'number' ? partnerId : Number(String(partnerId || '').replace(/\D/g, ''));
+    const targetDbId = !isNaN(rawNum) && rawNum > 0 ? rawNum : null;
+
+    if (targetDbId) {
+      try {
+        await api.partners.update(targetDbId, {
+          companyName: data.name || data.companyName,
+          name: data.name || data.companyName,
+          contactPerson: data.contactPerson,
+          email: data.email,
+          phone: data.phone,
+          location: data.location || data.city,
+          tier: data.tier,
+          specialties: updatedSpecialtiesArr,
+        });
+      } catch (err) {
+        console.warn(`Could not persist partner profile update to backend API for ID ${targetDbId}:`, err);
+      }
+    }
 
     setPartnerProfile((prev) => ({
       ...prev,
@@ -1732,6 +2399,7 @@ export const DataProvider = ({ children }) => {
 
       const existsIdx = prevPartners.findIndex((p) => {
         if (!p) return false;
+        if (targetDbId && (p.id === targetDbId || p.numericId === targetDbId)) return true;
         const pEmail = (p.email || '').toLowerCase().trim();
         const pName = (p.name || p.companyName || '').toLowerCase().trim();
         if (pEmail && emailToMatch && pEmail === emailToMatch) return true;
@@ -1762,7 +2430,8 @@ export const DataProvider = ({ children }) => {
       } else {
         nextPartners = [
           {
-            id: data.id || partnerProfile.id || `prt-${Date.now()}`,
+            id: targetDbId || data.id || partnerProfile.id || `prt-${Date.now()}`,
+            numericId: targetDbId || data.id || partnerProfile.id || Date.now(),
             status: data.status || 'Active',
             joinedDate: new Date().toISOString().split('T')[0],
             suppliedProfessionals: 0,
@@ -1777,9 +2446,26 @@ export const DataProvider = ({ children }) => {
 
       try {
         localStorage.setItem('flexistaff_partners', JSON.stringify(nextPartners));
-      } catch {}
+      } catch { }
       return nextPartners;
     });
+
+    const newName = data.name || data.companyName;
+    if (newName) {
+      setWorkforce((prevWf) => {
+        const nextWf = (prevWf || []).map((w) => {
+          if (!w) return w;
+          if (targetDbId && (w.partnerCompanyId === targetDbId || String(w.partnerCompanyId) === String(targetDbId))) {
+            return { ...w, partnerCompany: newName, partnerName: newName };
+          }
+          return w;
+        });
+        try {
+          localStorage.setItem('flexistaff_workforce', JSON.stringify(nextWf));
+        } catch { }
+        return nextWf;
+      });
+    }
 
     // Update flexistaff_user if logged-in user is partner
     try {
@@ -1799,7 +2485,7 @@ export const DataProvider = ({ children }) => {
           localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
         }
       }
-    } catch {}
+    } catch { }
   };
 
   const updateManagerProfile = (data) => {
@@ -1828,7 +2514,7 @@ export const DataProvider = ({ children }) => {
             localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
           }
         }
-      } catch {}
+      } catch { }
 
       // Sync managers list in state & localStorage
       setManagers((prevManagers) => {
@@ -1848,7 +2534,7 @@ export const DataProvider = ({ children }) => {
         }
         try {
           localStorage.setItem('flexistaff_managers', JSON.stringify(newManagers));
-        } catch {}
+        } catch { }
         return newManagers;
       });
 
@@ -1957,72 +2643,111 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   // CLIENT PROJECT REQUEST & SUBMISSION
   // =========================================================================
-  const submitClientProjectRequest = (formData) => {
-    // Generate sequential serial project ID matching PostgreSQL BIGSERIAL Primary Key standard
-    const existingNumIds = (projects || [])
-      .map((p) => Number(String(p?.id || '').replace(/\D/g, '')))
-      .filter((num) => !isNaN(num) && num > 0);
-    const nextSerialNum = existingNumIds.length > 0 ? Math.max(...existingNumIds) + 1 : 7143;
-    const newId = nextSerialNum;
+  const submitClientProjectRequest = async (formData) => {
+    const parseIdNum = (val) => {
+      if (!val) return null;
+      if (typeof val === 'number') return val;
+      const num = Number(String(val).replace(/\D/g, ''));
+      return (!isNaN(num) && num > 0) ? num : null;
+    };
+
+    let clientIdNum = parseIdNum(formData?.clientId);
+
+    if (!clientIdNum) {
+      try {
+        const u = JSON.parse(localStorage.getItem('flexistaff_user'));
+        if (u) clientIdNum = parseIdNum(u.id) || parseIdNum(u.numericId) || parseIdNum(u.userId);
+      } catch {}
+    }
+
+    if (!clientIdNum && clientProfile) {
+      clientIdNum = parseIdNum(clientProfile.id) || parseIdNum(clientProfile.numericId) || parseIdNum(clientProfile.userId);
+    }
 
     const skillsArr = Array.isArray(formData.requiredSkills)
       ? formData.requiredSkills
       : (formData.requiredSkills || '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
 
     const reqCount = Number(formData.workforceRequired) || 2;
     const reqList = formData.requirements && formData.requirements.length > 0
       ? formData.requirements
       : [
-          {
-            role: formData.primaryRole || 'Senior Full-Stack Engineer',
-            required: reqCount,
-            assigned: 0,
-            skills: skillsArr.join(', ') || 'React.js, Node.js, Cloud',
-            experience: '3+ years',
-          },
-        ];
+        {
+          role: formData.primaryRole || 'Senior Full-Stack Engineer',
+          required: reqCount,
+          assigned: 0,
+          skills: skillsArr.join(', ') || 'React.js, Node.js, Cloud',
+          experience: '3+ years',
+        },
+      ];
 
-    const newProject = {
-      id: newId,
-      serialId: nextSerialNum,
-      dbId: nextSerialNum,
-      name: formData.title || formData.name || 'Custom Enterprise Project',
+    const payload = {
       title: formData.title || formData.name || 'Custom Enterprise Project',
-      client: clientProfile?.company || 'Client Organization',
-      clientId: clientProfile?.id || 'cli-01',
-      category: formData.category || 'Enterprise Software Engineering',
-      techStack: formData.techStack || skillsArr.join(', ') || 'React.js, Python, Cloud',
-      requiredSkills: skillsArr.length > 0 ? skillsArr : ['React.js', 'Node.js', 'PostgreSQL'],
-      priority: formData.priority || 'High',
-      description:
-        formData.description ||
-        'Enterprise staffing requirement submitted directly by client organization.',
-      stage: 'Pending Admin Approval',
-      status: 'Pending Admin Approval',
-      progress: 0,
-      workforceRequired: reqCount,
-      workforceAssigned: 0,
-      budget: formData.budget || '$150,000',
-      duration: formData.duration || '6 Months',
-      startDate: formData.startDate || '2026-09-01',
-      deadline: formData.deadline || '2027-02-28',
-      manager: 'Unassigned',
-      managerAvatar:
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      assignedResources: [],
-      requirements: reqList,
-      milestones: [
-        { id: `m-1`, title: 'Project Kickoff & Technical Architecture Blueprint', dueDate: '2026-09-30', completed: false },
-        { id: `m-2`, title: 'Core Feature Engineering & Sprint Reviews', dueDate: '2026-11-30', completed: false },
-        { id: `m-3`, title: 'Production Handover, UAT & Sign-off', dueDate: '2027-02-28', completed: false },
-      ],
-      createdDate: new Date().toISOString().split('T')[0],
+      description: formData.description || 'Enterprise staffing requirement submitted by client.',
+      requiredSkills: skillsArr.join(', ') || 'React.js, Node.js, PostgreSQL',
+      clientId: clientIdNum,
+      startDate: formData.startDate || new Date().toISOString().split('T')[0],
+      endDate: formData.targetEndDate || formData.endDate || formData.deadline || null,
     };
 
-    setProjects((prev) => [newProject, ...prev]);
+    let newProject = null;
+    try {
+      const res = await api.projects.create(payload);
+      if (res && res.success && res.data) {
+        newProject = mapBackendProjectToFrontend(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend project creation error:', err);
+    }
+
+    if (!newProject) {
+      const existingNumIds = (projects || [])
+        .map((p) => Number(String(p?.id || '').replace(/\D/g, '')))
+        .filter((num) => !isNaN(num) && num > 0);
+      const nextSerialNum = existingNumIds.length > 0 ? Math.max(...existingNumIds) + 1 : 7143;
+
+      newProject = {
+        id: nextSerialNum,
+        serialId: nextSerialNum,
+        dbId: nextSerialNum,
+        name: formData.title || formData.name || 'Custom Enterprise Project',
+        title: formData.title || formData.name || 'Custom Enterprise Project',
+        client: clientProfile?.company || '',
+        clientId: clientIdNum,
+        category: formData.category || 'Enterprise Software Engineering',
+        techStack: formData.techStack || skillsArr.join(', ') || 'React.js, Python, Cloud',
+        requiredSkills: skillsArr.length > 0 ? skillsArr : ['React.js', 'Node.js', 'PostgreSQL'],
+        priority: formData.priority || 'High',
+        description:
+          formData.description ||
+          'Enterprise staffing requirement submitted directly by client organization.',
+        stage: 'Pending Admin Approval',
+        status: 'Pending Admin Approval',
+        progress: 0,
+        workforceRequired: reqCount,
+        workforceAssigned: 0,
+        startDate: formData.startDate || new Date().toISOString().split('T')[0],
+        targetEndDate: formData.targetEndDate || formData.endDate || formData.deadline || '2027-02-28',
+        endDate: formData.targetEndDate || formData.endDate || formData.deadline || '2027-02-28',
+        deadline: formData.targetEndDate || formData.endDate || formData.deadline || '2027-02-28',
+        manager: 'Unassigned',
+        assignedResources: [],
+        requirements: reqList,
+        milestones: [
+          { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: formData.startDate, completed: false, commits: [] },
+          { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: formData.startDate, completed: false, commits: [] },
+          { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: formData.targetEndDate, completed: false, commits: [] },
+          { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: formData.targetEndDate, completed: false, commits: [] },
+          { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: formData.targetEndDate, completed: false, commits: [] },
+        ],
+        createdDate: new Date().toISOString().split('T')[0],
+      };
+    }
+
+    setProjects((prev) => [newProject, ...prev.filter((p) => String(p.id) !== String(newProject.id))]);
 
     // Send notification to Admin
     const adminNotif = {
@@ -2042,15 +2767,42 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   // COMPANY ADMIN: PROJECT APPROVAL & REJECTION
   // =========================================================================
-  const approveProject = (projectId, assignedManager = '') => {
+  const approveProject = async (projectId, assignedManager = '') => {
+    const numId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
+    
+    // Find manager entity / ID if assignedManager name or object is passed
+    let assignedManagerUser = (managers || []).find(
+      (m) => (m.name || m.fullName || '').toLowerCase().trim() === String(assignedManager).toLowerCase().trim()
+    );
+    let managerIdToUpdate = assignedManagerUser?.id || assignedManagerUser?.userId || null;
+
+    if (numId && !isNaN(numId) && api?.projects?.update) {
+      try {
+        const updatePayload = { status: 'IN_PROGRESS' };
+        if (managerIdToUpdate) {
+          updatePayload.managerId = managerIdToUpdate;
+        }
+        const res = await api.projects.update(numId, updatePayload);
+        if (res && res.success && res.data) {
+          const mapped = mapBackendProjectToFrontend(res.data);
+          setProjects((prev) => prev.map((p) => (p.id === numId || p.id === projectId ? mapped : p)));
+          refreshDashboardStats();
+        }
+      } catch (err) {
+        console.warn('Could not update backend project on approve:', err);
+      }
+    }
+
     setProjects((prev) =>
       prev.map((p) => {
-        if (p.id === projectId) {
+        if (p.id === projectId || p.id === numId) {
           return {
             ...p,
-            status: 'Approved',
-            stage: 'Approved',
-            manager: assignedManager,
+            status: 'In Progress',
+            stage: 'In Progress',
+            manager: assignedManager || p.manager || 'Unassigned',
+            managerName: assignedManager || p.managerName,
+            managerId: managerIdToUpdate || p.managerId,
             approvalStatus: 'Approved',
           };
         }
@@ -2084,26 +2836,108 @@ export const DataProvider = ({ children }) => {
   };
 
   const rejectProject = (projectId, reason = 'Scope budget or project timeline requires adjustment.') => {
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id === projectId) {
+    try {
+      const numId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
+      if (numId && !isNaN(numId) && api?.projects?.reject) {
+        api.projects.reject(numId, reason).catch((err) => console.warn('Backend project reject offline fallback:', err));
+      }
+    } catch { }
+
+    const normProjId = (id) => String(id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetNorm = normProjId(projectId);
+
+    const updateRejectedObj = (p) => {
+      if (!p) return p;
+      const pNorm = normProjId(p.id);
+      if (pNorm === targetNorm || String(p.id) === String(projectId)) {
+        return {
+          ...p,
+          status: 'Rejected',
+          stage: 'Rejected',
+          rejectionReason: reason,
+          approvalStatus: 'Rejected',
+          workforceAssigned: 0,
+          assignedResources: [],
+        };
+      }
+      return p;
+    };
+
+    setProjects((prev) => {
+      const updated = (prev || []).map(updateRejectedObj);
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setPartnerProjects((prev) => {
+      const updated = (prev || []).map(updateRejectedObj);
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setClientProjects((prev) => {
+      const updated = (prev || []).map(updateRejectedObj);
+      try { localStorage.setItem('flexistaff_client_projects', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        const aNorm = normProjId(a.projectId);
+        if (aNorm === targetNorm || String(a.projectId) === String(projectId)) {
           return {
-            ...p,
+            ...a,
             status: 'Rejected',
-            stage: 'Rejected',
-            rejectionReason: reason,
-            approvalStatus: 'Rejected',
+            rejectionReason: `Project rejected by client/admin: ${reason}`,
+            currentTask: 'Project rejected. Assignment cancelled.',
           };
         }
-        return p;
-      })
-    );
+        return a;
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setFreelancerRequests((prev) => {
+      const updated = (prev || []).map((r) => {
+        if (!r) return r;
+        const rNorm = normProjId(r.projectId);
+        if (rNorm === targetNorm || String(r.projectId) === String(projectId)) {
+          return {
+            ...r,
+            status: 'Rejected',
+            rejectionReason: `Project rejected by client/admin: ${reason}`,
+          };
+        }
+        return r;
+      });
+      try { localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setPartnerWorkforceRequests((prev) => {
+      const updated = (prev || []).map((pr) => {
+        if (!pr) return pr;
+        const prNorm = normProjId(pr.projectId);
+        if (prNorm === targetNorm || String(pr.projectId) === String(projectId)) {
+          return {
+            ...pr,
+            status: 'Rejected',
+            rejectionReason: `Project rejected by client/admin: ${reason}`,
+          };
+        }
+        return pr;
+      });
+      try { localStorage.setItem('flexistaff_partner_requests', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
 
     // Notify Client
     const clientNotif = {
       id: `cnotif-${Date.now()}`,
       title: 'Project Requirement Update',
-      message: `Your project "${projectId}" was rejected by Admin: ${reason}. You can modify and resubmit.`,
+      message: `Your project "${projectId}" was rejected: ${reason}. You can modify and resubmit.`,
       type: 'project',
       unread: true,
       time: 'Just now',
@@ -2117,12 +2951,18 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   const requestWorkforceAssignment = (projectId, workforceMember, assignedRole, notes = '') => {
     const prj =
-      projects.find((p) => p.id === projectId) || {
+      projects.find((p) => String(p.id).toLowerCase().replace(/[\s_]/g, '-').trim() === String(projectId).toLowerCase().replace(/[\s_]/g, '-').trim()) || {
         id: projectId,
         name: 'Enterprise Project',
         title: 'Enterprise Project',
         client: 'Enterprise Client',
       };
+
+    if (prj && (prj.status === 'Rejected' || prj.status === 'REJECTED' || prj.stage === 'Rejected' || prj.status === 'Cancelled')) {
+      toast.error('Cannot assign workforce: This project has been rejected or cancelled.');
+      return null;
+    }
+
     const cand =
       workforce.find((w) => w.id === (workforceMember.id || workforceMember)) ||
       partnerWorkforce.find((w) => w.id === (workforceMember.id || workforceMember)) ||
@@ -2224,9 +3064,9 @@ export const DataProvider = ({ children }) => {
     const skillsList = Array.isArray(reqData.skills)
       ? reqData.skills
       : String(reqData.skills || '')
-          .split(/[,+]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+        .split(/[,+]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
     const newReq = {
       id: newId,
@@ -2423,6 +3263,11 @@ export const DataProvider = ({ children }) => {
       duration: '6 Months',
     };
 
+    if (prj && (prj.status === 'Rejected' || prj.status === 'REJECTED' || prj.stage === 'Rejected' || prj.status === 'Cancelled')) {
+      toast.error('Cannot submit assignment request: This project has been rejected or cancelled.');
+      return false;
+    }
+
     // Filter out candidates already submitted for this project
     const uniqueCandidatesToSubmit = selectedWorkforceList.filter((cand) => {
       const cName = (cand.name || cand.pseudonym || '').toLowerCase().trim();
@@ -2559,10 +3404,10 @@ export const DataProvider = ({ children }) => {
         if (a.id === assignmentId) {
           targetAsg = {
             ...a,
-            status: 'Accepted',
-            progress: 15,
-            currentTask: 'Approved by Admin. Active project execution started.',
-            acceptedDate: new Date().toISOString().split('T')[0],
+            status: 'Awaiting Workforce Response',
+            progress: 0,
+            currentTask: 'Approved by Company Admin. Awaiting candidate response.',
+            approvedDate: new Date().toISOString().split('T')[0],
           };
           return targetAsg;
         }
@@ -2572,77 +3417,11 @@ export const DataProvider = ({ children }) => {
 
     if (!targetAsg) return;
 
-    // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
-    setWorkforce((prev) =>
-      prev.map((w) =>
-        w.id === targetAsg.professionalId
-          ? {
-              ...w,
-              availability: 'Assigned',
-              workingStatus: 'Working',
-              currentProject: targetAsg.projectName,
-              assignedProject: targetAsg.projectName,
-            }
-          : w
-      )
-    );
-    setPartnerWorkforce((prev) =>
-      prev.map((w) =>
-        w.id === targetAsg.professionalId
-          ? {
-              ...w,
-              availability: 'Assigned',
-              workingStatus: 'Working',
-              currentProject: targetAsg.projectName,
-              assignedProject: targetAsg.projectName,
-            }
-          : w
-      )
-    );
-
-    // 2. Update project status to 'In Progress' and stage to 'In Progress'
-    const normProjId = (id) => String(id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-    const targetNormId = normProjId(targetAsg.projectId);
-    const targetProjName = (targetAsg.projectName || '').toLowerCase().trim();
-
-    const updateProjectObj = (p) => {
-      const pNormId = normProjId(p.id);
-      const pTitle = (p.name || p.title || '').toLowerCase().trim();
-      const isMatch = (targetNormId && pNormId === targetNormId) || (targetProjName && pTitle === targetProjName);
-
-      if (isMatch) {
-        const nextAssigned = Math.max(1, (p.workforceAssigned || 0) + 1);
-        const newResources = [
-          ...(p.assignedResources || []).filter((r) => r.id !== targetAsg.professionalId && (r.name || '').toLowerCase().trim() !== (targetAsg.professionalName || '').toLowerCase().trim()),
-          {
-            id: targetAsg.professionalId,
-            name: targetAsg.professionalName,
-            role: targetAsg.role,
-            avatar: targetAsg.avatar,
-            roleType: targetAsg.roleType || 'Professional',
-            hoursPerWeek: 40,
-          },
-        ];
-        return {
-          ...p,
-          status: 'In Progress',
-          stage: 'In Progress',
-          workforceAssigned: nextAssigned,
-          assignedResources: newResources,
-          recentUpdate: `Squad assignment approved by Company Admin. Project phase changed to "In Progress".`,
-        };
-      }
-      return p;
-    };
-
-    setProjects((prev) => prev.map(updateProjectObj));
-    setPartnerProjects((prev) => prev.map(updateProjectObj));
-
-    // 3. Notify Workforce Member, Manager & Client
+    // 1. Notify Workforce Member, Manager & Client
     const wfNotif = {
       id: `wnotif-${Date.now()}`,
       title: 'Project Assignment Approved by Admin',
-      message: `Your assignment on "${targetAsg.projectName}" as ${targetAsg.role} was approved by Admin. Project is now In Progress.`,
+      message: `Your assignment proposal on "${targetAsg.projectName}" as ${targetAsg.role} was approved by Admin. Please Accept or Decline the offer.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -2653,48 +3432,7 @@ export const DataProvider = ({ children }) => {
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
       title: 'Assignment Proposal Approved by Admin',
-      message: `Admin approved the assignment of ${targetAsg.professionalName} for "${targetAsg.projectName}". Project execution started!`,
-      type: 'assignment',
-      unread: true,
-      time: 'Just now',
-      link: '/manager/assignments',
-    };
-    setManagerNotifications((prev) => [mgrNotif, ...prev]);
-
-    const clientNotif = {
-      id: `cnotif-${Date.now()}`,
-      title: 'Workforce Approved & Project Started',
-      message: `${targetAsg.professionalName} (${targetAsg.role}) was approved by Admin for "${targetAsg.projectName}". Project is now In Progress!`,
-      type: 'project',
-      unread: true,
-      time: 'Just now',
-      link: `/client/projects/${targetAsg.projectId}`,
-    };
-    setClientNotifications((prev) => [clientNotif, ...prev]);
-  };
-
-  const rejectWorkforceAssignment = (assignmentId, reason = 'Candidate rate or allocation mismatch with client SLA.') => {
-    let targetAsg = null;
-    setManagerAssignments((prev) =>
-      prev.map((a) => {
-        if (a.id === assignmentId) {
-          targetAsg = {
-            ...a,
-            status: 'Rejected',
-            rejectionReason: reason,
-            currentTask: 'Assignment rejected by Admin. Please select alternate candidate.',
-          };
-          return targetAsg;
-        }
-        return a;
-      })
-    );
-
-    // Notify Manager
-    const mgrNotif = {
-      id: `mnotif-${Date.now()}`,
-      title: 'Assignment Proposal Rejected by Admin',
-      message: `Admin rejected assignment of ${targetAsg?.professionalName} on "${targetAsg?.projectName}": ${reason}. Please select another talent.`,
+      message: `Admin approved the assignment proposal for ${targetAsg.professionalName} on "${targetAsg.projectName}". Offer sent to talent.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -2703,15 +3441,19 @@ export const DataProvider = ({ children }) => {
     setManagerNotifications((prev) => [mgrNotif, ...prev]);
   };
 
-  // =========================================================================
-  // WORKFORCE (PROFESSIONAL / FREELANCER): ACCEPT OR DECLINE
-  // =========================================================================
   // =========================================================================
   // WORKFORCE (PROFESSIONAL / FREELANCER): ACCEPT OR DECLINE
   // =========================================================================
   const acceptWorkforceAssignment = (assignmentId) => {
     let targetAsg = null;
     const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+
+    try {
+      const numId = parseInt(targetIdStr.replace(/\D/g, ''), 10);
+      if (numId && !isNaN(numId) && api?.workforce?.updateStatus) {
+        api.workforce.updateStatus(numId, 'ACTIVE').catch((err) => console.warn('Backend workforce update status offline fallback:', err));
+      }
+    } catch { }
 
     setManagerAssignments((prev) => {
       const updated = (prev || []).map((a) => {
@@ -2722,7 +3464,7 @@ export const DataProvider = ({ children }) => {
           targetAsg = {
             ...a,
             status: 'Accepted',
-            progress: Math.max(15, a.progress || 0),
+            progress: a.progress || 0,
             currentTask: 'Architecture orientation and codebase setup in progress',
             acceptedDate: new Date().toISOString().split('T')[0],
           };
@@ -2730,36 +3472,39 @@ export const DataProvider = ({ children }) => {
         }
         return a;
       });
-      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
     if (!targetAsg) return;
 
     // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
-    setWorkforce((prev) =>
-      (prev || []).map((w) =>
+    setWorkforce((prev) => {
+      const updated = (prev || []).map((w) =>
         w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
-              ...w,
-              availability: 'Assigned',
-              workingStatus: 'Working',
-              currentProject: targetAsg.projectName,
-              assignedProject: targetAsg.projectName,
-            }
+            ...w,
+            availability: 'Assigned',
+            workingStatus: 'Working',
+            currentProject: targetAsg.projectName,
+            assignedProject: targetAsg.projectName,
+          }
           : w
-      )
-    );
+      );
+      try { localStorage.setItem('flexistaff_workforce', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
     setPartnerWorkforce((prev) =>
       (prev || []).map((w) =>
         w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
-              ...w,
-              availability: 'Assigned',
-              workingStatus: 'Working',
-              currentProject: targetAsg.projectName,
-              assignedProject: targetAsg.projectName,
-            }
+            ...w,
+            availability: 'Assigned',
+            workingStatus: 'Working',
+            currentProject: targetAsg.projectName,
+            assignedProject: targetAsg.projectName,
+          }
           : w
       )
     );
@@ -2799,13 +3544,13 @@ export const DataProvider = ({ children }) => {
 
     setProjects((prev) => {
       const updated = (prev || []).map(updateProjObj);
-      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
     setPartnerProjects((prev) => {
       const updated = (prev || []).map(updateProjObj);
-      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
@@ -2837,6 +3582,13 @@ export const DataProvider = ({ children }) => {
     let targetAsg = null;
     const targetIdStr = String(assignmentId || '').toLowerCase().trim();
 
+    try {
+      const numId = parseInt(targetIdStr.replace(/\D/g, ''), 10);
+      if (numId && !isNaN(numId) && api?.workforce?.updateStatus) {
+        api.workforce.updateStatus(numId, 'REJECTED').catch((err) => console.warn('Backend workforce update status offline fallback:', err));
+      }
+    } catch { }
+
     setManagerAssignments((prev) => {
       const updated = (prev || []).map((a) => {
         if (!a) return a;
@@ -2847,40 +3599,46 @@ export const DataProvider = ({ children }) => {
           targetAsg = {
             ...a,
             status: 'Declined',
+            progress: 0,
             declineReason: reason,
+            rejectionReason: reason,
             currentTask: 'Assignment declined by candidate.',
           };
           return targetAsg;
         }
         return a;
       });
-      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
-    setFreelancerRequests((prev) =>
-      (prev || []).map((r) => {
+    setFreelancerRequests((prev) => {
+      const updated = (prev || []).map((r) => {
         if (!r) return r;
         const rIdStr = String(r.id || '').toLowerCase().trim();
         const rProjIdStr = String(r.projectId || '').toLowerCase().trim();
         if (rIdStr === targetIdStr || rProjIdStr === targetIdStr) {
-          return { ...r, status: 'Declined', rejectionReason: reason };
+          return { ...r, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return r;
-      })
-    );
+      });
+      try { localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
 
-    setPartnerWorkforceRequests((prev) =>
-      (prev || []).map((pr) => {
+    setPartnerWorkforceRequests((prev) => {
+      const updated = (prev || []).map((pr) => {
         if (!pr) return pr;
         const prIdStr = String(pr.id || '').toLowerCase().trim();
         const prProjIdStr = String(pr.projectId || '').toLowerCase().trim();
         if (prIdStr === targetIdStr || prProjIdStr === targetIdStr) {
-          return { ...pr, status: 'Declined', rejectionReason: reason };
+          return { ...pr, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return pr;
-      })
-    );
+      });
+      try { localStorage.setItem('flexistaff_partner_requests', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
 
     if (targetAsg) {
       // Remove candidate from project assignedResources if present
@@ -2903,7 +3661,7 @@ export const DataProvider = ({ children }) => {
 
       setProjects((prev) => {
         const updated = (prev || []).map(cleanupProjectObj);
-        try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+        try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
         return updated;
       });
 
@@ -2929,6 +3687,8 @@ export const DataProvider = ({ children }) => {
     };
     setManagerNotifications((prev) => [mgrNotif, ...prev]);
   };
+
+  const rejectWorkforceAssignment = declineWorkforceAssignment;
 
   // Legacy alias for compatibility
   const assignWorkforce = (projectId, workforceId, assignedRole) => {
@@ -2985,7 +3745,7 @@ export const DataProvider = ({ children }) => {
         }
         return a;
       });
-      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
@@ -3009,7 +3769,7 @@ export const DataProvider = ({ children }) => {
         }
         return p;
       });
-      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
       return updated;
     });
 
@@ -3222,7 +3982,7 @@ export const DataProvider = ({ children }) => {
       return false;
     };
 
-    // Update central workforce state
+    // 1. Update central workforce state
     setWorkforce((prevWorkforce) => {
       let found = false;
       const updatedList = (prevWorkforce || []).map((w) => {
@@ -3231,7 +3991,10 @@ export const DataProvider = ({ children }) => {
           const merged = { ...w, ...updatedFields };
           if (updatedFields.title) merged.role = updatedFields.title;
           if (updatedFields.role) merged.title = updatedFields.role;
-          if (updatedFields.name) merged.pseudonym = updatedFields.name;
+          if (updatedFields.name) {
+            merged.name = updatedFields.name;
+            merged.pseudonym = updatedFields.name;
+          }
           return merged;
         }
         return w;
@@ -3240,45 +4003,49 @@ export const DataProvider = ({ children }) => {
       const newList = found
         ? updatedList
         : [
-            {
-              id: updatedFields.id || targetStr || `wf-${Date.now()}`,
-              name: updatedFields.name || 'Specialist',
-              title: updatedFields.title || updatedFields.role || 'Software Engineer',
-              role: updatedFields.role || updatedFields.title || 'Software Engineer',
-              email: updatedFields.email || '',
-              phone: updatedFields.phone || '',
-              location: updatedFields.location || 'India',
-              experience: updatedFields.experience || '3+ Years',
-              hourlyRate: updatedFields.hourlyRate || '$85/hr',
-              skills: Array.isArray(updatedFields.skills)
-                ? updatedFields.skills
-                : (updatedFields.skills ? String(updatedFields.skills).split(',').map((s) => s.trim()) : ['React.js', 'Node.js']),
-              bio: updatedFields.bio || '',
-              status: updatedFields.availability || 'Available',
-              availability: updatedFields.availability || 'Available',
-              approvalStatus: updatedFields.approvalStatus || 'Approved',
-              verificationStatus: updatedFields.verificationStatus || 'Approved',
-              accountStatus: updatedFields.accountStatus || 'Active',
-              avatar: updatedFields.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-              ...updatedFields,
-            },
-            ...(prevWorkforce || []),
-          ];
+          {
+            id: updatedFields.id || targetStr || `wf-${Date.now()}`,
+            name: updatedFields.name || 'Specialist',
+            pseudonym: updatedFields.name || 'Specialist',
+            title: updatedFields.title || updatedFields.role || 'Software Engineer',
+            role: updatedFields.role || updatedFields.title || 'Software Engineer',
+            email: updatedFields.email || '',
+            phone: updatedFields.phone || '',
+            location: updatedFields.location || 'India',
+            experience: updatedFields.experience || '3+ Years',
+            hourlyRate: updatedFields.hourlyRate || '$85/hr',
+            skills: Array.isArray(updatedFields.skills)
+              ? updatedFields.skills
+              : (updatedFields.skills ? String(updatedFields.skills).split(',').map((s) => s.trim()) : ['React.js', 'Node.js']),
+            bio: updatedFields.bio || '',
+            status: updatedFields.availability || 'Available',
+            availability: updatedFields.availability || 'Available',
+            approvalStatus: updatedFields.approvalStatus || 'Approved',
+            verificationStatus: updatedFields.verificationStatus || 'Approved',
+            accountStatus: updatedFields.accountStatus || 'Active',
+            avatar: updatedFields.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+            ...updatedFields,
+          },
+          ...(prevWorkforce || []),
+        ];
 
       try {
         localStorage.setItem('flexistaff_workforce', JSON.stringify(newList));
-      } catch {}
+      } catch { }
       return newList;
     });
 
-    // Update partnerWorkforce state
+    // 2. Update partnerWorkforce state
     setPartnerWorkforce((prevPartnerWorkforce) => {
       const updatedList = (prevPartnerWorkforce || []).map((w) => {
         if (matchesMember(w)) {
           const merged = { ...w, ...updatedFields };
           if (updatedFields.title) merged.role = updatedFields.title;
           if (updatedFields.role) merged.title = updatedFields.role;
-          if (updatedFields.name) merged.pseudonym = updatedFields.name;
+          if (updatedFields.name) {
+            merged.name = updatedFields.name;
+            merged.pseudonym = updatedFields.name;
+          }
           return merged;
         }
         return w;
@@ -3286,16 +4053,81 @@ export const DataProvider = ({ children }) => {
 
       try {
         localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updatedList));
-      } catch {}
+      } catch { }
       return updatedList;
     });
 
-    // Update workforceUserProfile state
+    // 3. Update managerAssignments state so assigned squad cards display updated name
+    setManagerAssignments((prevAssignments) => {
+      const updatedAsgs = (prevAssignments || []).map((asg) => {
+        if (!asg) return asg;
+        const asgId = String(asg.professionalId || asg.workforceId || asg.id || '').toLowerCase().trim();
+        const asgEmail = String(asg.email || asg.professionalEmail || '').toLowerCase().trim();
+        const asgName = String(asg.professionalName || asg.name || '').toLowerCase().trim();
+
+        if (
+          (targetStr && asgId === targetStr) ||
+          (targetEmail && asgEmail && asgEmail === targetEmail) ||
+          (targetName && asgName && (asgName === targetName || asgName.includes(targetName)))
+        ) {
+          return {
+            ...asg,
+            professionalName: updatedFields.name || asg.professionalName,
+            name: updatedFields.name || asg.name,
+            role: updatedFields.title || updatedFields.role || asg.role,
+          };
+        }
+        return asg;
+      });
+
+      try {
+        localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updatedAsgs));
+      } catch { }
+      return updatedAsgs;
+    });
+
+    // 4. Update projects state (assignedResources) so project details & squad components display updated name
+    setProjects((prevProjects) => {
+      const updatedProjects = (prevProjects || []).map((p) => {
+        if (!p || !Array.isArray(p.assignedResources)) return p;
+        let pChanged = false;
+        const newResources = p.assignedResources.map((res) => {
+          if (!res) return res;
+          const rId = String(res.id || res.professionalId || '').toLowerCase().trim();
+          const rEmail = String(res.email || res.professionalEmail || '').toLowerCase().trim();
+          const rName = String(res.name || res.professionalName || '').toLowerCase().trim();
+
+          if (
+            (targetStr && rId === targetStr) ||
+            (targetEmail && rEmail && rEmail === targetEmail) ||
+            (targetName && rName && (rName === targetName || rName.includes(targetName)))
+          ) {
+            pChanged = true;
+            return {
+              ...res,
+              name: updatedFields.name || res.name,
+              professionalName: updatedFields.name || res.professionalName,
+              role: updatedFields.title || updatedFields.role || res.role,
+            };
+          }
+          return res;
+        });
+        return pChanged ? { ...p, assignedResources: newResources } : p;
+      });
+
+      try {
+        localStorage.setItem('flexistaff_projects', JSON.stringify(updatedProjects));
+      } catch { }
+      return updatedProjects;
+    });
+
+    // 5. Update workforceUserProfile state
     setWorkforceUserProfile((prevProfile) => {
       if (!prevProfile || matchesMember(prevProfile) || (targetEmail && prevProfile.email && targetEmail === prevProfile.email.toLowerCase())) {
         return {
           ...prevProfile,
           ...updatedFields,
+          name: updatedFields.name || prevProfile?.name,
           title: updatedFields.title || updatedFields.role || prevProfile?.title,
           role: updatedFields.role || updatedFields.title || prevProfile?.role,
         };
@@ -3303,7 +4135,7 @@ export const DataProvider = ({ children }) => {
       return prevProfile;
     });
 
-    // Sync active session in localStorage if logged in user is this employee
+    // 6. Sync active session in localStorage if logged in user is this employee
     try {
       const savedUserStr = localStorage.getItem('flexistaff_user');
       if (savedUserStr) {
@@ -3321,9 +4153,9 @@ export const DataProvider = ({ children }) => {
           window.dispatchEvent(new CustomEvent('auth_change', { detail: updatedUser }));
         }
       }
-    } catch {}
+    } catch { }
 
-    // Sync flexistaff_registered_users in localStorage
+    // 7. Sync flexistaff_registered_users in localStorage
     try {
       const regStr = localStorage.getItem('flexistaff_registered_users');
       if (regStr) {
@@ -3331,14 +4163,61 @@ export const DataProvider = ({ children }) => {
         if (Array.isArray(regList)) {
           const updatedReg = regList.map((u) => {
             if (matchesMember(u)) {
-              return { ...u, ...updatedFields };
+              return {
+                ...u,
+                ...updatedFields,
+                name: updatedFields.name || u.name,
+                fullName: updatedFields.name || u.fullName,
+              };
             }
             return u;
           });
           localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
         }
       }
-    } catch {}
+    } catch { }
+
+    // 8. PERSIST UPDATE TO SPRING BOOT REST API / POSTGRESQL DATABASE
+    const rawId = idOrEmail || updatedFields.id || updatedFields.numericId || updatedFields.userId;
+    const numericId = Number(String(rawId || '').replace(/\D/g, ''));
+
+    if (!isNaN(numericId) && numericId > 0) {
+      let expYears = 3;
+      if (updatedFields.experience) {
+        const parsedExp = parseInt(String(updatedFields.experience), 10);
+        if (!isNaN(parsedExp)) expYears = parsedExp;
+      }
+
+      let hourlyRateNum = null;
+      if (updatedFields.hourlyRate) {
+        const cleanedRate = String(updatedFields.hourlyRate).replace(/[^0-9.]/g, '');
+        if (cleanedRate) hourlyRateNum = parseFloat(cleanedRate);
+      }
+
+      const backendPayload = {
+        name: updatedFields.name,
+        fullName: updatedFields.name,
+        email: updatedFields.email,
+        phone: updatedFields.phone,
+        title: updatedFields.title || updatedFields.role,
+        skills: Array.isArray(updatedFields.skills) ? updatedFields.skills.join(', ') : updatedFields.skills,
+        bio: updatedFields.bio,
+        experienceYears: expYears,
+        hourlyRate: hourlyRateNum,
+        availabilityStatus: updatedFields.availability || updatedFields.status,
+      };
+
+      try {
+        api.freelancers.update(numericId, backendPayload).then((res) => {
+          if (res && res.success) {
+            console.log('Successfully persisted workforce profile name & details to PostgreSQL database:', res);
+          }
+        });
+        api.users.updateProfile(numericId, backendPayload);
+      } catch (apiErr) {
+        console.warn('Could not persist workforce update to backend API:', apiErr);
+      }
+    }
   };
 
   const updateWorkforceUserProfile = (data) => {
@@ -3424,32 +4303,60 @@ export const DataProvider = ({ children }) => {
   };
 
   // Partner Actions
-  const addPartner = (partner) => {
-    const nextGlobalId = getNextGlobalUserId('Partner', clients, managers, partners, workforce);
+  const addPartner = async (partner) => {
     const specialtiesArray = Array.isArray(partner.specialties)
       ? partner.specialties
       : String(partner.specialties || '')
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean);
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    const partnerId = partner.id || `prt-${nextGlobalId}`;
-    const newPartner = {
-      ...partner,
-      id: partnerId,
-      numericId: nextGlobalId,
+    const payload = {
+      companyName: partner.companyName || partner.name || 'Partner Organization',
       name: partner.name || partner.companyName || 'Partner Organization',
-      companyName: partner.name || partner.companyName || 'Partner Organization',
       contactPerson: partner.contactPerson || 'Contact Representative',
       email: partner.email || '',
       phone: partner.phone || '',
       location: partner.location || partner.city || 'India',
-      city: partner.location || partner.city || 'India',
+      industry: partner.industry || 'IT Staffing & Consulting',
       tier: partner.tier || 'Strategic Partner',
       specialties: specialtiesArray,
       status: partner.status || 'Active',
-      joinedDate: new Date().toISOString().split('T')[0],
       suppliedProfessionals: Number(partner.suppliedProfessionals) || 0,
+      password: partner.tempPassword || partner.password || 'Password123!',
+      tempPassword: partner.tempPassword || partner.password || 'Password123!',
+    };
+
+    let backendPartner = null;
+    try {
+      const res = await api.partners.register(payload);
+      if (res && (res.success || res.data || res.id)) {
+        backendPartner = res.data || res;
+      }
+      await refreshPartners();
+    } catch (err) {
+      console.warn('Could not persist new partner in backend API:', err);
+    }
+
+    const partnerId = backendPartner?.id || partner.id || Date.now();
+    const newPartner = {
+      ...partner,
+      id: partnerId,
+      numericId: partnerId,
+      userId: backendPartner?.userId || partnerId,
+      name: backendPartner?.companyName || backendPartner?.name || payload.name,
+      companyName: backendPartner?.companyName || backendPartner?.name || payload.companyName,
+      contactPerson: backendPartner?.contactPerson || payload.contactPerson,
+      email: backendPartner?.email || payload.email,
+      phone: backendPartner?.phone || payload.phone,
+      location: backendPartner?.location || payload.location,
+      city: backendPartner?.location || payload.location,
+      tier: backendPartner?.tier || payload.tier,
+      industry: backendPartner?.industry || payload.industry,
+      specialties: specialtiesArray,
+      status: backendPartner?.status || payload.status,
+      joinedDate: new Date().toISOString().split('T')[0],
+      suppliedProfessionals: Number(backendPartner?.suppliedProfessionals ?? payload.suppliedProfessionals),
       activePlacements: 0,
       availabilityRate: '100%',
       rating: 4.8,
@@ -3460,7 +4367,7 @@ export const DataProvider = ({ children }) => {
       const updated = [newPartner, ...filtered];
       try {
         localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -3489,7 +4396,7 @@ export const DataProvider = ({ children }) => {
           regList.push(newUserObj);
         }
         localStorage.setItem('flexistaff_registered_users', JSON.stringify(regList));
-      } catch {}
+      } catch { }
     }
 
     addActivity({
@@ -3515,12 +4422,48 @@ export const DataProvider = ({ children }) => {
     return newPartner;
   };
 
-  const updatePartner = (id, updatedData) => {
+  const updatePartner = async (id, updatedData) => {
+    const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
+    const targetDbId = !isNaN(rawNum) && rawNum > 0 ? rawNum : null;
+
+    if (targetDbId) {
+      try {
+        const specialtiesArr = updatedData.specialties
+          ? (Array.isArray(updatedData.specialties)
+            ? updatedData.specialties
+            : String(updatedData.specialties).split(',').map((s) => s.trim()).filter(Boolean))
+          : undefined;
+
+        await api.partners.update(targetDbId, {
+          companyName: updatedData.companyName || updatedData.name,
+          name: updatedData.name || updatedData.companyName,
+          contactPerson: updatedData.contactPerson,
+          email: updatedData.email,
+          phone: updatedData.phone,
+          location: updatedData.location || updatedData.city,
+          industry: updatedData.industry,
+          tier: updatedData.tier,
+          specialties: specialtiesArr ? specialtiesArr.join(', ') : undefined,
+          status: updatedData.status,
+          suppliedProfessionals: updatedData.suppliedProfessionals,
+        });
+        await refreshPartners();
+      } catch (err) {
+        console.warn(`Could not update partner ${targetDbId} in backend API:`, err);
+      }
+    }
+
+    const newCompanyName = updatedData.companyName || updatedData.name;
+
     setPartners((prev) => {
       const updated = (prev || []).map((prt) => {
         if (!prt) return prt;
-        if (prt.id === id || String(prt.id) === String(id) || prt.email === updatedData.email) {
+        if (prt.id === id || String(prt.id) === String(id) || (targetDbId && prt.id === targetDbId) || (updatedData.email && prt.email === updatedData.email)) {
           const merged = { ...prt, ...updatedData };
+          if (newCompanyName) {
+            merged.companyName = newCompanyName;
+            merged.name = newCompanyName;
+          }
           if (updatedData.specialties) {
             merged.specialties = Array.isArray(updatedData.specialties)
               ? updatedData.specialties
@@ -3532,17 +4475,52 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
+
+    // When the Partner Company name is changed, update all related workforce records
+    if (newCompanyName) {
+      setWorkforce((prevWf) => {
+        const updatedWf = (prevWf || []).map((w) => {
+          if (!w) return w;
+          const matchById = targetDbId && (w.partnerCompanyId === targetDbId || String(w.partnerCompanyId) === String(targetDbId));
+          const matchByParamId = String(w.partnerCompanyId) === String(id);
+          if (matchById || matchByParamId) {
+            return {
+              ...w,
+              partnerCompany: newCompanyName,
+              partnerName: newCompanyName,
+            };
+          }
+          return w;
+        });
+        try {
+          localStorage.setItem('flexistaff_workforce', JSON.stringify(updatedWf));
+        } catch { }
+        return updatedWf;
+      });
+    }
   };
 
-  const deletePartner = (id) => {
+  const deletePartner = async (id) => {
+    const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
+    const targetDbId = !isNaN(rawNum) && rawNum > 0 ? rawNum : null;
+
+    if (targetDbId) {
+      try {
+        await api.partners.delete(targetDbId);
+        await refreshPartners();
+      } catch (err) {
+        console.warn(`Could not delete partner ${targetDbId} in backend API:`, err);
+      }
+    }
+
     setPartners((prev) => {
-      const updated = (prev || []).filter((prt) => prt && prt.id !== id && String(prt.id) !== String(id) && prt.email !== id);
+      const updated = (prev || []).filter((prt) => prt && prt.id !== id && String(prt.id) !== String(id) && (!targetDbId || prt.id !== targetDbId) && prt.email !== id);
       try {
         localStorage.setItem('flexistaff_partners', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
   };
@@ -3551,112 +4529,106 @@ export const DataProvider = ({ children }) => {
     setPartners([]);
     try {
       localStorage.removeItem('flexistaff_partners');
-    } catch {}
+    } catch { }
   };
 
   // Manager Lifecycle & Project Reassignment Actions
-  const addManager = (managerData) => {
-    const nextSerialNum = getNextGlobalUserId('Manager', clients, managers, partners, workforce);
-    const parsedEmpId = nextSerialNum;
-
-    const newManager = {
-      ...managerData,
-      id: nextSerialNum,
-      employeeId: parsedEmpId,
-      role: 'Organization Manager',
-      status: managerData.status || 'Active',
-      assignedProjectsCount: 0,
-      teamSize: 0,
-      joinDate: managerData.joinDate || new Date().toISOString().split('T')[0],
-      avatar:
-        managerData.avatar ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-    };
-    setManagers((prev) => {
-      const updated = [newManager, ...prev];
-      try {
-        localStorage.setItem('flexistaff_managers', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-    setManagerProfile(newManager);
-
-    addActivity({
-      user: userProfile?.name || user?.name || 'System Admin',
-      action: 'Registered new Organization Manager',
-      target: `${newManager.name} (ID: #${newManager.employeeId})`,
-      targetType: 'manager',
-    });
-
-    return newManager;
-  };
-
-  const updateManager = (id, updatedData) => {
-    const numId = typeof id === 'number' ? id : (Number(String(id).replace(/\D/g, '')) || id);
-    setManagers((prev) => {
-      const exists = prev.some((m) => m.id === id || m.id === numId);
-      if (!exists && prev.length === 0) {
-        const newMng = {
-          id: numId || 1,
-          employeeId: numId || 1,
-          role: 'Organization Manager',
-          status: 'Active',
-          ...updatedData,
+  const addManager = async (managerData) => {
+    try {
+      const res = await api.managers.create(managerData);
+      if (res && res.success && res.data) {
+        const newManager = {
+          ...res.data,
+          id: res.data.userId || res.data.id,
+          numericId: res.data.userId || res.data.id,
+          employeeId: res.data.employeeId || res.data.userId || res.data.id,
         };
-        return [newMng];
+        setManagers((prev) => [newManager, ...(prev || []).filter((m) => m.id !== newManager.id)]);
+        setManagerProfile(newManager);
+
+        addActivity({
+          user: userProfile?.name || user?.name || 'System Admin',
+          action: 'Registered new HR Manager',
+          target: `${newManager.name} (ID: #${newManager.employeeId})`,
+          targetType: 'manager',
+        });
+
+        return newManager;
       }
-      return prev.map((mng) => (mng.id === id || mng.id === numId ? { ...mng, ...updatedData } : mng));
-    });
+    } catch (err) {
+      console.error('Failed to register HR Manager via API:', err);
+      throw err;
+    }
   };
 
-  const updateManagerStatus = (id, newStatus, reason = '') => {
-    let affectedManagerName = '';
-    const nowStr = new Date().toISOString().split('T')[0];
-
-    setManagers((prev) =>
-      prev.map((mng) => {
-        if (mng.id === id) {
-          affectedManagerName = mng.name;
-          const statusUpdates = {
-            status: newStatus,
-            statusReason: reason || mng.statusReason || '',
-          };
-          if (newStatus === 'Suspended') statusUpdates.suspendedDate = nowStr;
-          if (newStatus === 'Resigned') statusUpdates.resignedDate = nowStr;
-          if (newStatus === 'Terminated') statusUpdates.terminatedDate = nowStr;
-          if (newStatus === 'Active') {
-            delete statusUpdates.suspendedDate;
-            delete statusUpdates.terminatedDate;
-          }
-          return { ...mng, ...statusUpdates };
+  const updateManager = async (id, updatedData) => {
+    const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
+    const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
+    try {
+      const res = await api.managers.update(targetId, updatedData);
+      if (res && res.success && res.data) {
+        const updated = {
+          ...res.data,
+          id: res.data.userId || res.data.id,
+          numericId: res.data.userId || res.data.id,
+          employeeId: res.data.employeeId || res.data.userId || res.data.id,
+        };
+        setManagers((prev) => (prev || []).map((mng) => (mng.id === id || mng.id === targetId || mng.userId === targetId ? updated : mng)));
+        if (managerProfile && (managerProfile.id === id || managerProfile.id === targetId || managerProfile.userId === targetId)) {
+          setManagerProfile(updated);
         }
-        return mng;
-      })
-    );
-
-    addActivity({
-      user: 'Company Admin',
-      action: `Changed Manager status to ${newStatus}`,
-      target: affectedManagerName,
-      targetType: 'manager',
-    });
+        return updated;
+      }
+    } catch (err) {
+      console.error('Failed to update manager via API:', err);
+      throw err;
+    }
   };
 
-  const deleteManager = (id) => {
-    setManagers((prev) => {
-      const updated = prev.filter((mng) => mng.id !== id && String(mng.id) !== String(id));
-      try {
-        localStorage.setItem('flexistaff_managers', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+  const updateManagerStatus = async (id, newStatus, reason = '') => {
+    const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
+    const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
+    try {
+      const res = await api.managers.updateStatus(targetId, newStatus, reason);
+      if (res && res.success && res.data) {
+        const updated = {
+          ...res.data,
+          id: res.data.userId || res.data.id,
+          numericId: res.data.userId || res.data.id,
+          employeeId: res.data.employeeId || res.data.userId || res.data.id,
+        };
+        setManagers((prev) => (prev || []).map((mng) => (mng.id === id || mng.id === targetId || mng.userId === targetId ? updated : mng)));
+        addActivity({
+          user: 'Company Admin',
+          action: `Changed Manager status to ${newStatus}`,
+          target: updated.name,
+          targetType: 'manager',
+        });
+        return updated;
+      }
+    } catch (err) {
+      console.error('Failed to update manager status via API:', err);
+      throw err;
+    }
+  };
+
+  const deleteManager = async (id) => {
+    const rawNum = typeof id === 'number' ? id : Number(String(id).replace(/\D/g, ''));
+    const targetId = !isNaN(rawNum) && rawNum > 0 ? rawNum : id;
+    try {
+      await api.managers.delete(targetId);
+      setManagers((prev) => (prev || []).filter((mng) => mng.id !== id && mng.id !== targetId && mng.userId !== targetId));
+    } catch (err) {
+      console.error('Failed to delete manager via API:', err);
+      throw err;
+    }
   };
 
   const clearManagers = () => {
     setManagers([]);
     try {
       localStorage.removeItem('flexistaff_managers');
-    } catch {}
+    } catch { }
   };
 
   const resetAllData = () => {
@@ -3692,12 +4664,21 @@ export const DataProvider = ({ children }) => {
       localStorage.removeItem('flexistaff_manager_assignments');
       localStorage.removeItem('flexistaff_support_tickets');
       localStorage.removeItem('flexistaff_freelancer_applications');
-    } catch {}
+    } catch { }
   };
 
   const reassignProjectManager = (projectId, newManagerId, reason = '') => {
     const targetManager = managers.find((m) => m.id === newManagerId || m.name === newManagerId);
     if (!targetManager) return false;
+
+    const numId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
+    const targetMgrId = targetManager.id || targetManager.userId || targetManager.numericId;
+
+    if (numId && !isNaN(numId) && api?.projects?.update && targetMgrId) {
+      api.projects.update(numId, { managerId: targetMgrId }).catch((err) => {
+        console.warn('Could not update project manager in PostgreSQL:', err);
+      });
+    }
 
     let previousManagerName = '';
     let projectTitle = '';
@@ -3934,9 +4915,9 @@ export const DataProvider = ({ children }) => {
     const skillsList = Array.isArray(profData.skills)
       ? profData.skills
       : String(profData.skills || '')
-          .split(/[,+]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+        .split(/[,+]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
     const newProf = {
       id: newId,
@@ -3948,6 +4929,7 @@ export const DataProvider = ({ children }) => {
       partner: partnerProfile.name || 'Partner Company',
       partnerName: partnerProfile.name || 'Partner Company',
       partnerCompany: partnerProfile.name || 'Partner Company',
+      partnerCompanyId: partnerProfile?.id || partnerProfile?.userId || partnerProfile?.numericId || profData?.partnerCompanyId,
       roleType: 'Professional',
       professionalType: 'PARTNER_EMPLOYEE',
       source: 'Partner Company',
@@ -4005,7 +4987,7 @@ export const DataProvider = ({ children }) => {
         avatar: newProf.avatar,
       });
       localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
-    } catch {}
+    } catch { }
 
     // Send activity & notifications
     addActivity({
@@ -4037,10 +5019,10 @@ export const DataProvider = ({ children }) => {
       prev.map((p) =>
         p.id === id
           ? {
-              ...p,
-              availability: newAvailability,
-              workingStatus: isWorking ? 'Working' : 'Available',
-            }
+            ...p,
+            availability: newAvailability,
+            workingStatus: isWorking ? 'Working' : 'Available',
+          }
           : p
       )
     );
@@ -4048,10 +5030,10 @@ export const DataProvider = ({ children }) => {
       prev.map((w) =>
         w.id === id
           ? {
-              ...w,
-              availability: newAvailability,
-              workingStatus: isWorking ? 'Working' : 'Available',
-            }
+            ...w,
+            availability: newAvailability,
+            workingStatus: isWorking ? 'Working' : 'Available',
+          }
           : w
       )
     );
@@ -4082,7 +5064,7 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4100,7 +5082,7 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4116,7 +5098,7 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4157,7 +5139,7 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map(cleanupProjectObj);
       try {
         localStorage.setItem('flexistaff_projects', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4165,7 +5147,7 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map(cleanupProjectObj);
       try {
         localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4181,7 +5163,7 @@ export const DataProvider = ({ children }) => {
       });
       try {
         localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
 
@@ -4218,7 +5200,7 @@ export const DataProvider = ({ children }) => {
           localStorage.setItem('flexistaff_registered_users', JSON.stringify(updatedReg));
         }
       }
-    } catch {}
+    } catch { }
   };
 
   // Project Actions
@@ -4259,7 +5241,34 @@ export const DataProvider = ({ children }) => {
     return newProject;
   };
 
-  const updateProject = (id, updatedData) => {
+  const updateProject = async (id, updatedData) => {
+    const numId = typeof id === 'number' ? id : parseInt(String(id).replace(/\D/g, ''), 10);
+
+    if (numId && !isNaN(numId) && api?.projects?.update) {
+      try {
+        const payload = {};
+        if (updatedData.title) payload.title = updatedData.title;
+        if (updatedData.description) payload.description = updatedData.description;
+        if (updatedData.budget) payload.budget = updatedData.budget;
+        if (updatedData.status) payload.status = updatedData.status;
+        if (updatedData.managerId) payload.managerId = updatedData.managerId;
+        else if (updatedData.manager) {
+          const mgr = (managers || []).find((m) => (m.name || m.fullName || '').toLowerCase().trim() === String(updatedData.manager).toLowerCase().trim());
+          if (mgr) payload.managerId = mgr.id || mgr.userId;
+        }
+
+        const res = await api.projects.update(numId, payload);
+        if (res && res.success && res.data) {
+          const mapped = mapBackendProjectToFrontend(res.data);
+          setProjects((prev) => prev.map((prj) => (prj.id === numId || prj.id === id ? mapped : prj)));
+          refreshDashboardStats();
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not sync project update with backend API:', err);
+      }
+    }
+
     setProjects((prev) =>
       prev.map((prj) => {
         if (prj.id === id || String(prj.id) === String(id)) {
@@ -4301,18 +5310,31 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  const toggleMilestone = (projectId, milestoneId) => {
+  const toggleMilestone = async (projectId, milestoneId) => {
+    const targetPrj = projects.find((p) => p.id === projectId || String(p.id) === String(projectId));
+    const targetMs = (targetPrj?.milestones || []).find((m) => m.id === milestoneId || String(m.id) === String(milestoneId));
+    const willBeCompleted = !(targetMs?.completed || targetMs?.status === 'Completed' || targetMs?.status === 'COMPLETED');
+    const newStatus = willBeCompleted ? 'COMPLETED' : 'NOT_STARTED';
+
+    const numericMsId = Number(String(milestoneId).replace(/\D/g, ''));
+    if (numericMsId && !isNaN(numericMsId)) {
+      try {
+        await api.milestones.updateProgress(numericMsId, { status: newStatus });
+      } catch (err) {
+        console.warn('Milestone API sync fallback:', err);
+      }
+    }
+
     setProjects((prev) =>
       prev.map((prj) => {
         if (prj.id !== projectId && String(prj.id) !== String(projectId)) return prj;
         const updatedMilestones = (prj.milestones || []).map((m) =>
-          m.id === milestoneId ? { ...m, completed: !m.completed } : m
+          m.id === milestoneId || String(m.id) === String(milestoneId)
+            ? { ...m, completed: willBeCompleted, status: willBeCompleted ? 'Completed' : 'Pending', progressPercentage: willBeCompleted ? 100 : 0 }
+            : m
         );
-        const completedCount = updatedMilestones.filter((m) => m.completed).length;
-        const computedProgress =
-          updatedMilestones.length > 0
-            ? Math.round((completedCount / updatedMilestones.length) * 100)
-            : prj.progress;
+        const completedCount = updatedMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
+        const computedProgress = calculateOverallCompletionProgress(completedCount);
         const isCompleted = computedProgress === 100;
         const isProgressing = computedProgress > 0 && computedProgress < 100;
 
@@ -4320,11 +5342,14 @@ export const DataProvider = ({ children }) => {
           ...prj,
           milestones: updatedMilestones,
           progress: computedProgress,
+          progressPercentage: computedProgress,
           stage: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.stage === 'Completed' ? 'In Progress' : prj.stage)),
           status: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.status === 'Completed' ? 'In Progress' : prj.status)),
         };
       })
     );
+
+    refreshProjects();
   };
 
   return (
@@ -4347,7 +5372,9 @@ export const DataProvider = ({ children }) => {
         updatePartner,
         deletePartner,
         clearPartners,
+        refreshPartners,
         managers,
+        refreshManagers,
         addManager,
         updateManager,
         updateManagerStatus,
@@ -4356,6 +5383,7 @@ export const DataProvider = ({ children }) => {
         resetAllData,
         reassignProjectManager,
         workforce,
+        refreshWorkforce,
         addWorkforceMember,
         approveWorkforceMember,
         rejectWorkforceMember,
@@ -4368,6 +5396,7 @@ export const DataProvider = ({ children }) => {
         updateProject,
         updateProjectStage,
         toggleMilestone,
+        refreshProjects,
         activities,
         notifications,
         markNotificationRead,
@@ -4443,11 +5472,15 @@ export const DataProvider = ({ children }) => {
         addFreelancerApplication,
         approveFreelancerApplication,
         rejectFreelancerApplication,
+        // Dashboard Stats
+        dashboardStats,
+        refreshDashboardStats,
         // Freelancer Registration & Verification Pool
         registerFreelancer,
         approveProfessional,
         rejectProfessional,
         updateProfessionalAvailability,
+        getPartnerCompanyName,
       }}
     >
       {children}

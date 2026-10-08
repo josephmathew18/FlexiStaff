@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/workforce")
 @RequiredArgsConstructor
@@ -28,6 +31,12 @@ public class WorkforceController {
         WorkforceAllocationDto allocation = workforceService.assignWorkforce(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Workforce allocated successfully", allocation));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<WorkforceAllocationDto>>> getAllAllocations() {
+        List<WorkforceAllocationDto> allocations = workforceService.getAllAllocations();
+        return ResponseEntity.ok(ApiResponse.success("All workforce allocations retrieved successfully", allocations));
     }
 
     @GetMapping("/project/{projectId}")
@@ -45,7 +54,7 @@ public class WorkforceController {
     }
 
     @PatchMapping("/{allocationId}/status")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_PROFESSIONAL', 'ROLE_FREELANCER', 'ROLE_WORKFORCE')")
     public ResponseEntity<ApiResponse<WorkforceAllocationDto>> updateStatus(
             @PathVariable Long allocationId,
             @RequestParam AllocationStatus status) {

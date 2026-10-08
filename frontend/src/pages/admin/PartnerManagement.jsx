@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Handshake,
   Plus,
@@ -156,10 +156,10 @@ const Modal = ({ isOpen = false, onClose, title, subtitle, children, maxWidth = 
   </AnimatePresence>
 );
 
-const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], className = '', disabled = false, ...rest }) => {
+const FormInput = ({ label, name, type = 'text', placeholder, register, error, required = false, options = [], className = '', disabled = false, autoComplete = 'off', ...rest }) => {
   const isError = Boolean(error);
-  const inputBaseClasses = `w-full rounded-xl border text-xs text-[#191b23] dark:text-white placeholder-slate-400 transition-all outline-none ${
-    isError ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
+  const inputBaseClasses = `w-full rounded-xl border text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 transition-all outline-none ${
+    isError ? 'border-rose-400 bg-rose-50/20 dark:bg-rose-950/20 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20' : 'border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#1c1a36] focus:border-[#004ac6]'
   } ${disabled ? 'bg-slate-100 dark:bg-white/5 text-slate-500 cursor-not-allowed' : ''}`;
 
   return (
@@ -170,13 +170,21 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
         </label>
       )}
       {type === 'select' ? (
-        <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2.5 bg-white`} {...rest}>
+        <select {...(register ? register(name) : {})} disabled={disabled} className={`${inputBaseClasses} px-3 py-2.5`} {...rest}>
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value} className="bg-white dark:bg-[#14132b] text-slate-900 dark:text-white">{opt.label}</option>
           ))}
         </select>
       ) : (
-        <input type={type} {...(register ? register(name) : {})} disabled={disabled} placeholder={placeholder} className={`${inputBaseClasses} px-3 py-2.5`} {...rest} />
+        <input
+          type={type}
+          autoComplete={autoComplete}
+          {...(register ? register(name) : {})}
+          disabled={disabled}
+          placeholder={placeholder}
+          className={`${inputBaseClasses} px-3 py-2.5 font-medium text-slate-900 dark:text-white`}
+          {...rest}
+        />
       )}
       {isError && (
         <div className="flex items-center gap-1.5 text-[11px] font-medium text-rose-600">
@@ -327,14 +335,8 @@ const partnerSchema = yup.object().shape({
   contactPerson: yup.string().required('Contact person is required'),
   email: yup.string().email('Invalid email address').required('Email is required'),
   phone: yup.string().required('Phone number is required'),
-  suppliedProfessionals: yup
-    .number()
-    .typeError('Enter a valid number')
-    .min(0, 'Cannot be negative')
-    .required('Supplied talent count is required'),
   status: yup.string().required('Status is required'),
   location: yup.string().required('Location is required'),
-  specialties: yup.string().required('Select or enter specialty skills'),
   tempPassword: yup.string().required('Temporary password is required').min(6, 'Password must be at least 6 characters'),
   confirmPassword: yup
     .string()
@@ -354,11 +356,17 @@ const editPartnerSchema = yup.object().shape({
     .required('Supplied talent count is required'),
   status: yup.string().required('Status is required'),
   location: yup.string().required('Location is required'),
-  specialties: yup.string().required('Select or enter specialty skills'),
+  specialties: yup.string().nullable().optional(),
 });
 
 export const PartnerManagement = () => {
-  const { partners, addPartner, updatePartner, deletePartner, clearPartners, workforce, projects } = useData();
+  const { partners, addPartner, updatePartner, deletePartner, clearPartners, refreshPartners, workforce, projects } = useData();
+
+  useEffect(() => {
+    if (typeof refreshPartners === 'function') {
+      refreshPartners();
+    }
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -419,38 +427,39 @@ export const PartnerManagement = () => {
     );
   };
 
-  const onEditSubmit = (data) => {
+  const onEditSubmit = async (data) => {
     if (!editingPartner) return;
     const specialtiesArray = typeof data.specialties === 'string'
       ? data.specialties.split(',').map((s) => s.trim()).filter(Boolean)
       : data.specialties;
 
-    updatePartner(editingPartner.id, {
+    await updatePartner(editingPartner.id, {
       ...data,
+      companyName: data.companyName || data.name,
       specialties: specialtiesArray,
     });
 
-    toast.success(`Partner Organization ${data.name} updated successfully!`);
+    toast.success(`Partner Organization ${data.name || data.companyName} updated successfully!`);
     setEditingPartner(null);
   };
 
   // Toggle Partner Status (Deactivate / Activate)
-  const handleTogglePartnerStatus = (partner) => {
+  const handleTogglePartnerStatus = async (partner) => {
     const isCurrentlyActive = String(partner.status).toLowerCase().trim() === 'active';
     const newStatus = isCurrentlyActive ? 'Inactive' : 'Active';
-    updatePartner(partner.id, { status: newStatus });
+    await updatePartner(partner.id, { status: newStatus });
     if (isCurrentlyActive) {
-      toast.info(`Partner Organization "${partner.name}" has been deactivated.`);
+      toast.info(`Partner Organization "${partner.name || partner.companyName}" has been deactivated.`);
     } else {
-      toast.success(`Partner Organization "${partner.name}" is now active!`);
+      toast.success(`Partner Organization "${partner.name || partner.companyName}" is now active!`);
     }
   };
 
   // Delete Single Partner
-  const handleDeletePartner = (partner) => {
-    if (window.confirm(`Are you sure you want to delete ${partner.name}? This will remove all associated partner data.`)) {
-      deletePartner(partner.id);
-      toast.info(`Partner Organization "${partner.name}" has been deleted.`);
+  const handleDeletePartner = async (partner) => {
+    if (window.confirm(`Are you sure you want to delete ${partner.name || partner.companyName}? This will remove all associated partner data.`)) {
+      await deletePartner(partner.id);
+      toast.info(`Partner Organization "${partner.name || partner.companyName}" has been deleted.`);
       if (selectedPartner?.id === partner.id) setSelectedPartner(null);
       if (editingPartner?.id === partner.id) setEditingPartner(null);
     }
@@ -458,15 +467,25 @@ export const PartnerManagement = () => {
 
   // Filtered Partners
   const filteredPartners = useMemo(() => {
-    return partners.filter((p) => {
+    return (partners || []).filter((p) => {
+      if (!p) return false;
+      const pName = p.name || p.companyName || '';
+      const pContact = p.contactPerson || '';
+      const pLoc = p.location || p.city || '';
+      const specs = Array.isArray(p.specialties)
+        ? p.specialties
+        : typeof p.specialties === 'string' && p.specialties.trim()
+        ? p.specialties.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
       const matchesSearch =
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.specialties?.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+        pName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pContact.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pLoc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        specs.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesStatus =
-        statusFilter === 'all' || p.status.toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === 'all' || (p.status || '').toLowerCase() === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
@@ -474,9 +493,11 @@ export const PartnerManagement = () => {
 
   // Aggregate Partner Metrics
   const totalSuppliedStaff = useMemo(() => {
-    return partners.reduce((sum, p) => {
+    return (partners || []).reduce((sum, p) => {
+      if (!p) return sum;
       const pStaffList = (workforce || []).filter(
         (w) =>
+          (w.partnerCompanyId && (w.partnerCompanyId === p.id || String(w.partnerCompanyId) === String(p.id))) ||
           (w.partnerName && p.name && w.partnerName.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
           (w.partnerCompany && p.name && w.partnerCompany.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
           (w.partner && p.name && w.partner.toLowerCase().trim() === p.name.toLowerCase().trim())
@@ -487,12 +508,14 @@ export const PartnerManagement = () => {
   }, [partners, workforce]);
 
   const totalActivePlacements = useMemo(() => {
-    return partners.reduce((sum, p) => {
+    return (partners || []).reduce((sum, p) => {
+      if (!p) return sum;
       const activeWf = (workforce || []).filter(
         (w) =>
-          ((w.partnerName && p.name && w.partnerName.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
+          ((w.partnerCompanyId && (w.partnerCompanyId === p.id || String(w.partnerCompanyId) === String(p.id))) ||
+           (w.partnerName && p.name && w.partnerName.toLowerCase().trim() === p.name.toLowerCase().trim()) ||
            (w.partnerCompany && p.name && w.partnerCompany.toLowerCase().trim() === p.name.toLowerCase().trim())) &&
-          (w.status === 'Assigned' || w.status === 'Active' || w.currentProject !== 'Unassigned')
+          (w.status === 'Assigned' || w.status === 'Active' || w.availabilityStatus === 'Working' || (w.currentProject && w.currentProject !== 'Unassigned'))
       );
       const count = Number(p.activePlacements) || activeWf.length || 0;
       return sum + count;
@@ -500,18 +523,14 @@ export const PartnerManagement = () => {
   }, [partners, workforce]);
 
   // Register new Partner Submit
-  const onAddSubmit = (data) => {
-    const specialtiesArray = Array.isArray(data.specialties)
-      ? data.specialties
-      : typeof data.specialties === 'string'
-      ? data.specialties.split(',').map((s) => s.trim()).filter(Boolean)
-      : [];
-
-    addPartner({
+  const onAddSubmit = async (data) => {
+    await addPartner({
       ...data,
-      specialties: specialtiesArray,
+      companyName: data.companyName || data.name,
+      suppliedProfessionals: 0,
+      specialties: [],
     });
-    toast.success(`Partner Organization ${data.name} registered successfully!`);
+    toast.success(`Partner Organization ${data.name || data.companyName} registered successfully!`);
     reset();
     setIsAddModalOpen(false);
   };
@@ -664,15 +683,28 @@ export const PartnerManagement = () => {
       {filteredPartners.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] dark:border-white/15 bg-white dark:bg-[#14132b] p-12 text-center">
           <FolderSearch size={32} className="text-slate-400 mb-2" />
-          <h4 className="text-sm font-bold text-[#191b23] dark:text-white">No partner organizations found</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Try adjusting your search criteria or register a new partner agency.</p>
+          <h4 className="text-sm font-bold text-[#191b23] dark:text-white">No partner companies found</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {partners.length === 0
+              ? 'No registered partner companies found in PostgreSQL database. Click "Register Partner Company" to add a new partner agency.'
+              : 'Try adjusting your search criteria or register a new partner agency.'}
+          </p>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPartners.map((partner) => {
-            const partnerStaffList = workforce.filter(
-              (w) => w.partnerName === partner.name
+            const partnerStaffList = (workforce || []).filter(
+              (w) =>
+                (w.partnerCompanyId && (w.partnerCompanyId === partner.id || String(w.partnerCompanyId) === String(partner.id))) ||
+                (w.partnerName && partner.name && w.partnerName.toLowerCase().trim() === partner.name.toLowerCase().trim()) ||
+                (w.partnerCompany && partner.name && w.partnerCompany.toLowerCase().trim() === partner.name.toLowerCase().trim())
             );
+
+            const specs = Array.isArray(partner.specialties)
+              ? partner.specialties
+              : typeof partner.specialties === 'string' && partner.specialties.trim()
+              ? partner.specialties.split(',').map((s) => s.trim()).filter(Boolean)
+              : [];
 
             return (
               <motion.div
@@ -739,21 +771,23 @@ export const PartnerManagement = () => {
                   </div>
 
                   {/* Specialties */}
-                  <div className="mt-3.5 flex flex-wrap gap-1.5">
-                    {partner.specialties?.slice(0, 3).map((spec, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded-md bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 text-[10px] font-semibold text-slate-700 dark:text-slate-300"
-                      >
-                        {spec}
-                      </span>
-                    ))}
-                    {(partner.specialties?.length || 0) > 3 && (
-                      <span className="text-[10px] text-slate-400 font-semibold self-center">
-                        +{partner.specialties.length - 3}
-                      </span>
-                    )}
-                  </div>
+                  {specs.length > 0 && (
+                    <div className="mt-3.5 flex flex-wrap gap-1.5">
+                      {specs.slice(0, 3).map((spec, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 rounded-md bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 text-[10px] font-semibold text-slate-700 dark:text-slate-300"
+                        >
+                          {spec}
+                        </span>
+                      ))}
+                      {specs.length > 3 && (
+                        <span className="text-[10px] text-slate-400 font-semibold self-center">
+                          +{specs.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Action Buttons */}
@@ -910,18 +944,17 @@ export const PartnerManagement = () => {
               error={errors.phone}
               required
             />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <FormInput
-              label="Talent Capacity"
-              name="suppliedProfessionals"
-              type="number"
-              placeholder="15"
+              label="Headquarters"
+              name="location"
+              placeholder="Seattle, WA"
               register={register}
-              error={errors.suppliedProfessionals}
+              error={errors.location}
               required
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <FormInput
               label="Status"
               name="status"
@@ -933,14 +966,6 @@ export const PartnerManagement = () => {
                 { value: 'Active', label: 'Active Agreement' },
                 { value: 'Pending', label: 'Pending Review' },
               ]}
-            />
-            <FormInput
-              label="Headquarters"
-              name="location"
-              placeholder="Seattle, WA"
-              register={register}
-              error={errors.location}
-              required
             />
           </div>
 
@@ -970,13 +995,6 @@ export const PartnerManagement = () => {
               />
             </div>
           </div>
-
-          {/* Specialty Skill Domains Component */}
-          <SkillSelector
-            value={watch('specialties') || ''}
-            onChange={(newVal) => setValue('specialties', newVal, { shouldValidate: true })}
-            error={errors.specialties}
-          />
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
@@ -1142,18 +1160,28 @@ export const PartnerManagement = () => {
               </div>
             </div>
 
-            <div>
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Specialized Engineering Domains
-              </h5>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedPartner.specialties?.map((s, idx) => (
-                  <span key={idx} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 shadow-2xs">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
+            {(() => {
+              const modalSpecs = Array.isArray(selectedPartner.specialties)
+                ? selectedPartner.specialties
+                : typeof selectedPartner.specialties === 'string' && selectedPartner.specialties.trim()
+                ? selectedPartner.specialties.split(',').map((s) => s.trim()).filter(Boolean)
+                : [];
+              if (modalSpecs.length === 0) return null;
+              return (
+                <div>
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Specialized Engineering Domains
+                  </h5>
+                  <div className="flex flex-wrap gap-1.5">
+                    {modalSpecs.map((s, idx) => (
+                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 shadow-2xs">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center gap-2">
               <button

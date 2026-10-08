@@ -26,4 +26,15 @@ public class WorkforceAllocationDto {
     private BigDecimal billableRate;
     private AllocationStatus status;
     private LocalDateTime createdAt;
+
+    private String workforceType;
+    private Long partnerCompanyId;
+    private String partnerCompanyName;
+    private String roleType;
+    private String hourlyRate;
+    private String workload;
+    private String experience;
+    private String skills;
+    private String avatar;
+    private String phone;
 }

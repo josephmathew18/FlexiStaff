@@ -139,7 +139,7 @@ export const WorkforceAssignments = () => {
             id: `prj-asg-${p.id}`,
             projectId: p.id,
             projectName: p.title || p.name || 'Enterprise Project',
-            client: p.client || 'Client Organization',
+            client: p.client || '',
             role: p.requiredSkills?.[0] ? `${p.requiredSkills[0]} Developer` : 'Specialist Software Engineer',
             hourlyRate: '$95/hr',
             workload: 40,
@@ -172,9 +172,9 @@ export const WorkforceAssignments = () => {
           seenKeys.add(key);
           results.push({
             id: r.id,
-            projectId: r.projectId || 'PRJ-REQ-7142',
+            projectId: r.projectId || r.id,
             projectName: r.projectName || 'Enterprise Project',
-            client: r.client || 'Client Organization',
+            client: r.client || '',
             role: r.role || 'Specialist',
             hourlyRate: r.hourlyRate || '$95/hr',
             workload: 40,
@@ -203,7 +203,7 @@ export const WorkforceAssignments = () => {
             seenKeys.add(key);
             results.push({
               id: pr.id,
-              projectId: pr.projectId || 'PRJ-REQ-7142',
+              projectId: pr.projectId || pr.id,
               projectName: pr.projectName || 'Enterprise Project',
               client: pr.client || 'Partner Client',
               role: pr.role || 'Partner Specialist',
@@ -224,22 +224,44 @@ export const WorkforceAssignments = () => {
     return results;
   }, [managerAssignments, projects, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
 
+  const rejectedProjectIds = useMemo(() => {
+    const setObj = new Set();
+    (projects || []).forEach((p) => {
+      if (!p) return;
+      const st = String(p.status || p.stage || '').toLowerCase().trim();
+      if (st.includes('reject') || st.includes('cancel')) {
+        const norm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (norm) setObj.add(norm);
+      }
+    });
+    return setObj;
+  }, [projects]);
+
   const isPendingStatus = (st) => {
     const s = String(st || '').toLowerCase();
     return s.includes('pending') || s.includes('awaiting');
   };
 
   const pendingInvitations = useMemo(() => {
-    return myAssignments.filter((a) => isPendingStatus(a.status));
-  }, [myAssignments]);
+    return myAssignments.filter((a) => {
+      if (!a) return false;
+      const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      if (rejectedProjectIds.has(normProj)) return false;
+      return isPendingStatus(a.status);
+    });
+  }, [myAssignments, rejectedProjectIds]);
 
   const activeAssignments = useMemo(() => {
     return myAssignments.filter((a) => {
+      if (!a) return false;
+      const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      if (rejectedProjectIds.has(normProj)) return false;
+
       const s = String(a.status || '').toLowerCase().trim();
-      const isDeclinedOrRejected = s.includes('declined') || s.includes('rejected');
+      const isDeclinedOrRejected = s.includes('declined') || s.includes('rejected') || s.includes('cancel');
       return !isDeclinedOrRejected && (s === 'accepted' || s === 'working' || s === 'in progress' || s === 'approved');
     });
-  }, [myAssignments]);
+  }, [myAssignments, rejectedProjectIds]);
 
   const filteredAssignments = useMemo(() => {
     return myAssignments.filter((asg) => {
@@ -287,6 +309,12 @@ export const WorkforceAssignments = () => {
   };
 
   const handleOpenCommitModal = (asg, milestoneId = 'ms-01') => {
+    if (!asg) return;
+    const normProj = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    if (rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st))) {
+      toast.error('Cannot submit commit: This project has been rejected or cancelled.');
+      return;
+    }
     setSelectedAssignmentForCommit(asg);
     setCommitFormData({
       milestoneId: milestoneId || 'ms-01',
@@ -312,13 +340,30 @@ export const WorkforceAssignments = () => {
     setIsSubmittingCommit(true);
 
     setTimeout(() => {
-      const pId = selectedAssignmentForCommit?.projectId || 7142;
+      const pId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
 
       if (addMilestoneCommit) {
+        const userRole = selectedAssignmentForCommit?.role || workforceUserProfile?.role || workforceUserProfile?.specialtyTitle || 'Specialist';
+        const userSkills = selectedAssignmentForCommit?.skills || workforceUserProfile?.skills || [];
+        const skillsFormatted = Array.isArray(userSkills) ? userSkills.join(', ') : String(userSkills);
+        const resolvedUserId = workforceUserProfile?.id || user?.id || null;
+
         addMilestoneCommit(pId, commitFormData.milestoneId, {
+          workforceId: resolvedUserId,
+          projectId: pId,
+          milestoneId: commitFormData.milestoneId,
           commitMessage: commitFormData.commitMessage,
           workCompleted: commitFormData.workCompleted,
-          authorName: workforceUserProfile?.name || 'Workforce Specialist',
+          workSummary: commitFormData.workCompleted,
+          milestoneStatus: commitFormData.milestoneStatus,
+          status: commitFormData.milestoneStatus,
+          authorName: workforceUserProfile?.name || user?.name || 'Assigned Specialist',
+          authorId: resolvedUserId,
+          authorRole: userRole,
+          role: userRole,
+          authorSkills: userSkills,
+          assignedSkill: skillsFormatted,
+          submittedAt: new Date().toISOString(),
         });
       }
 
@@ -395,7 +440,7 @@ export const WorkforceAssignments = () => {
                     </span>
                     <h3 className="text-base font-extrabold text-slate-900">{inv.projectName}</h3>
                     <p className="text-xs font-bold text-purple-700 mt-0.5">Offered Role: {inv.role}</p>
-                    <p className="text-xs text-slate-500 mt-1">Client Organization: {inv.client || 'Enterprise Client'}</p>
+                    <p className="text-xs text-slate-500 mt-1">Client Organization: {inv.client}</p>
                   </div>
 
                   {/* Availability Verification Box */}
@@ -544,7 +589,9 @@ export const WorkforceAssignments = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-extrabold text-slate-900">{ms.title}</h4>
+                            <h4 className="text-sm font-extrabold text-slate-900">
+                              {(ms.title || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
+                            </h4>
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
                                 isCompleted
@@ -696,8 +743,7 @@ export const WorkforceAssignments = () => {
                 <th className="py-3.5 px-4">Your Role</th>
                 <th className="py-3.5 px-4">Current Sprint Task</th>
                 <th className="py-3.5 px-4">Rate & Workload</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Progress Update</th>
+                <th className="py-3.5 px-4">Sprint Progress</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -709,7 +755,20 @@ export const WorkforceAssignments = () => {
                 </tr>
               ) : (
                 filteredAssignments.map((asg) => {
-                  const isActive = asg.status === 'Accepted' || asg.status === 'Working';
+                  const normProj = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+                  const isProjectRejected = rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st));
+                  const isActive = !isProjectRejected && (asg.status === 'Accepted' || asg.status === 'Working' || asg.status === 'In Progress');
+                  const pIdKey = asg.projectId || asg.id;
+                  const msListForAsg = (projectMilestones && (projectMilestones[pIdKey] || projectMilestones[normProj])) || asg.milestones || [];
+                  let completedWeightSum = 0;
+                  (msListForAsg || []).forEach((m) => {
+                    if (String(m.status || '').toLowerCase() === 'completed') {
+                      completedWeightSum += Number(m.weight || m.weightage || 20);
+                    }
+                  });
+                  const calculatedProg = msListForAsg.length > 0
+                    ? Math.min(100, Math.round(completedWeightSum))
+                    : (asg.progress || 0);
 
                   return (
                     <tr key={asg.id} className="hover:bg-slate-50/80 transition-colors">
@@ -727,7 +786,7 @@ export const WorkforceAssignments = () => {
 
                       <td className="py-3.5 px-4 max-w-[200px]">
                         <p className="text-slate-700 font-medium truncate">
-                          {asg.currentTask || 'Sprint execution & milestone deliverables'}
+                          {isProjectRejected ? 'Project rejected by client/admin.' : (asg.currentTask || 'Sprint execution & milestone deliverables')}
                         </p>
                       </td>
 
@@ -739,7 +798,9 @@ export const WorkforceAssignments = () => {
                       <td className="py-3.5 px-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            asg.status === 'Awaiting Workforce Response'
+                            isProjectRejected
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : asg.status === 'Awaiting Workforce Response'
                               ? 'bg-amber-50 text-amber-800 border border-amber-200'
                               : isActive
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -748,23 +809,22 @@ export const WorkforceAssignments = () => {
                               : 'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}
                         >
-                          {asg.status}
+                          {isProjectRejected ? 'Project Rejected' : asg.status}
                         </span>
                       </td>
 
                       <td className="py-3.5 px-4 min-w-[150px]">
-                        {isActive ? (
+                        {isProjectRejected ? (
+                          <span className="text-[11px] text-rose-600 font-bold">Project Rejected</span>
+                        ) : isActive || asg.status === 'Completed' ? (
                           <div className="flex items-center gap-2">
-                            <input
-                              type="range"
-                              min={0}
-                              max={100}
-                              step={5}
-                              value={asg.progress || 0}
-                              onChange={(e) => updateWorkforceProgress(asg.id, Number(e.target.value))}
-                              className="w-24 accent-purple-600 cursor-pointer"
-                            />
-                            <span className="font-bold text-slate-900 text-xs">{asg.progress || 0}%</span>
+                            <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
+                              <div
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full transition-all duration-300"
+                                style={{ width: `${calculatedProg}%` }}
+                              />
+                            </div>
+                            <span className="font-extrabold text-slate-900 text-xs">{calculatedProg}%</span>
                           </div>
                         ) : isPendingStatus(asg.status) ? (
                           <div className="flex items-center gap-1.5">
@@ -919,9 +979,57 @@ export const WorkforceAssignments = () => {
                     onChange={(e) => setCommitFormData({ ...commitFormData, milestoneId: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#7c3aed]"
                   >
-                    <option value="ms-01">Core OAuth2 & RBAC Auth Engine</option>
-                    <option value="ms-02">Real-time Analytics & Dashboard Metrics</option>
-                    <option value="ms-03">Billing Gateway & Webhook Integration</option>
+                    {(() => {
+                      const pId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
+                      const normId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+                      const msList = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId])) || [
+                        { id: 'ms-01', title: 'Requirement Analysis', weight: 10, status: 'Pending' },
+                        { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, status: 'Pending' },
+                        { id: 'ms-03', title: 'Backend & Database Development', weight: 25, status: 'Pending' },
+                        { id: 'ms-04', title: 'Frontend & Integration', weight: 25, status: 'Pending' },
+                        { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, status: 'Pending' },
+                      ];
+
+                      const userRole = selectedAssignmentForCommit?.role || workforceUserProfile?.role || workforceUserProfile?.specialtyTitle;
+                      const rawSkills = selectedAssignmentForCommit?.skills || workforceUserProfile?.skills || [];
+                      const userSkillsList = Array.isArray(rawSkills) ? rawSkills : String(rawSkills).split(/[,+]/).map((s) => s.trim()).filter(Boolean);
+
+                      const roleLower = String(userRole || '').toLowerCase();
+                      const skillsStr = userSkillsList.join(' ').toLowerCase();
+
+                      const isFrontendCandidate = roleLower.includes('front') || roleLower.includes('ui') || roleLower.includes('react') || skillsStr.includes('react') || skillsStr.includes('html') || skillsStr.includes('css') || skillsStr.includes('javascript');
+                      const isBackendCandidate = roleLower.includes('back') || roleLower.includes('java') || roleLower.includes('spring') || roleLower.includes('python') || roleLower.includes('node') || skillsStr.includes('java') || skillsStr.includes('spring') || skillsStr.includes('postgre') || skillsStr.includes('python') || skillsStr.includes('node') || skillsStr.includes('sql');
+                      const isFullstackCandidate = roleLower.includes('full') || roleLower.includes('architect') || roleLower.includes('lead') || (isFrontendCandidate && isBackendCandidate);
+
+                      const filteredMsList = msList.filter((ms) => {
+                        const titleLower = String(ms.title || '').toLowerCase();
+                        const idLower = String(ms.id || '').toLowerCase();
+
+                        // Pure Backend Candidate: Cannot commit UI/UX or Frontend Integration
+                        if (isBackendCandidate && !isFrontendCandidate && !isFullstackCandidate) {
+                          if (idLower.includes('ms-02') || titleLower.includes('ui') || titleLower.includes('design') || idLower.includes('ms-04') || titleLower.includes('frontend')) {
+                            return false;
+                          }
+                        }
+
+                        // Pure Frontend Candidate: Cannot commit Backend & Database
+                        if (isFrontendCandidate && !isBackendCandidate && !isFullstackCandidate) {
+                          if (idLower.includes('ms-03') || titleLower.includes('backend') || titleLower.includes('database')) {
+                            return false;
+                          }
+                        }
+
+                        return true;
+                      });
+
+                      const finalList = filteredMsList.length > 0 ? filteredMsList : msList;
+
+                      return finalList.map((ms) => (
+                        <option key={ms.id} value={ms.id}>
+                          {ms.title}
+                        </option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
@@ -963,9 +1071,9 @@ export const WorkforceAssignments = () => {
                     onChange={(e) => setCommitFormData({ ...commitFormData, milestoneStatus: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#7c3aed]"
                   >
-                    <option value="In Progress">In Progress </option>
-                    <option value="Completed">Completed</option>
                     <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
                   </select>
                 </div>
 

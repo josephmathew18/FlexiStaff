@@ -191,7 +191,7 @@ export const PartnerWorkforce = () => {
     });
 
     // Progress metrics
-    const progressPercentage = matchedProject?.progress ?? selectedEmployee.workProgress ?? 65;
+    const progressPercentage = matchedProject?.progress ?? selectedEmployee.workProgress ?? 0;
     const completedTasks = matchedProject?.completedTasksCount ?? Math.round((progressPercentage / 100) * 12);
     const pendingTasks = matchedProject?.pendingTasksCount ?? Math.max(0, 12 - completedTasks);
 
@@ -310,6 +310,22 @@ export const PartnerWorkforce = () => {
   const filteredWorkforce = useMemo(() => {
     return (partnerWorkforce || []).filter((emp) => {
       if (!emp) return false;
+      const roleLower = (emp.role || emp.title || emp.category || '').toLowerCase().trim();
+      const userRoleLower = (emp.userRole || emp.user_role || '').toLowerCase().trim();
+      const emailLower = (emp.email || '').toLowerCase().trim();
+      const nameLower = (emp.name || emp.pseudonym || '').toLowerCase().trim();
+
+      if (
+        roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
+        userRoleLower === 'admin' || userRoleLower === 'manager' || userRoleLower === 'client' ||
+        roleLower === 'role_admin' || roleLower === 'role_manager' || roleLower === 'role_client' ||
+        roleLower.includes('admin') || roleLower.includes('manager') || roleLower.includes('client') ||
+        emailLower.includes('admin') || emailLower.includes('manager') ||
+        nameLower === 'admin' || nameLower === 'manager' || nameLower === 'client'
+      ) {
+        return false;
+      }
+
       if (projectFilter !== 'all' && emp.assignedProject !== projectFilter) return false;
       if (roleFilter !== 'all' && emp.roleCategory !== roleFilter && emp.role !== roleFilter) return false;
       if (availabilityFilter !== 'all' && (emp.availability || '').toLowerCase() !== availabilityFilter.toLowerCase()) return false;

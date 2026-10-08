@@ -24,8 +24,12 @@ public class UserPrincipal implements UserDetails {
     private Boolean active;
 
     public static UserPrincipal create(User user) {
+        String rName = user.getRole() != null ? user.getRole().name() : "ROLE_CLIENT";
+        String rShort = rName.startsWith("ROLE_") ? rName.substring(5) : rName;
+        String rFull = rName.startsWith("ROLE_") ? rName : "ROLE_" + rName;
         List<GrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority(user.getRole().name())
+                new SimpleGrantedAuthority(rFull),
+                new SimpleGrantedAuthority(rShort)
         );
 
         return UserPrincipal.builder()

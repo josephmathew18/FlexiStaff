@@ -56,18 +56,28 @@ const CircularProgress = ({ value, size = 68, strokeWidth = 6 }) => {
 };
 
 export const ClientProgress = () => {
-  const { clientProfile, projects = [], updateProjectProgress } = useData() || {};
+  const { clientProfile, projects = [], projectMilestones = {}, updateProjectProgress } = useData() || {};
 
   // Client projects list
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || '').toLowerCase();
-    const clientId = clientProfile?.id;
-    return projects.filter(
-      (p) =>
-        p &&
-        ((companyName && (p.client || '').toLowerCase() === companyName) ||
-          p.clientId === clientId)
-    );
+    let authClientId = clientProfile?.id;
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u && u.id) authClientId = u.id;
+      }
+    } catch {}
+
+    const companyName = (clientProfile?.company || clientProfile?.companyName || '').toLowerCase();
+
+    return projects.filter((p) => {
+      if (!p) return false;
+      const matchName = Boolean(companyName && (p.client || p.clientCompanyName || p.clientName || '').toLowerCase() === companyName);
+      const matchProfileId = Boolean(clientProfile?.id && (p.clientId == clientProfile.id || Number(p.clientId) === Number(clientProfile.id)));
+      const matchAuthId = Boolean(authClientId && (p.clientId == authClientId || Number(p.clientId) === Number(authClientId)));
+      return matchName || matchProfileId || matchAuthId;
+    });
   }, [projects, clientProfile]);
 
   const [selectedProjectId, setSelectedProjectId] = useState('all');
@@ -112,7 +122,7 @@ export const ClientProgress = () => {
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-1.5">
             <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
-            <span>{clientProjects.length > 0 ? "94.8% SLA Velocity" : "0% SLA Velocity"}</span>
+            <span>{clientProjects.length > 0 ? `${totalMilestonesCount > 0 ? Math.round((completedMilestonesCount / totalMilestonesCount) * 100) : 0}% Milestone Delivery Rate` : "0% Delivery Rate"}</span>
           </span>
         </div>
       </div>
@@ -202,10 +212,14 @@ export const ClientProgress = () => {
         <div className="space-y-6">
           {(selectedProject ? [selectedProject] : clientProjects).map((project) => {
             const progressVal = project.progress || 0;
-            const milestonesList = project.milestones || [
-              { id: 'm-1', title: 'Architecture Blueprint & Tech Stack Validation', dueDate: '2026-09-30', completed: false },
-              { id: 'm-2', title: 'Core Feature Engineering & Sprint Reviews', dueDate: '2026-11-30', completed: false },
-              { id: 'm-3', title: 'Production Pen-testing, UAT & Final Deployment', dueDate: '2027-02-28', completed: false },
+            const pId = project.id || project.projectId;
+            const normId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+            const milestonesList = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId])) || project.milestones || [
+              { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: 'Sprint 1', commits: [] },
+              { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 2', commits: [] },
+              { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 3', commits: [] },
+              { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 4', commits: [] },
+              { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 5', commits: [] },
             ];
 
             return (
@@ -258,7 +272,7 @@ export const ClientProgress = () => {
                             </div>
                             <div>
                               <h5 className={`text-xs font-bold ${isDone ? 'text-emerald-900 dark:text-emerald-300 font-extrabold' : 'text-slate-900 dark:text-white'}`}>
-                                {(m.title || m.name || '').replace(/^Milestone \d+:\s*/i, '')}
+                                {(m.title || m.name || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
                               </h5>
                               <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                 <span className="flex items-center gap-1">
@@ -297,8 +311,16 @@ export const ClientProgress = () => {
                                   <span className="text-[10px] text-slate-400">{cmt.dateTime}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-600 dark:text-slate-300 font-sans leading-relaxed">{cmt.workCompleted}</p>
-                                <div className="text-[10px] text-slate-400 pt-0.5">
-                                  Submitted by: <strong className="text-slate-700 dark:text-slate-200">{cmt.authorName}</strong>
+                                <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 pt-0.5">
+                                  <span>
+                                    Submitted by: <strong className="text-slate-700 dark:text-slate-200">{cmt.authorName}</strong>
+                                    {(cmt.role || cmt.authorRole) && <span className="text-purple-600 dark:text-purple-400 font-semibold ml-1">({cmt.role || cmt.authorRole})</span>}
+                                  </span>
+                                  {(cmt.assignedSkill || cmt.authorSkills) && (
+                                    <span className="bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/40 text-[9px] font-mono">
+                                      {Array.isArray(cmt.assignedSkill || cmt.authorSkills) ? (cmt.assignedSkill || cmt.authorSkills).join(', ') : String(cmt.assignedSkill || cmt.authorSkills)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             ))}

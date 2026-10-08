@@ -149,16 +149,19 @@ export const PartnerDashboard = () => {
   // Monthly velocity fulfillment data
   const fulfillmentData = useMemo(() => {
     const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug'];
-    const hasData = (partnerWorkforce || []).length > 0 || (partnerProjects || []).length > 0;
     const totalReq = (partnerProjects || []).reduce((acc, p) => acc + (Number(p.workforceRequired) || 0), 0);
     const totalAss = (partnerProjects || []).reduce((acc, p) => acc + (Number(p.workforceAssigned) || 0), 0);
+    const hasData = totalReq > 0 || totalAss > 0;
 
     return months.map((m) => ({
       month: m,
-      required: hasData ? Math.max(1, Math.round(totalReq / 5)) : 0,
-      assigned: hasData ? Math.max(0, Math.round(totalAss / 5)) : 0,
+      required: hasData ? Math.round(totalReq / 5) : 0,
+      assigned: hasData ? Math.round(totalAss / 5) : 0,
     }));
-  }, [partnerWorkforce, partnerProjects]);
+  }, [partnerProjects]);
+
+  const hasFulfillmentData = fulfillmentData.some((d) => d.required > 0 || d.assigned > 0);
+  const hasAvailabilityData = (partnerWorkforce || []).length > 0;
 
   const overallSlaPercent = useMemo(() => {
     if (!partnerProjects || partnerProjects.length === 0) return '0%';
@@ -285,34 +288,42 @@ export const PartnerDashboard = () => {
             </div>
 
             {/* Donut Chart */}
-            <div className="h-56 w-full my-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={availabilityBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {availabilityBreakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val, name) => [`${val} Engineers`, name]}
-                    contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderColor: '#e2e8f0',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {hasAvailabilityData ? (
+              <div className="h-56 w-full my-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={availabilityBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {availabilityBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val, name) => [`${val} Engineers`, name]}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#e2e8f0',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-56 w-full my-3 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+                <Users size={32} className="text-slate-300 mb-2" />
+                <p className="font-semibold text-slate-600">No partner workforce on roster</p>
+                <p className="text-[11px] text-slate-400">Add bench employees to view capacity distribution.</p>
+              </div>
+            )}
           </div>
 
           {/* 4 Status Badges breakdown */}
@@ -365,25 +376,33 @@ export const PartnerDashboard = () => {
               </Link>
             </div>
 
-            <div className="h-56 w-full my-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={fulfillmentData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderColor: '#cbd5e1',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Bar dataKey="required" name="Required Staff" fill="#93c5fd" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="assigned" name="Assigned Staff" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {hasFulfillmentData ? (
+              <div className="h-56 w-full my-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={fulfillmentData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#cbd5e1',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Bar dataKey="required" name="Required Staff" fill="#93c5fd" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="assigned" name="Assigned Staff" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-56 w-full my-3 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+                <BarChart size={30} className="text-slate-300 mb-2" />
+                <p className="font-semibold text-slate-600">No staffing requirement requests</p>
+                <p className="text-[11px] text-slate-400">Monthly fulfillment data will populate when projects request workforce.</p>
+              </div>
+            )}
           </div>
 
           <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between text-xs">
@@ -443,7 +462,7 @@ export const PartnerDashboard = () => {
                       <p className="font-bold text-slate-900 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => navigate(`/partner/projects/${prj.id}`)}>
                         {prj.name}
                       </p>
-                      <p className="text-[11px] text-blue-700 font-bold">Client: {prj.client || prj.partner || 'Client Organization'}</p>
+                      <p className="text-[11px] text-blue-700 font-bold">Client: {prj.client || prj.partner}</p>
                       <p className="text-[10px] text-slate-400 font-medium">{prj.category}</p>
                     </div>
                   </td>

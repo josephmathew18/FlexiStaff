@@ -20,5 +20,7 @@ public interface FreelancerRepository extends JpaRepository<Freelancer, Long> {
 
     Optional<Freelancer> findByUserId(Long userId);
 
+    List<Freelancer> findByPartnerCompanyId(Long partnerCompanyId);
+
     List<Freelancer> findByAvailabilityStatus(String availabilityStatus);
 }

@@ -24,6 +24,7 @@ import { toast } from 'react-toastify';
 export const WorkforceDashboard = () => {
   const {
     workforceUserProfile,
+    projects = [],
     managerAssignments = [],
     freelancerRequests = [],
     partnerWorkforceRequests = [],
@@ -39,6 +40,19 @@ export const WorkforceDashboard = () => {
     workforceUserProfile?.userType === 'PARTNER_EMPLOYEE' ||
     workforceUserProfile?.employmentType?.includes('Partner') ||
     workforceUserProfile?.employmentType?.includes('Company');
+
+  const rejectedProjectIds = React.useMemo(() => {
+    const setObj = new Set();
+    (projects || []).forEach((p) => {
+      if (!p) return;
+      const st = String(p.status || p.stage || '').toLowerCase().trim();
+      if (st.includes('reject') || st.includes('cancel')) {
+        const norm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (norm) setObj.add(norm);
+      }
+    });
+    return setObj;
+  }, [projects]);
 
   const myAssignments = React.useMemo(() => {
     const wfName = (workforceUserProfile?.name || '').toLowerCase().trim();
@@ -85,9 +99,9 @@ export const WorkforceDashboard = () => {
           seenKeys.add(key);
           results.push({
             id: r.id,
-            projectId: r.projectId || 7142,
-            projectName: r.projectName || 'Enterprise Project',
-            client: r.client || 'Client Organization',
+            projectId: r.projectId || r.id,
+            projectName: r.projectName || (r.projectId ? `Project #${r.projectId}` : 'Project Assignment'),
+            client: r.client || '',
             role: r.role || 'Specialist',
             hourlyRate: r.hourlyRate || '$95/hr',
             workload: 40,
@@ -115,8 +129,8 @@ export const WorkforceDashboard = () => {
             seenKeys.add(key);
             results.push({
               id: pr.id,
-              projectId: pr.projectId || 7142,
-              projectName: pr.projectName || 'Enterprise Project',
+              projectId: pr.projectId || pr.id,
+              projectName: pr.projectName || (pr.projectId ? `Project #${pr.projectId}` : 'Project Assignment'),
               client: pr.client || 'Partner Client',
               role: pr.role || 'Partner Specialist',
               hourlyRate: pr.hourlyRate || '$95/hr',
@@ -141,9 +155,19 @@ export const WorkforceDashboard = () => {
     return s.includes('pending') || s.includes('awaiting');
   };
 
-  const pendingOffers = myAssignments.filter((a) => isPendingStatus(a.status));
-  const activeAssignments = myAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
-  const completedAssignments = myAssignments.filter((a) => a.status === 'Completed');
+  const validAssignments = React.useMemo(() => {
+    return myAssignments.filter((a) => {
+      if (!a) return false;
+      const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const isProjRejected = rejectedProjectIds.has(normProj);
+      const isAsgRejected = ['reject', 'decline', 'cancel'].some((st) => String(a.status || '').toLowerCase().includes(st));
+      return !isProjRejected && !isAsgRejected;
+    });
+  }, [myAssignments, rejectedProjectIds]);
+
+  const pendingOffers = validAssignments.filter((a) => isPendingStatus(a.status));
+  const activeAssignments = validAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
+  const completedAssignments = validAssignments.filter((a) => a.status === 'Completed');
 
   return (
     <div className="space-y-6 sm:space-y-8">

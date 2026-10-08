@@ -24,7 +24,8 @@ import {
   Phone,
   MapPin,
 } from 'lucide-react';
-import { useData } from '../../context/DataContext';
+import { useData, getPartnerCompanyName, mapBackendProjectToFrontend } from '../../context/DataContext';
+import api from '../../services/api';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -91,11 +92,14 @@ export const ProjectDetails = () => {
     projects = [],
     workforce = [],
     partnerWorkforce = [],
+    partners = [],
+    clients = [],
     managers = [],
     managerAssignments = [],
     projectMilestones = {},
     updateProjectStage,
     toggleMilestone,
+    refreshProjects,
     updateProject,
     approveProject,
     rejectProject,
@@ -103,8 +107,20 @@ export const ProjectDetails = () => {
     rejectWorkforceAssignment,
   } = useData() || {};
 
+  React.useEffect(() => {
+    if (refreshProjects) {
+      refreshProjects();
+    }
+  }, []);
+
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || '');
+
+  React.useEffect(() => {
+    if (!selectedManagerName && managers.length > 0) {
+      setSelectedManagerName(managers[0].name);
+    }
+  }, [managers, selectedManagerName]);
 
   // Rejection modal state for candidate squad proposals
   const [rejectSquadModal, setRejectSquadModal] = useState({ isOpen: false, member: null, reason: '' });
@@ -134,25 +150,27 @@ export const ProjectDetails = () => {
         return (candIdStr && wId === candIdStr) || (candNameLower && wName === candNameLower) || (candEmailLower && wEmail === candEmailLower);
       });
 
-    const rawSkills = member.skills || masterCandidate?.skills || ['React.js', 'PostgreSQL', 'Node.js'];
+    const rawSkills = member.skills || masterCandidate?.skills || [];
     const skillsArr = Array.isArray(rawSkills)
       ? rawSkills
       : String(rawSkills).split(/[,+]/).map((s) => s.trim()).filter(Boolean);
 
+    const resolvedPartnerName = getPartnerCompanyName(member, partners, clients);
+
     return {
       ...member,
-      professionalName: member.professionalName || member.name || masterCandidate?.name || masterCandidate?.pseudonym || 'Specialist',
+      professionalName: member.professionalName || member.name || masterCandidate?.name || masterCandidate?.pseudonym || '',
       avatar: member.avatar || masterCandidate?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      email: member.email || masterCandidate?.email || 'specialist@flexistaff.ai',
-      phone: member.phone || masterCandidate?.phone || '+91 98765 43210',
-      location: member.location || masterCandidate?.location || 'Bengaluru, India',
-      bio: masterCandidate?.bio || masterCandidate?.summary || member.notes || 'Experienced software specialist assigned to project engineering squad.',
-      experience: member.experience || masterCandidate?.experience || '3+ Years',
-      hourlyRate: member.hourlyRate || masterCandidate?.hourlyRate || '$95/hr',
-      rating: masterCandidate?.rating || 4.9,
+      email: member.email || masterCandidate?.email || '',
+      phone: member.phone || masterCandidate?.phone || '',
+      location: member.location || masterCandidate?.location || '',
+      bio: member.bio || masterCandidate?.bio || masterCandidate?.summary || member.notes || '',
+      experience: member.experience || masterCandidate?.experience || '',
+      hourlyRate: member.hourlyRate || masterCandidate?.hourlyRate || '',
+      rating: member.rating || masterCandidate?.rating || null,
       skills: skillsArr,
-      partnerName: member.partnerName || masterCandidate?.partnerName || masterCandidate?.partnerCompany || (member.source === 'Partner Company' ? 'Partner Enterprise Company' : 'Independent Freelancer Pool'),
-      roleType: member.roleType || masterCandidate?.roleType || (member.source === 'Partner Company' ? 'Professional' : 'Freelancer'),
+      partnerName: member.partnerCompanyName || resolvedPartnerName || (member.partnerName && member.partnerName !== 'FlexiStaff Partner' && member.partnerName !== 'Partner Organization' ? member.partnerName : ''),
+      roleType: member.roleType || (member.workforceType === 'Partner Company' ? 'Professional' : 'Freelancer'),
     };
   };
 
@@ -160,93 +178,157 @@ export const ProjectDetails = () => {
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
   const targetNumId = decodedId.replace(/\D/g, '');
 
-  const project = (projects || []).find((p) => {
-    if (!p || p.id === undefined || p.id === null) return false;
-    const pidLower = String(p.id).toLowerCase().trim();
-    const pidNormalized = pidLower.replace(/[\s_]/g, '-');
-    const pNumId = pidLower.replace(/\D/g, '');
+  const [dbProject, setDbProject] = useState(null);
+  const [loadingDb, setLoadingDb] = useState(false);
 
-    const isDirectMatch = pidLower === decodedId.toLowerCase() || pidNormalized === normalizedId;
-    const isNumMatch = Boolean(targetNumId && pNumId && targetNumId === pNumId);
+  const fetchProjectDetails = React.useCallback(async () => {
+    const projId = targetNumId || decodedId;
+    if (!projId) return;
+    try {
+      setLoadingDb(true);
+      const res = await api.projects.getById(projId);
+      if (res && res.success && res.data) {
+        setDbProject(mapBackendProjectToFrontend(res.data));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch project details from backend API:', err);
+    } finally {
+      setLoadingDb(false);
+    }
+  }, [targetNumId, decodedId]);
 
-    return isDirectMatch || isNumMatch;
-  }) || (projects || [])[0];
+  React.useEffect(() => {
+    fetchProjectDetails();
+  }, [fetchProjectDetails]);
 
-  // Normalized Project Workforce Assignments Filter
-  const currentProjectAssignments = useMemo(() => {
+  const contextProject = useMemo(() => {
+    return (projects || []).find((p) => {
+      if (!p || p.id === undefined || p.id === null) return false;
+      const pidLower = String(p.id).toLowerCase().trim();
+      const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+      const pNumId = pidLower.replace(/\D/g, '');
+
+      const isDirectMatch = pidLower === decodedId.toLowerCase() || pidNormalized === normalizedId;
+      const isNumMatch = Boolean(targetNumId && pNumId && targetNumId === pNumId);
+
+      return isDirectMatch || isNumMatch;
+    });
+  }, [projects, decodedId, normalizedId, targetNumId]);
+
+  const project = dbProject || contextProject;
+
+  // Real Database-backed Project Workforce Allocations
+  const projectAllocations = useMemo(() => {
     if (!project) return [];
+    const list = [];
+    const seen = new Set();
+
+    const addAlloc = (a) => {
+      if (!a) return;
+      const aName = (a.professionalName || a.name || '').toLowerCase();
+      const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
+      if (aName.includes('sharon') || aEmail.includes('sharon')) return;
+
+      const key = `${a.id || a.allocationId || ''}_${a.professionalId || a.id || ''}_${a.professionalName || a.name || ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(a);
+      }
+    };
+
+    // 1. Allocations directly attached to project entity from PostgreSQL
+    (project.allocations || []).forEach(addAlloc);
+    (project.assignedResources || []).forEach(addAlloc);
+
+    // 2. Also check managerAssignments if staged in current session
     const normProjId = (val) => String(val || '').toLowerCase().replace(/[\s_]/g, '-').trim();
     const targetNormId = normProjId(project.id);
     const targetTitle = (project.title || project.name || '').toLowerCase().trim();
 
-    const rawList = (managerAssignments || []).filter((a) => {
-      if (!a) return false;
-      const aName = (a.professionalName || a.name || '').toLowerCase();
-      const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
-      if (aName.includes('sharon') || aEmail.includes('sharon')) return false;
-
+    (managerAssignments || []).forEach((a) => {
+      if (!a) return;
       const aProjId = normProjId(a.projectId);
       const aProjName = (a.projectName || '').toLowerCase().trim();
       const isIdMatch = targetNormId && (aProjId === targetNormId || aProjId.replace(/-/g, '') === targetNormId.replace(/-/g, ''));
       const isTitleMatch = targetTitle && (aProjName === targetTitle || aProjName.includes(targetTitle) || targetTitle.includes(aProjName));
-      return isIdMatch || isTitleMatch;
-    });
-
-    const unique = [];
-    const seen = new Set();
-    rawList.forEach((a) => {
-      const key = `${a.id || a.professionalId || a.professionalName}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(a);
-      }
-    });
-    return unique;
-  }, [managerAssignments, project]);
-
-  const pendingSquadMembers = useMemo(() => {
-    return currentProjectAssignments.filter((a) =>
-      String(a.status || '').toLowerCase().includes('pending')
-    );
-  }, [currentProjectAssignments]);
-
-  const activeSquadFromAssignments = useMemo(() => {
-    return currentProjectAssignments.filter((a) =>
-      a.status === 'Accepted' || a.status === 'Working' || a.status === 'Approved'
-    );
-  }, [currentProjectAssignments]);
-
-  // Combine active assignments with project.assignedResources if present
-  const combinedActiveResources = useMemo(() => {
-    const list = [...activeSquadFromAssignments];
-    const seenIds = new Set(list.map((item) => String(item.professionalId || item.id)));
-
-    (project?.assignedResources || []).forEach((res) => {
-      if (!res) return;
-      const resName = (res.name || res.professionalName || '').toLowerCase();
-      const resEmail = (res.email || res.professionalEmail || '').toLowerCase();
-      if (resName.includes('sharon') || resEmail.includes('sharon')) return;
-
-      const rId = String(res.id);
-      if (!seenIds.has(rId)) {
-        seenIds.add(rId);
-        list.push({
-          id: res.id,
-          professionalId: res.id,
-          professionalName: res.name,
-          avatar: res.avatar,
-          role: res.role,
-          roleType: res.roleType || 'Professional',
-          partnerName: res.partnerName || 'FlexiStaff Partner',
-          hourlyRate: res.hourlyRate || '$95/hr',
-          workload: res.hoursPerWeek ? `${res.hoursPerWeek}h/wk` : '40h/wk',
-          status: 'Accepted',
-        });
+      if (isIdMatch || isTitleMatch) {
+        addAlloc(a);
       }
     });
 
     return list;
-  }, [activeSquadFromAssignments, project]);
+  }, [project, managerAssignments]);
+
+  const pendingSquadMembers = useMemo(() => {
+    return projectAllocations.filter((a) => {
+      const st = String(a.status || '').toUpperCase().trim();
+      return (
+        st === 'PENDING' ||
+        st === 'PENDING_ADMIN_APPROVAL' ||
+        st === 'PROPOSED' ||
+        st.includes('AWAITING') ||
+        st.includes('PENDING')
+      ) && st !== 'ACTIVE' && st !== 'ACCEPTED' && st !== 'REJECTED' && st !== 'DECLINED';
+    });
+  }, [projectAllocations]);
+
+  const activeSquad = useMemo(() => {
+    return projectAllocations.filter((a) => {
+      const st = String(a.status || '').toUpperCase().trim();
+      return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+    });
+  }, [projectAllocations]);
+
+  const combinedActiveResources = activeSquad;
+
+  const displayMilestones = useMemo(() => {
+    if (!project) return [];
+    const default5 = [
+      { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: project.startDate || '2026-10-15' },
+      { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: project.startDate || '2026-11-01' },
+      { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: project.endDate || '2026-12-15' },
+      { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: project.endDate || '2027-01-20' },
+      { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: project.endDate || '2027-02-28' },
+    ];
+
+    const rawMsList = project.milestones || [];
+    const cleanMsList = rawMsList.filter((m) => {
+      if (!m || !m.title) return false;
+      const t = String(m.title).toLowerCase();
+      return !t.includes('kickoff') && !t.includes('feature engineering') && !t.includes('handover') && !t.includes('blueprint') && !t.includes('uat');
+    });
+
+    return default5.map((def, idx) => {
+      const match = cleanMsList.find((m) => m.title && m.title.toLowerCase().trim() === def.title.toLowerCase().trim()) || cleanMsList[idx];
+      if (match) {
+        const isCompleted = Boolean(match.completed || match.status === 'Completed' || match.status === 'COMPLETED' || match.progressPercentage === 100);
+        const isStarted = !isCompleted && Boolean(match.status === 'In Progress' || match.status === 'IN_PROGRESS' || (match.progressPercentage > 0 && match.progressPercentage < 100));
+        const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+        return {
+          ...def,
+          ...match,
+          id: match.id || def.id,
+          title: def.title,
+          completed: isCompleted,
+          status: statusText,
+        };
+      }
+      return def;
+    });
+  }, [project]);
+
+  const completedMilestonesCount = useMemo(() => {
+    return displayMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
+  }, [displayMilestones]);
+
+  const overallCompletionPercentage = useMemo(() => {
+    if (completedMilestonesCount === 1) return 10;
+    if (completedMilestonesCount === 2) return 30;
+    if (completedMilestonesCount === 3) return 55;
+    if (completedMilestonesCount === 4) return 80;
+    if (completedMilestonesCount >= 5) return 100;
+    return 0;
+  }, [completedMilestonesCount]);
 
   if (!project) {
     return (
@@ -292,28 +374,57 @@ export const ProjectDetails = () => {
     toast.info('Milestone status updated.');
   };
 
-  const handleApproveCandidate = (assignmentId, candidateName) => {
+  const handleApproveCandidate = async (assignmentId, candidateName) => {
+    const numId = typeof assignmentId === 'number' ? assignmentId : parseInt(String(assignmentId).replace(/\D/g, ''), 10);
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.workforce.updateStatus(numId, 'ACTIVE');
+      } catch (err) {
+        console.warn('Backend workforce status update error:', err);
+      }
+    }
     approveWorkforceAssignment(assignmentId);
     toast.success(`Approved squad member "${candidateName}". Project status updated to In Progress!`);
+    fetchProjectDetails();
   };
 
-  const handleApproveAllPendingSquad = () => {
-    pendingSquadMembers.forEach((mem) => {
-      approveWorkforceAssignment(mem.id);
-    });
+  const handleApproveAllPendingSquad = async () => {
+    for (const mem of pendingSquadMembers) {
+      const targetId = mem.id || mem.allocationId;
+      const numId = typeof targetId === 'number' ? targetId : parseInt(String(targetId).replace(/\D/g, ''), 10);
+      if (!isNaN(numId) && numId > 0) {
+        try {
+          await api.workforce.updateStatus(numId, 'ACTIVE');
+        } catch (err) {
+          console.warn('Backend workforce status update error:', err);
+        }
+      }
+      approveWorkforceAssignment(targetId);
+    }
     toast.success(`Approved all ${pendingSquadMembers.length} proposed squad member(s)! Project status updated to In Progress.`);
+    fetchProjectDetails();
   };
 
-  const handleRejectCandidateSubmit = (e) => {
+  const handleRejectCandidateSubmit = async (e) => {
     e.preventDefault();
     if (!rejectSquadModal.member) return;
     if (!rejectSquadModal.reason.trim()) {
       toast.error('Please enter a reason for rejecting this candidate proposal.');
       return;
     }
-    rejectWorkforceAssignment(rejectSquadModal.member.id, rejectSquadModal.reason);
+    const memId = rejectSquadModal.member.id || rejectSquadModal.member.allocationId;
+    const numId = typeof memId === 'number' ? memId : parseInt(String(memId).replace(/\D/g, ''), 10);
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.workforce.updateStatus(numId, 'REJECTED');
+      } catch (err) {
+        console.warn('Backend workforce rejection error:', err);
+      }
+    }
+    rejectWorkforceAssignment(memId, rejectSquadModal.reason);
     toast.info(`Rejected candidate proposal for "${rejectSquadModal.member.professionalName || rejectSquadModal.member.name}".`);
     setRejectSquadModal({ isOpen: false, member: null, reason: '' });
+    fetchProjectDetails();
   };
 
   return (
@@ -372,8 +483,8 @@ export const ProjectDetails = () => {
               {project.title || project.name}
             </h2>
             <p className="text-xs sm:text-sm text-[#565e74] dark:text-slate-400 mt-0.5 font-medium">
-              Client: <strong className="text-[#191b23] dark:text-white">{project.client}</strong> • Manager:{' '}
-              <strong className="text-[#191b23] dark:text-white">{project.manager || 'Unassigned'}</strong>
+              Client: <strong className="text-[#191b23] dark:text-white">{project.clientCompanyName || project.clientName || project.client}</strong> • Manager:{' '}
+              <strong className="text-[#191b23] dark:text-white">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin') ? project.managerName : 'Unassigned'}</strong>
             </p>
           </div>
 
@@ -428,22 +539,21 @@ export const ProjectDetails = () => {
               Overall Completion
             </span>
             <div className="flex items-baseline justify-between mt-1">
-              <span className="text-xl font-bold text-[#191b23] dark:text-white">{project.progress}%</span>
+              <span className="text-xl font-bold text-[#191b23] dark:text-white">{overallCompletionPercentage}%</span>
               <span className="text-[11px] text-[#565e74] dark:text-slate-400">
-                {project.milestones?.filter((m) => m.completed).length} /{' '}
-                {project.milestones?.length} Milestones
+                {completedMilestonesCount} / 5 Milestones
               </span>
             </div>
             <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  project.progress === 100
+                  overallCompletionPercentage === 100
                     ? 'bg-emerald-500'
-                    : project.progress > 40
+                    : overallCompletionPercentage > 40
                     ? 'bg-[#2563eb]'
                     : 'bg-amber-500'
                 }`}
-                style={{ width: `${project.progress}%` }}
+                style={{ width: `${overallCompletionPercentage}%` }}
               />
             </div>
           </div>
@@ -536,73 +646,87 @@ export const ProjectDetails = () => {
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-white/10 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50">
-              {(project.milestones || []).map((m) => {
+              {displayMilestones.map((m) => {
                 const pId = project?.id || 'PRJ-2026-001';
-                const pMsList = (projectMilestones && projectMilestones[pId]) ? projectMilestones[pId] : [];
-                const matchedMs = pMsList.find((item) => item?.title?.includes(m.title) || item?.id === m.id) || m;
-                const msCommits = matchedMs.commits || [];
+                const pMsList = (projectMilestones && (projectMilestones[pId] || projectMilestones[String(pId)])) ? (projectMilestones[pId] || projectMilestones[String(pId)]) : [];
+                const matchedMs = pMsList.find((item) => item?.title?.toLowerCase() === m.title?.toLowerCase() || item?.id === m.id) || m;
+                const msCommits = matchedMs.commits || m.commits || [];
 
-                return (
-                  <div key={m.id} className="p-4 space-y-2 hover:bg-white dark:hover:bg-[#14132b] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(m.completed || matchedMs.status === 'Completed')}
-                        onChange={() => handleMilestoneToggle(m.id)}
-                        className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#2563eb] focus:ring-[#2563eb]"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-xs sm:text-sm font-bold ${
-                            m.completed || matchedMs.status === 'Completed' ? 'text-emerald-950 dark:text-emerald-300 font-bold' : 'text-[#191b23] dark:text-white'
+                const isCompleted = Boolean(m.completed || m.status === 'Completed' || m.status === 'COMPLETED' || matchedMs.status === 'Completed' || matchedMs.status === 'COMPLETED');
+                const isStarted = !isCompleted && (m.status === 'In Progress' || m.status === 'IN_PROGRESS' || matchedMs.status === 'In Progress' || msCommits.length > 0);
+                const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+
+                  return (
+                    <div key={m.id || m.title} className="p-4 space-y-2 hover:bg-white dark:hover:bg-[#14132b] transition-colors">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isCompleted}
+                          onChange={() => handleMilestoneToggle(m.id)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#2563eb] focus:ring-[#2563eb]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-xs sm:text-sm font-bold ${
+                              isCompleted ? 'text-emerald-950 dark:text-emerald-300 font-bold' : 'text-[#191b23] dark:text-white'
+                            }`}
+                          >
+                            {String(m.title || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
+                          </p>
+                          <span className="text-[11px] text-[#737686] dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Calendar size={12} className="text-slate-400 dark:text-slate-500" />
+                            <span>Target: {m.dueDate || m.deadline || project.endDate || '2027-02-28'}</span>
+                          </span>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            isCompleted
+                              ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
+                              : isStarted
+                              ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300'
+                              : 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
                           }`}
                         >
-                          {String(m.title || '').replace(/^Milestone \d+:\s*/i, '')}
-                        </p>
-                        <span className="text-[11px] text-[#737686] dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Calendar size={12} className="text-slate-400 dark:text-slate-500" />
-                          <span>Target: {m.dueDate}</span>
+                          {statusText}
                         </span>
                       </div>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                          m.completed || matchedMs.status === 'Completed'
-                            ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
-                            : 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
-                        }`}
-                      >
-                        {m.completed || matchedMs.status === 'Completed' ? 'Completed' : 'In Progress'}
-                      </span>
-                    </div>
 
-                    {/* Git Commit Log Timeline for Admin */}
-                    {msCommits.length > 0 && (
-                      <div className="ml-7 border-l-2 border-slate-200 dark:border-white/10 pl-3 space-y-2 pt-1">
-                        <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                          Technical Commit Progress ({msCommits.length} commits)
-                        </span>
-                        {msCommits.map((cmt) => (
-                          <div key={cmt.id} className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 text-xs space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10">
-                                  #{cmt.commitHash}
-                                </span>
-                                <h6 className="font-bold text-slate-900 dark:text-white">{cmt.commitMessage}</h6>
+                      {/* Git Commit Log Timeline for Admin */}
+                      {msCommits.length > 0 && (
+                        <div className="ml-7 border-l-2 border-slate-200 dark:border-white/10 pl-3 space-y-2 pt-1">
+                          <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            Technical Commit Progress ({msCommits.length} commits)
+                          </span>
+                          {msCommits.map((cmt) => (
+                            <div key={cmt.id} className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 text-xs space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10">
+                                    #{cmt.commitHash}
+                                  </span>
+                                  <h6 className="font-bold text-slate-900 dark:text-white">{cmt.commitMessage}</h6>
+                                </div>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500">{cmt.dateTime}</span>
                               </div>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500">{cmt.dateTime}</span>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-sans leading-relaxed">{cmt.workCompleted}</p>
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 pt-0.5">
+                                <span>
+                                  Submitted by: <strong className="text-slate-700 dark:text-slate-200">{cmt.authorName}</strong>
+                                  {(cmt.role || cmt.authorRole) && <span className="text-purple-600 dark:text-purple-400 font-semibold ml-1">({cmt.role || cmt.authorRole})</span>}
+                                </span>
+                                {(cmt.assignedSkill || cmt.authorSkills) && (
+                                  <span className="bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/40 text-[9px] font-mono">
+                                    {Array.isArray(cmt.assignedSkill || cmt.authorSkills) ? (cmt.assignedSkill || cmt.authorSkills).join(', ') : String(cmt.assignedSkill || cmt.authorSkills)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-sans leading-relaxed">{cmt.workCompleted}</p>
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500 pt-0.5">
-                              Submitted by: <strong className="text-slate-700 dark:text-slate-200">{cmt.authorName}</strong>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
@@ -629,16 +753,19 @@ export const ProjectDetails = () => {
 
               <div className="space-y-3">
                 {pendingSquadMembers.map((member) => {
+                  const resolvedP = getPartnerCompanyName(member, partners, clients);
                   const isPartner =
+                    Boolean(resolvedP) ||
                     member.source === 'Partner Company' ||
                     (member.roleType && member.roleType !== 'Freelancer') ||
                     (member.partnerName && member.partnerName !== 'Independent Freelancer');
                   const partnerLabel =
-                    member.partnerName && member.partnerName !== 'Independent Freelancer'
+                    resolvedP ||
+                    (member.partnerName && member.partnerName !== 'Independent Freelancer' && member.partnerName !== 'Partner Organization'
                       ? member.partnerName
                       : isPartner
                       ? 'Partner Employee'
-                      : 'Independent Freelancer';
+                      : 'Independent Freelancer');
 
                   return (
                     <div
@@ -756,21 +883,23 @@ export const ProjectDetails = () => {
                     : 'No resources assigned yet. HR Manager will stage workforce squad and submit for Admin approval.'}
                 </div>
               ) : (
-                combinedActiveResources.map((member) => {
+                combinedActiveResources.map((rawMember) => {
+                  const member = getEnrichedCandidate(rawMember);
                   const isPartner =
-                    member.source === 'Partner Company' ||
-                    (member.roleType && member.roleType !== 'Freelancer') ||
-                    (member.partnerName && member.partnerName !== 'Independent Freelancer');
+                    Boolean(member.partnerCompanyName) ||
+                    (Boolean(member.partnerName) &&
+                      member.partnerName !== 'Independent Freelancer' &&
+                      member.partnerName !== 'Partner Organization' &&
+                      member.partnerName !== 'FlexiStaff Partner' &&
+                      member.partnerName.toLowerCase() !== String(project.clientCompanyName || '').toLowerCase() &&
+                      member.partnerName.toLowerCase() !== String(project.client || '').toLowerCase());
                   const partnerLabel =
-                    member.partnerName && member.partnerName !== 'Independent Freelancer'
-                      ? member.partnerName
-                      : isPartner
-                      ? 'Partner Employee'
-                      : 'Independent Freelancer';
+                    member.partnerCompanyName ||
+                    (isPartner ? member.partnerName : 'Independent Freelancer');
 
                   return (
                     <div
-                      key={member.id}
+                      key={member.id || member.professionalId || member.allocationId}
                       className="rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36]/70 p-3.5 space-y-2.5"
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -784,10 +913,20 @@ export const ProjectDetails = () => {
                             <h4 className="text-xs font-bold text-[#191b23] dark:text-white">
                               {member.professionalName || member.name}
                             </h4>
-                            <p className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400">{member.role}</p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                              {partnerLabel}
-                            </p>
+                            <p className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400">{member.role || member.roleInProject}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {isPartner ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/40">
+                                  <Building2 size={10} />
+                                  <span>{partnerLabel}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
+                                  <Users size={10} />
+                                  <span>Independent Freelancer</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
@@ -797,8 +936,8 @@ export const ProjectDetails = () => {
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200/60 dark:border-white/5 font-medium">
-                        <span>Rate: <strong>{member.hourlyRate || '$95/hr'}</strong></span>
-                        <span>Workload: <strong>{member.workload || '40h/wk'}</strong></span>
+                        <span>Rate: <strong>{member.hourlyRate || ''}</strong></span>
+                        <span>Workload: <strong>{member.workload || ''}</strong></span>
                       </div>
                     </div>
                   );

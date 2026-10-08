@@ -61,14 +61,16 @@ export const PartnerProjectProgress = () => {
     );
   }
 
-  // Velocity data for charts based on actual or 0
-  const sprintVelocityData = [
-    { sprint: 'Sprint 1', planned: 20, completed: Math.round((selectedProject.progress || 0) * 0.2) },
-    { sprint: 'Sprint 2', planned: 40, completed: Math.round((selectedProject.progress || 0) * 0.4) },
-    { sprint: 'Sprint 3', planned: 60, completed: Math.round((selectedProject.progress || 0) * 0.6) },
-    { sprint: 'Sprint 4', planned: 80, completed: Math.round((selectedProject.progress || 0) * 0.8) },
-    { sprint: 'Sprint 5', planned: 100, completed: selectedProject.progress || 0 },
-  ];
+  // Velocity data for charts based on actual project milestones
+  const sprintVelocityData = (selectedProject.milestones && selectedProject.milestones.length > 0)
+    ? selectedProject.milestones.map((m, idx) => ({
+        sprint: `M${idx + 1}: ${(m.title || `Milestone ${idx + 1}`).substring(0, 16)}`,
+        planned: m.weightage || m.weight || 20,
+        completed: m.completed || m.status === 'Completed' ? (m.weightage || m.weight || 20) : (m.progressPercentage || 0),
+      }))
+    : [
+        { sprint: 'Progress', planned: 100, completed: selectedProject.progress || 0 },
+      ];
 
   return (
     <div className="space-y-6 sm:space-y-8">

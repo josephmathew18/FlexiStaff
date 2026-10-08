@@ -37,7 +37,6 @@ public class MilestoneController {
     }
 
     @PatchMapping("/{milestoneId}/progress")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_PROFESSIONAL')")
     public ResponseEntity<ApiResponse<MilestoneDto>> updateProgress(
             @PathVariable Long milestoneId,
             @Valid @RequestBody UpdateMilestoneProgressRequest request) {

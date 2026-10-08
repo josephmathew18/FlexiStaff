@@ -50,7 +50,6 @@ export default function ClientDashboard() {
     title: "",
     category: "Software Engineering",
     workforceRequired: 2,
-    budget: "$150,000",
     duration: "6 Months",
     requiredSkills: "React.js, Node.js, Cloud",
     description: "",
@@ -58,13 +57,23 @@ export default function ClientDashboard() {
 
   // Filter projects belonging to current client
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || "").toLowerCase();
-    const clientId = clientProfile?.id;
+    let authClientId = clientProfile?.id;
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u && u.id) authClientId = u.id;
+      }
+    } catch {}
+
+    const companyName = (clientProfile?.company || clientProfile?.companyName || '').toLowerCase();
+
     return projects.filter((p) => {
       if (!p) return false;
-      const matchName = companyName && (p.client || "").toLowerCase() === companyName;
-      const matchId = p.clientId === clientId;
-      return matchName || matchId;
+      const matchName = Boolean(companyName && (p.client || p.clientCompanyName || p.clientName || '').toLowerCase() === companyName);
+      const matchProfileId = Boolean(clientProfile?.id && (p.clientId == clientProfile.id || Number(p.clientId) === Number(clientProfile.id)));
+      const matchAuthId = Boolean(authClientId && (p.clientId == authClientId || Number(p.clientId) === Number(authClientId)));
+      return matchName || matchProfileId || matchAuthId;
     });
   }, [projects, clientProfile]);
 
@@ -109,11 +118,16 @@ export default function ClientDashboard() {
     }, 0);
   }, [clientProjects]);
 
+  const avgVelocity = useMemo(() => {
+    if (!clientProjects || clientProjects.length === 0) return '0%';
+    const totalProg = clientProjects.reduce((sum, p) => sum + (Number(p.progress) || 0), 0);
+    return `${Math.round(totalProg / clientProjects.length)}%`;
+  }, [clientProjects]);
+
   const STATS = [
     {
       title: "Active Contractors",
       value: totalContractors.toString(),
-      change: totalContractors > 0 ? "+12%" : undefined,
       icon: Users,
       color: "from-emerald-500 to-teal-600",
       badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -128,8 +142,7 @@ export default function ClientDashboard() {
     },
     {
       title: "Sprint Velocity",
-      value: clientProjects.length > 0 ? "94.8%" : "0%",
-      change: clientProjects.length > 0 ? "+3.2%" : undefined,
+      value: avgVelocity,
       icon: Zap,
       color: "from-amber-500 to-orange-600",
       badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
@@ -161,7 +174,6 @@ export default function ClientDashboard() {
         title: "",
         category: "Software Engineering",
         workforceRequired: 2,
-        budget: "$150,000",
         duration: "6 Months",
         requiredSkills: "React.js, Node.js, Cloud",
         description: "",
@@ -219,7 +231,7 @@ export default function ClientDashboard() {
         <div className="relative z-10 space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold uppercase tracking-wider">
-              {clientProfile?.company || "Client Organization"}
+              {clientProfile?.company || clientProfile?.companyName || clientProfile?.name || ''}
             </span>
             <span className="text-xs text-slate-400 font-medium">• Enterprise Client Portal</span>
           </div>
@@ -359,7 +371,7 @@ export default function ClientDashboard() {
                 </div>
               ) : (
                 filteredProjects.map((project) => {
-                  const progressVal = project.progress || (project.status === "Completed" ? 100 : 45);
+                  const progressVal = project.progress || (project.status === "Completed" ? 100 : 0);
                   const workforceCount =
                     project.workforceAssigned || (project.assignedResources ? project.assignedResources.length : 0) || 4;
 
@@ -507,15 +519,6 @@ export default function ClientDashboard() {
                     max="50"
                     value={requestForm.workforceRequired}
                     onChange={(e) => setRequestForm({ ...requestForm, workforceRequired: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Target Budget</label>
-                  <input
-                    type="text"
-                    value={requestForm.budget}
-                    onChange={(e) => setRequestForm({ ...requestForm, budget: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600"
                   />
                 </div>

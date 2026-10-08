@@ -191,7 +191,7 @@ export const ClientLayout = () => {
             </button>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                {clientProfile?.company || 'Client Organization'}
+                {clientProfile?.company || clientProfile?.companyName || clientProfile?.name || ''}
               </span>
             </div>
           </div>
@@ -285,7 +285,7 @@ export const ClientLayout = () => {
                       <p className="text-xs font-bold text-slate-900 dark:text-white">{clientProfile?.contactPerson || user?.name || 'Client Contact'}</p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clientProfile?.email || user?.email || ''}</p>
                       <span className="mt-1.5 inline-block rounded-md bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-                        {clientProfile?.company || 'Client Organization'}
+                        {clientProfile?.company || clientProfile?.companyName || clientProfile?.name || ''}
                       </span>
                     </div>
 

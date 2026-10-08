@@ -28,12 +28,15 @@ export const ProjectProgress = ({
 }) => {
   if (!project) return null;
 
-  const milestones = project.milestones || [
-    { id: 'm-1', title: 'Architecture Blueprint & Security Audit', completed: true, dueDate: '2026-09-15' },
-    { id: 'm-2', title: 'Core Microservices & API Gateway', completed: true, dueDate: '2026-10-30' },
-    { id: 'm-3', title: 'Client Integration & Testing', completed: false, dueDate: '2026-12-15' },
-    { id: 'm-4', title: 'Production Zero-Downtime Deployment', completed: false, dueDate: '2027-01-31' },
-  ];
+  const milestones = (project.milestones && Array.isArray(project.milestones) && project.milestones.length === 5)
+    ? project.milestones
+    : [
+        { id: 'ms-01', title: 'Requirement Analysis', weight: 10, completed: (project.progress || 0) >= 10, dueDate: 'Sprint 1' },
+        { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, completed: (project.progress || 0) >= 30, dueDate: 'Sprint 2' },
+        { id: 'ms-03', title: 'Backend & Database Development', weight: 25, completed: (project.progress || 0) >= 55, dueDate: 'Sprint 3' },
+        { id: 'ms-04', title: 'Frontend & Integration', weight: 25, completed: (project.progress || 0) >= 80, dueDate: 'Sprint 4' },
+        { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, completed: (project.progress || 0) >= 100, dueDate: 'Sprint 5' },
+      ];
 
   const assignedResources = project.assignedResources || [];
 
@@ -55,7 +58,7 @@ export const ProjectProgress = ({
               {project.name || project.title}
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Client: <strong className="text-slate-800">{project.client || 'Client Organization'}</strong> | Manager: <strong className="text-slate-800">{project.manager || 'Assigned Manager'}</strong>
+              Client: <strong className="text-slate-800">{project.client || (project.clientCompanyName && project.clientName ? `${project.clientCompanyName} (${project.clientName})` : project.clientCompanyName || project.clientName || '')}</strong> | Manager: <strong className="text-slate-800">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin') ? project.managerName : 'HR Manager'}</strong>
             </p>
           </div>
 
@@ -136,7 +139,7 @@ export const ProjectProgress = ({
                         m.completed ? 'text-emerald-700 font-extrabold' : 'text-slate-900'
                       }`}
                     >
-                      {m.title || m.name}
+                      {(m.title || m.name || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
                     </h5>
                     <span className="text-[10px] text-slate-400">Due Date: {m.dueDate || m.date || 'TBD'}</span>
                   </div>

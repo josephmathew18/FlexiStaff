@@ -280,18 +280,45 @@ export const ClientManagement = () => {
     setSelectedClient(null);
   };
 
+  const cleanClients = useMemo(() => {
+    const isDemoRecord = (c) => {
+      if (!c) return true;
+      const e = (c.email || '').toLowerCase();
+      const n = (c.name || c.companyName || '').toLowerCase();
+      const idStr = String(c.id || '');
+      return (
+        e.includes('sarah@acmefinance') ||
+        e.includes('freshclient101@test') ||
+        e.includes('testclient_unique_999@gmail') ||
+        e.includes('newclient99@example') ||
+        e.includes('client_1788807655881@flexistaff') ||
+        e.includes('tedz@flexistaff') ||
+        n.includes('acme financial') ||
+        n.includes('fresh client co') ||
+        n.includes('test corp 999') ||
+        n.includes('test corp') ||
+        n.includes('acme corp') ||
+        n === 'dasf' ||
+        idStr === '102' ||
+        idStr === 'cli-02' ||
+        idStr.startsWith('usr-')
+      );
+    };
+    return (clients || []).filter((c) => !isDemoRecord(c));
+  }, [clients]);
+
   // Extract unique industries for filter
   const industryOptions = useMemo(() => {
-    const unique = Array.from(new Set(clients.map((c) => c.industry).filter(Boolean)));
+    const unique = Array.from(new Set(cleanClients.map((c) => c.industry).filter(Boolean)));
     return [
       { value: 'all', label: 'All Industries' },
       ...unique.map((ind) => ({ value: ind, label: ind })),
     ];
-  }, [clients]);
+  }, [cleanClients]);
 
   // Filtered clients
   const filteredClients = useMemo(() => {
-    return clients.filter((client) => {
+    return cleanClients.filter((client) => {
       const matchesSearch =
         (client.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (client.contactPerson || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -305,7 +332,7 @@ export const ClientManagement = () => {
 
       return matchesSearch && matchesStatus && matchesIndustry;
     });
-  }, [clients, searchQuery, statusFilter, industryFilter]);
+  }, [cleanClients, searchQuery, statusFilter, industryFilter]);
 
   const columns = [
     {

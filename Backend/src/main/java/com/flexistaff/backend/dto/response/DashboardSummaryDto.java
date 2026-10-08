@@ -21,6 +21,11 @@ public class DashboardSummaryDto {
     private long totalUsers;
     private long totalProfessionals;
     private long totalClients;
+    private long freelancerCount;
+
+    public long getTotalFreelancers() {
+        return freelancerCount;
+    }
 
     private BigDecimal totalBudgetOrSpend;
     private Double overallProgressPercentage;

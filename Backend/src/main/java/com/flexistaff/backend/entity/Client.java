@@ -23,6 +23,7 @@ public class Client extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(length = 10)
     private String phone;
 
     @Column(nullable = false)

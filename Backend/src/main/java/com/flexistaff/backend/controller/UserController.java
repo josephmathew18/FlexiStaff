@@ -34,7 +34,7 @@ public class UserController {
     }
 
     @GetMapping("/role/{role}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT')")
     public ResponseEntity<ApiResponse<List<UserDto>>> getUsersByRole(@PathVariable Role role) {
         List<UserDto> users = userService.getUsersByRole(role);
         return ResponseEntity.ok(ApiResponse.success("Users by role retrieved successfully", users));
@@ -46,5 +46,11 @@ public class UserController {
             @Valid @RequestBody UpdateUserProfileRequest request) {
         UserDto updated = userService.updateUserProfile(id, request);
         return ResponseEntity.ok(ApiResponse.success("User profile updated successfully", updated));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User deleted successfully", null));
     }
 }

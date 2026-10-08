@@ -100,8 +100,8 @@ export const ClientWorkforce = () => {
           hourlyRate: a.hourlyRate || '$95/hr',
           weeklyHours: 40,
           status: 'Active',
-          joinedDate: a.assignedDate || '2026-08-15',
-          rating: 4.8,
+          joinedDate: a.assignedDate || new Date().toISOString().split('T')[0],
+          rating: a.rating || 5.0,
           performance: 'Active Assigned Pod Member',
         });
       }

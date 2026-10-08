@@ -61,14 +61,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Check if account has been explicitly deleted
-    const deletedAdminEmails = ['admin@gmail.com', 'admin@flexistaff.ai'];
     try {
       const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
       const deletedList = deletedAccountsStr ? JSON.parse(deletedAccountsStr) : [];
-      if (
-        deletedAdminEmails.includes(trimmedEmail) ||
-        (Array.isArray(deletedList) && deletedList.includes(trimmedEmail))
-      ) {
+      if (Array.isArray(deletedList) && deletedList.filter(e => e !== 'admin@gmail.com').includes(trimmedEmail)) {
         return {
           success: false,
           error: `Account not found: The account "${trimmedEmail}" has been permanently deleted.`,
@@ -127,16 +123,17 @@ export const AuthProvider = ({ children }) => {
           userRole = selectedRole || 'Workforce';
         }
 
+        const partnerCoName = authData.companyName || '';
         const backendUser = {
           id: authData.userId,
-          partnerCompanyId: authData.partnerCompanyId || authData.userId,
+          partnerCompanyId: authData.partnerCompanyId || (userRole === 'Partner Company' ? authData.userId : undefined),
           name: authData.fullName,
           fullName: authData.fullName,
           email: authData.email,
           phone: authData.phone || '',
-          companyName: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
-          company: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
-          partnerCompany: authData.companyName || (userRole === 'Partner Company' ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company') : ''),
+          companyName: partnerCoName,
+          company: partnerCoName,
+          partnerCompany: partnerCoName,
           role: userRole,
           portalPath,
         };
@@ -373,17 +370,14 @@ export const AuthProvider = ({ children }) => {
     const resolvedPartnerCompanyId =
       matchedPartnerOrg?.id ||
       matchedUser?.partnerCompanyId ||
-      matchedUser?.id ||
-      (trimmedEmail.includes('infosys') ? 'prt-infosys' : 'prt-partner');
+      matchedUser?.id;
 
     const companyName =
       partnerCompany ||
       (userRole === 'Partner Company'
-        ? (trimmedEmail.includes('infosys') ? 'Infosys Technologies' : 'Partner Company')
+        ? (matchedPartnerOrg?.companyName || matchedPartnerOrg?.name || '')
         : userRole === 'Client'
-        ? 'Enterprise Client'
-        : userRole === 'Manager'
-        ? 'Enterprise Resource Allocation'
+        ? (matchedClientOrg?.companyName || matchedClientOrg?.name || '')
         : '');
 
     const roleType =

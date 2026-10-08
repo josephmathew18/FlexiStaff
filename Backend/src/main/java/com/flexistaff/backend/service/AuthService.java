@@ -37,6 +37,7 @@ public class AuthService {
     private final ClientProfileRepository clientProfileRepository;
     private final ClientRepository clientRepository;
     private final FreelancerRepository freelancerRepository;
+    private final com.flexistaff.backend.repository.PartnerCompanyRepository partnerCompanyRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final UserService userService;
@@ -57,6 +58,34 @@ public class AuthService {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
+        String companyName = null;
+        Long partnerCompanyId = null;
+
+        if (user.getRole() == Role.ROLE_PARTNER) {
+            var pc = partnerCompanyRepository.findByUserId(user.getId())
+                    .or(() -> partnerCompanyRepository.findByEmailIgnoreCase(user.getEmail()));
+            if (pc.isPresent()) {
+                companyName = pc.get().getCompanyName();
+                partnerCompanyId = pc.get().getId();
+            }
+        } else if (user.getRole() == Role.ROLE_CLIENT) {
+            var cl = clientRepository.findByEmailIgnoreCase(user.getEmail())
+                    .or(() -> clientRepository.findByUserId(user.getId()));
+            if (cl.isPresent()) {
+                companyName = cl.get().getCompanyName();
+            }
+        } else if (user.getRole() == Role.ROLE_PROFESSIONAL) {
+            var fl = freelancerRepository.findByEmailIgnoreCase(user.getEmail())
+                    .or(() -> freelancerRepository.findByUserId(user.getId()));
+            if (fl.isPresent() && fl.get().getPartnerCompanyId() != null) {
+                partnerCompanyId = fl.get().getPartnerCompanyId();
+                var pc = partnerCompanyRepository.findById(partnerCompanyId);
+                if (pc.isPresent()) {
+                    companyName = pc.get().getCompanyName();
+                }
+            }
+        }
+
         return AuthResponse.builder()
                 .accessToken(jwt)
                 .tokenType("Bearer")
@@ -64,6 +93,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .partnerCompanyId(partnerCompanyId)
+                .companyName(companyName)
                 .build();
     }
 
@@ -138,6 +169,24 @@ public class AuthService {
                     .status("Active")
                     .build();
             clientRepository.save(client);
+        } else if (registerRequest.getRole() == Role.ROLE_PARTNER) {
+            String compName = registerRequest.getCompanyName() != null && !registerRequest.getCompanyName().isBlank()
+                    ? registerRequest.getCompanyName()
+                    : "Partner Organization";
+            com.flexistaff.backend.entity.PartnerCompany partnerCompany = com.flexistaff.backend.entity.PartnerCompany.builder()
+                    .user(savedUser)
+                    .companyName(compName)
+                    .name(compName)
+                    .contactPerson(savedUser.getFullName())
+                    .email(savedUser.getEmail())
+                    .phone(savedUser.getPhone())
+                    .location("India")
+                    .industry("IT Staffing & Consulting")
+                    .tier("Strategic Partner")
+                    .status("Active")
+                    .suppliedProfessionals(0)
+                    .build();
+            partnerCompanyRepository.save(partnerCompany);
         }
 
         return userService.mapToUserDto(savedUser);

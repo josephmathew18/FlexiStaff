@@ -36,12 +36,13 @@ async function request(endpoint, options = {}) {
 
     if (!response.ok) {
       const error = (data && data.message) || response.statusText;
+      console.error(`[API Error ${response.status}] ${endpoint}:`, error);
       return { success: false, error, status: response.status };
     }
 
     return data;
   } catch (err) {
-    console.warn(`API request to ${endpoint} failed:`, err.message);
+    console.error(`[API Network Error] ${endpoint} failed:`, err);
     return { success: false, error: err.message || 'Network connection failed' };
   }
 }
@@ -74,6 +75,10 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    delete: (id) =>
+      request(`/users/${id}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Professionals API endpoints
@@ -98,10 +103,15 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(projectData),
       }),
+    reject: (id, reason) =>
+      request(`/projects/${id}/reject?reason=${encodeURIComponent(reason || '')}`, {
+        method: 'PUT',
+      }),
   },
 
   // Workforce API endpoints
   workforce: {
+    getAll: () => request('/workforce'),
     assign: (allocationData) =>
       request('/workforce/assign', {
         method: 'POST',
@@ -130,6 +140,31 @@ export const api = {
       }),
   },
 
+  // Partners API endpoints
+  partners: {
+    getAll: () => request('/partners'),
+    getById: (id) => request(`/partners/${id}`),
+    register: (partnerData) =>
+      request('/partners/register', {
+        method: 'POST',
+        body: JSON.stringify(partnerData),
+      }),
+    create: (partnerData) =>
+      request('/partners', {
+        method: 'POST',
+        body: JSON.stringify(partnerData),
+      }),
+    update: (id, partnerData) =>
+      request(`/partners/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(partnerData),
+      }),
+    delete: (id) =>
+      request(`/partners/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
   // Clients API endpoints
   clients: {
     getAll: () => request('/clients'),
@@ -149,9 +184,15 @@ export const api = {
   freelancers: {
     getAll: () => request('/freelancers'),
     getById: (id) => request(`/freelancers/${id}`),
+    getByPartner: (partnerCompanyId) => request(`/freelancers/partner/${partnerCompanyId}`),
     register: (freelancerData) =>
       request('/freelancers/register', {
         method: 'POST',
+        body: JSON.stringify(freelancerData),
+      }),
+    update: (id, freelancerData) =>
+      request(`/freelancers/${id}`, {
+        method: 'PUT',
         body: JSON.stringify(freelancerData),
       }),
     delete: (id) =>
@@ -166,6 +207,31 @@ export const api = {
     getManager: () => request('/dashboard/manager'),
     getClient: () => request('/dashboard/client'),
     getProfessional: () => request('/dashboard/professional'),
+  },
+
+  // Managers API endpoints
+  managers: {
+    getAll: () => request('/managers'),
+    getById: (id) => request(`/managers/${id}`),
+    create: (managerData) =>
+      request('/managers', {
+        method: 'POST',
+        body: JSON.stringify(managerData),
+      }),
+    update: (id, managerData) =>
+      request(`/managers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(managerData),
+      }),
+    updateStatus: (id, status, reason) =>
+      request(`/managers/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, reason }),
+      }),
+    delete: (id) =>
+      request(`/managers/${id}`, {
+        method: 'DELETE',
+      }),
   },
 };
 

@@ -32,4 +32,8 @@ public class ProfessionalProfile extends BaseEntity {
     private String availabilityStatus; // e.g., "Available", "Allocated", "Partially Available"
 
     private Double rating;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_company_id")
+    private PartnerCompany partnerCompany;
 }

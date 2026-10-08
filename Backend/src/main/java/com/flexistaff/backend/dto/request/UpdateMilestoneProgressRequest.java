@@ -13,4 +13,7 @@ public class UpdateMilestoneProgressRequest {
     private Integer progressPercentage;
 
     private MilestoneStatus status;
+    private String authorRole;
+    private String authorSkills;
+    private String milestoneSkillDomain;
 }

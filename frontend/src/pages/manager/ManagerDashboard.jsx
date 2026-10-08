@@ -123,6 +123,9 @@ export const ManagerDashboard = () => {
     { name: 'Unavailable', value: unavailableWorkforceCount, color: '#ef4444' },
   ];
 
+  const hasProjectsData = projectStatusData.some((d) => d.count > 0);
+  const hasWorkforceData = workforceAvailabilityData.some((d) => d.value > 0);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header Banner */}
@@ -224,24 +227,32 @@ export const ManagerDashboard = () => {
               </Link>
             </div>
 
-            <div className="h-60 w-full my-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={projectStatusData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="status" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderColor: '#cbd5e1',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Bar dataKey="count" name="Projects" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {hasProjectsData ? (
+              <div className="h-60 w-full my-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={projectStatusData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="status" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#cbd5e1',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Bar dataKey="count" name="Projects" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-60 w-full my-3 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+                <FolderCheck size={32} className="text-slate-300 mb-2" />
+                <p className="font-semibold text-slate-600">No project status data</p>
+                <p className="text-[11px] text-slate-400">Pipeline distribution appears when projects are assigned.</p>
+              </div>
+            )}
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
@@ -264,34 +275,42 @@ export const ManagerDashboard = () => {
               </Link>
             </div>
 
-            <div className="h-52 w-full my-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={workforceAvailabilityData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {workforceAvailabilityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val, name) => [`${val} Engineers`, name]}
-                    contentStyle={{
-                      backgroundColor: '#ffffff',
-                      borderColor: '#e2e8f0',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {hasWorkforceData ? (
+              <div className="h-52 w-full my-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={workforceAvailabilityData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {workforceAvailabilityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val, name) => [`${val} Engineers`, name]}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#e2e8f0',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-52 w-full my-2 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+                <Users size={30} className="text-slate-300 mb-2" />
+                <p className="font-semibold text-slate-600">No workforce data in pool</p>
+                <p className="text-[11px] text-slate-400">Availability breakdown appears as talent is registered.</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">

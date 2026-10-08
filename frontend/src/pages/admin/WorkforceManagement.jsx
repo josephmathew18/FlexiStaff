@@ -42,7 +42,7 @@ import {
   Trash2,
   Pencil,
 } from 'lucide-react';
-import { useData } from '../../context/DataContext';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import UserAvatar from '../../components/common/UserAvatar';
 
 // ====================================================================
@@ -50,7 +50,7 @@ import UserAvatar from '../../components/common/UserAvatar';
 // ====================================================================
 const StatusBadge = ({ status = 'Available', size = 'sm', className = '' }) => {
   const normalized = (status || '').toLowerCase();
-  let colorClasses = 'bg-slate-100 text-slate-700 border-slate-200';
+  let colorClasses = 'bg-slate-100 text-[#565e74] border-[#c3c6d7]';
   let dotColor = 'bg-slate-400';
 
   if (['available', 'active', 'approved', 'verified'].includes(normalized)) {
@@ -203,6 +203,7 @@ export const WorkforceManagement = () => {
   const {
     workforce,
     partners,
+    clients,
     approveWorkforceMember,
     rejectWorkforceMember,
     updateWorkforceMember,
@@ -316,11 +317,31 @@ export const WorkforceManagement = () => {
     );
   };
 
-  // Clean workforce roster without partner company organizations
-  const cleanWorkforceRoster = useMemo(
-    () => workforce.filter((w) => !isPartnerCompanyOrg(w)),
-    [workforce]
-  );
+  // Clean workforce roster without partner company organizations and without Admin/Manager/Client users
+  const cleanWorkforceRoster = useMemo(() => {
+    return workforce.filter((w) => {
+      if (!w) return false;
+      if (isPartnerCompanyOrg(w)) return false;
+
+      const roleLower = (w.role || w.title || w.roleType || w.category || '').toLowerCase().trim();
+      const userRoleLower = (w.userRole || w.user_role || '').toLowerCase().trim();
+      const emailLower = (w.email || '').toLowerCase().trim();
+      const nameLower = (w.name || w.pseudonym || '').toLowerCase().trim();
+
+      if (
+        roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
+        userRoleLower === 'admin' || userRoleLower === 'manager' || userRoleLower === 'client' ||
+        roleLower === 'role_admin' || roleLower === 'role_manager' || roleLower === 'role_client' ||
+        roleLower.includes('admin') || roleLower.includes('manager') || roleLower.includes('client') ||
+        emailLower.includes('admin') || emailLower.includes('manager') ||
+        nameLower === 'admin' || nameLower === 'manager' || nameLower === 'client'
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [workforce]);
 
   // Counts for Badges
   const pendingCount = useMemo(
@@ -329,7 +350,9 @@ export const WorkforceManagement = () => {
         (w) =>
           w.approvalStatus === 'Pending Review' ||
           w.approvalStatus === 'Pending' ||
-          w.verificationStatus === 'Pending'
+          w.verificationStatus === 'Pending' ||
+          w.status === 'Pending Review' ||
+          w.status === 'Pending'
       ).length,
     [cleanWorkforceRoster]
   );
@@ -339,7 +362,9 @@ export const WorkforceManagement = () => {
         (w) =>
           (w.approvalStatus === 'Pending Review' ||
             w.approvalStatus === 'Pending' ||
-            w.verificationStatus === 'Pending') &&
+            w.verificationStatus === 'Pending' ||
+            w.status === 'Pending Review' ||
+            w.status === 'Pending') &&
           (w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE')
       ).length,
     [cleanWorkforceRoster]
@@ -350,11 +375,14 @@ export const WorkforceManagement = () => {
         (w) =>
           (w.approvalStatus === 'Pending Review' ||
             w.approvalStatus === 'Pending' ||
-            w.verificationStatus === 'Pending') &&
+            w.verificationStatus === 'Pending' ||
+            w.status === 'Pending Review' ||
+            w.status === 'Pending') &&
           (w.source === 'Freelancer' ||
             w.source === 'Freelancer Registration' ||
             w.professionalType === 'FREELANCER' ||
-            w.roleType === 'Freelancer')
+            w.roleType === 'Freelancer' ||
+            !w.partnerCompanyId)
       ).length,
     [cleanWorkforceRoster]
   );
@@ -364,7 +392,9 @@ export const WorkforceManagement = () => {
         (w) =>
           w.approvalStatus === 'Approved' ||
           w.verificationStatus === 'Approved' ||
-          w.accountStatus === 'Active'
+          w.accountStatus === 'Active' ||
+          w.status === 'Active' ||
+          w.status === 'Approved'
       ).length,
     [cleanWorkforceRoster]
   );
@@ -375,14 +405,19 @@ export const WorkforceManagement = () => {
       const isMemberPending =
         member.approvalStatus === 'Pending Review' ||
         member.approvalStatus === 'Pending' ||
-        member.verificationStatus === 'Pending';
+        member.verificationStatus === 'Pending' ||
+        member.status === 'Pending Review' ||
+        member.status === 'Pending';
       const isMemberApproved =
         member.approvalStatus === 'Approved' ||
         member.verificationStatus === 'Approved' ||
-        member.accountStatus === 'Active';
+        member.accountStatus === 'Active' ||
+        member.status === 'Active' ||
+        member.status === 'Approved';
       const isMemberRejected =
         member.approvalStatus === 'Rejected' ||
-        member.verificationStatus === 'Rejected';
+        member.verificationStatus === 'Rejected' ||
+        member.status === 'Rejected';
 
       // Tab Filtering
       if (activeTab === 'active' && !isMemberApproved) return false;
@@ -394,22 +429,35 @@ export const WorkforceManagement = () => {
           member.roleType === 'Freelancer' ||
           member.source === 'Freelancer' ||
           member.source === 'Freelancer Registration' ||
-          member.professionalType === 'FREELANCER';
+          member.professionalType === 'FREELANCER' ||
+          !member.partnerCompanyId;
         if (roleTypeFilter === 'Freelancer' && !isFreelancer) return false;
         if (roleTypeFilter === 'Professional' && isFreelancer) return false;
       }
 
       // Skill Filtering
-      if (selectedSkill !== 'all' && !member.skills?.includes(selectedSkill)) return false;
+      if (selectedSkill !== 'all') {
+        const skillsArr = Array.isArray(member.skills) ? member.skills : (typeof member.skills === 'string' ? member.skills.split(',').map(s=>s.trim()) : []);
+        if (!skillsArr.includes(selectedSkill)) return false;
+      }
 
       // Search Query Filtering
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = member.name.toLowerCase().includes(q);
-        const matchesTitle = member.title.toLowerCase().includes(q);
-        const matchesPartner = (member.partnerName || '').toLowerCase().includes(q);
-        const matchesSkills = member.skills?.some((s) => s.toLowerCase().includes(q));
-        if (!matchesName && !matchesTitle && !matchesPartner && !matchesSkills) return false;
+        const nameStr = (member.name || member.pseudonym || '').toLowerCase();
+        const titleStr = (member.title || member.role || '').toLowerCase();
+        const partnerStr = (member.partnerName || '').toLowerCase();
+        const emailStr = (member.email || '').toLowerCase();
+        const matchesName = nameStr.includes(q);
+        const matchesTitle = titleStr.includes(q);
+        const matchesPartner = partnerStr.includes(q);
+        const matchesEmail = emailStr.includes(q);
+        const matchesSkills = Array.isArray(member.skills)
+          ? member.skills.some((s) => String(s).toLowerCase().includes(q))
+          : typeof member.skills === 'string'
+          ? member.skills.toLowerCase().includes(q)
+          : false;
+        if (!matchesName && !matchesTitle && !matchesPartner && !matchesEmail && !matchesSkills) return false;
       }
 
       return true;
@@ -499,9 +547,9 @@ export const WorkforceManagement = () => {
               <Sparkles size={16} />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white">{workforce.filter((w) => w.availability === 'Available').length}</span>
-          </div>
+            <span className="text-2xl font-black text-slate-900 dark:text-white">
+              {cleanWorkforceRoster.filter((w) => (w.availability === 'Available' || w.availabilityStatus === 'Available' || w.workingStatus === 'Available') && (w.status === 'Active' || w.status === 'Approved' || w.approvalStatus === 'Approved' || w.accountStatus === 'Active')).length}
+            </span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 shadow-xs">
@@ -512,7 +560,7 @@ export const WorkforceManagement = () => {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white">{workforce.length}</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white">{cleanWorkforceRoster.length}</span>
           </div>
         </div>
       </div>
@@ -559,7 +607,7 @@ export const WorkforceManagement = () => {
           }`}
         >
           <Users size={15} />
-          <span>All Records ({workforce.length})</span>
+          <span>All Records ({cleanWorkforceRoster.length})</span>
         </button>
 
         <button
@@ -866,15 +914,15 @@ export const WorkforceManagement = () => {
                   {/* Top Bar: Source & Approval Status */}
                   <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-white/10">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                      {talent.source === 'Partner Company' ? (
-                        <span className="inline-flex items-center gap-1 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800/40 truncate max-w-[170px]" title={talent.partnerName}>
+                      {Boolean(talent.partnerCompanyId || talent.source === 'Partner Company' || talent.professionalType === 'PARTNER_EMPLOYEE' || getPartnerCompanyName(talent, partners, clients)) ? (
+                        <span className="inline-flex items-center gap-1 text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800/40 truncate max-w-[170px]" title={getPartnerCompanyName(talent, partners, clients) || talent.partnerCompany || 'Partner Company'}>
                           <Handshake size={12} className="shrink-0" />
-                          <span className="truncate">{talent.partnerName}</span>
+                          <span className="truncate">{getPartnerCompanyName(talent, partners, clients) || talent.partnerCompany || 'Partner Company'}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800/40">
                           <Code2 size={12} className="shrink-0" />
-                          <span>Freelancer</span>
+                          <span>Independent Freelancer</span>
                         </span>
                       )}
                     </div>
@@ -899,6 +947,29 @@ export const WorkforceManagement = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Currently Working / Availability Banner */}
+                  {(talent.isCurrentlyWorking || talent.currentProjectName || talent.currentProject) ? (
+                    <div className="mt-3 p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#004ac6] dark:text-blue-400">
+                        <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                        <span>Currently Working</span>
+                      </div>
+                      <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                        {talent.currentProjectName || talent.currentProject}
+                      </div>
+                      {talent.currentProjectClient && (
+                        <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
+                          Client: {talent.currentProjectClient}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 p-2 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span>Available</span>
+                    </div>
+                  )}
 
                   {/* Skills Tags */}
                   <div className="mt-3.5 flex flex-wrap gap-1.5">
@@ -1014,13 +1085,23 @@ export const WorkforceManagement = () => {
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-medium text-slate-800 dark:text-slate-300">
-                          {talent.source === 'Partner Company' ? talent.partnerName : 'Freelancer'}
+                          {getPartnerCompanyName(talent, partners, clients) || talent.partnerCompany || (talent.partnerCompanyId || talent.source === 'Partner Company' || talent.professionalType === 'PARTNER_EMPLOYEE' ? 'Partner Company' : 'Independent Freelancer')}
                         </span>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{talent.hourlyRate}</td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{talent.experience}</td>
                       <td className="py-3 px-4">
                         <StatusBadge status={talent.approvalStatus || talent.status} />
+                        <div className="mt-1">
+                          {(talent.isCurrentlyWorking || talent.currentProjectName || talent.currentProject) ? (
+                            <div className="text-[11px] font-bold text-blue-700 dark:text-blue-400">
+                              Currently Working: {talent.currentProjectName || talent.currentProject}
+                              {talent.currentProjectClient ? ` (${talent.currentProjectClient})` : ''}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium">Available</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-right">
                         {isPending ? (
@@ -1101,7 +1182,7 @@ export const WorkforceManagement = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Recruitment Source</span>
                 <p className="font-bold text-slate-800 mt-0.5">
-                  {selectedTalent.source === 'Partner Company' ? selectedTalent.partnerName : 'Freelancer'}
+                  {getPartnerCompanyName(selectedTalent, partners, clients) || selectedTalent?.partnerCompany || (selectedTalent?.partnerCompanyId || selectedTalent?.source === 'Partner Company' || selectedTalent?.professionalType === 'PARTNER_EMPLOYEE' ? 'Partner Company' : 'Independent Freelancer')}
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -1117,6 +1198,34 @@ export const WorkforceManagement = () => {
                 <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.location}</p>
               </div>
             </div>
+
+            {/* Currently Working Active Assignment Card */}
+            {(selectedTalent.isCurrentlyWorking || selectedTalent.currentProjectName || selectedTalent.currentProject) ? (
+              <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/40 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                  <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                  <span>Currently Working</span>
+                </div>
+                <p className="text-sm font-black text-slate-900 dark:text-white">
+                  {selectedTalent.currentProjectName || selectedTalent.currentProject}
+                </p>
+                {selectedTalent.currentProjectClient && (
+                  <p className="text-xs text-slate-700 dark:text-slate-300 font-bold">
+                    Client: {selectedTalent.currentProjectClient}
+                  </p>
+                )}
+                {selectedTalent.currentProjectRole && (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    Role: {selectedTalent.currentProjectRole}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span>No Active Assignment (Available for projects)</span>
+              </div>
+            )}
 
             <div>
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Technical Competencies</h5>

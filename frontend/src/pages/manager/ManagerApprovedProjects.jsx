@@ -58,9 +58,7 @@ export const ManagerApprovedProjects = () => {
         const isCompleted =
           p.status === 'Completed' ||
           p.stage === 'Completed' ||
-          Number(p.progress) >= 100 ||
-          String(p.id || '').includes('7142') ||
-          String(p.name || p.title || '').toLowerCase().includes('petrol');
+          Number(p.progress) >= 100;
 
         // Approved or in assignment stages (excluding completed projects)
         if (
@@ -178,10 +176,10 @@ export const ManagerApprovedProjects = () => {
                     </p>
                     <p className="text-[11px] text-slate-400">{prj.category}</p>
                   </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-800">{prj.client || prj.partner || 'Client Organization'}</td>
+                  <td className="py-3.5 px-4 font-semibold text-slate-800">{prj.client || (prj.clientCompanyName && prj.clientName ? `${prj.clientCompanyName} (${prj.clientName})` : prj.clientCompanyName || prj.clientName || prj.partner || '')}</td>
                   <td className="py-3.5 px-4">
                     <span className="font-black text-[#004ac6] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 text-xs">
-                      {prj.workforceAssigned || (String(prj.id).includes('7142') ? 5 : 0)} / {prj.workforceRequired || 5}
+                      {prj.workforceAssigned || 0} / {prj.workforceRequired || prj.workforceCount || 0}
                     </span>
                     <span className="text-[11px] text-slate-500 ml-1.5 font-bold">Assigned</span>
                   </td>

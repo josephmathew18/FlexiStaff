@@ -10,6 +10,7 @@ import com.flexistaff.backend.entity.User;
 import com.flexistaff.backend.entity.enums.Role;
 import com.flexistaff.backend.exception.ResourceNotFoundException;
 import com.flexistaff.backend.repository.ClientProfileRepository;
+import com.flexistaff.backend.repository.ClientRepository;
 import com.flexistaff.backend.repository.ProfessionalProfileRepository;
 import com.flexistaff.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final ProfessionalProfileRepository professionalProfileRepository;
     private final ClientProfileRepository clientProfileRepository;
+    private final ClientRepository clientRepository;
 
     @Transactional(readOnly = true)
     public UserDto getUserById(Long id) {
@@ -88,10 +90,32 @@ public class UserService {
             if (request.getLocation() != null) profile.setLocation(request.getLocation());
 
             clientProfileRepository.save(profile);
+
+            clientRepository.findByUserId(userId).ifPresent(c -> {
+                if (request.getCompanyName() != null) c.setCompanyName(request.getCompanyName());
+                if (request.getFullName() != null) c.setName(request.getFullName());
+                if (request.getPhone() != null) c.setPhone(request.getPhone());
+                if (request.getIndustry() != null) c.setIndustry(request.getIndustry());
+                if (request.getTier() != null) c.setTier(request.getTier());
+                if (request.getLocation() != null) c.setLocation(request.getLocation());
+                clientRepository.save(c);
+            });
         }
 
         User updatedUser = userRepository.save(user);
         return mapToUserDto(updatedUser);
+    }
+
+    @Transactional
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        clientRepository.findByUserId(userId).ifPresent(clientRepository::delete);
+        clientProfileRepository.findByUserId(userId).ifPresent(clientProfileRepository::delete);
+        professionalProfileRepository.findByUserId(userId).ifPresent(professionalProfileRepository::delete);
+
+        userRepository.delete(user);
     }
 
     public UserDto mapToUserDto(User user) {

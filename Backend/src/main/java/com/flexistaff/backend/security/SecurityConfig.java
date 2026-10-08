@@ -53,11 +53,7 @@ public class SecurityConfig {
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin) // For H2 console
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/api/v1/auth/**", "/h2-console/**").permitAll()
-                        .requestMatchers("/api/v1/dashboard/admin/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/api/v1/dashboard/manager/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
-                        .requestMatchers("/api/v1/dashboard/client/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_CLIENT")
-                        .requestMatchers("/api/v1/dashboard/professional/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_PROFESSIONAL")
+                        .requestMatchers("/", "/api/v1/auth/**", "/api/v1/dashboard/**", "/api/v1/projects", "/api/v1/projects/**", "/api/v1/milestones", "/api/v1/milestones/**", "/api/v1/freelancers", "/api/v1/freelancers/**", "/api/v1/partners", "/api/v1/partners/**", "/api/v1/clients", "/api/v1/clients/**", "/api/v1/professionals", "/api/v1/professionals/**", "/api/v1/workforce", "/api/v1/workforce/**", "/api/v1/managers", "/api/v1/managers/**", "/api/v1/users", "/api/v1/users/**", "/h2-console/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -47,13 +47,40 @@ const schema = yup.object().shape({
   description: yup.string().required('Project Description is required').min(10, 'Minimum 10 characters'),
   category: yup.string().required('Project Category is required'),
   priority: yup.string().required('Priority level is required'),
-  duration: yup.string().required('Project Duration is required'),
   startDate: yup.string().required('Start Date is required'),
-  endDate: yup.string().nullable().optional(),
+  endDate: yup
+    .string()
+    .required('Target End Date is required')
+    .test('is-after-start', 'Target End Date must be after Start Date', function (value) {
+      const { startDate } = this.parent;
+      if (!startDate || !value) return true;
+      const start = new Date(startDate);
+      const end = new Date(value);
+      return end.getTime() > start.getTime();
+    }),
   minExperience: yup.string().required('Minimum experience requirement is required'),
-  budget: yup.string().required('Estimated budget is required'),
   additionalRequirements: yup.string().optional(),
 });
+
+const calculateInternalDuration = (startStr, endStr) => {
+  if (!startStr || !endStr) return '6 Months';
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '6 Months';
+
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+  if (diffDays <= 0) return '1 Month';
+
+  const months = Math.round(diffDays / 30.4375);
+  if (months < 1) return `${diffDays} Days`;
+  if (months === 1) return '1 Month';
+  if (months < 12) return `${months} Months`;
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  if (remMonths === 0) return years === 1 ? '1 Year' : `${years} Years`;
+  return `${years} Yr ${remMonths} Mo`;
+};
 
 export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
   const [selectedSkills, setSelectedSkills] = useState(
@@ -78,6 +105,8 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
@@ -86,11 +115,9 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
       description: initialValues.description || '',
       category: initialValues.category || 'Enterprise Software Engineering',
       priority: initialValues.priority || 'High',
-      duration: initialValues.duration || '6 Months',
       startDate: initialValues.startDate || '',
       endDate: initialValues.endDate || '',
       minExperience: initialValues.minExperience || '3-5 Years',
-      budget: initialValues.budget || '$50,000 - $100,000',
       additionalRequirements: initialValues.additionalRequirements || '',
     },
   });
@@ -157,8 +184,13 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
       },
     ];
 
+    const calculatedDuration = calculateInternalDuration(data.startDate, data.endDate);
+
     const payload = {
       ...data,
+      duration: calculatedDuration,
+      deadline: data.endDate,
+      expectedEndDate: data.endDate,
       requiredSkills: selectedSkills.join(', '),
       skills: selectedSkills.join(', '),
       techStack: selectedSkills.join(', '),
@@ -305,30 +337,19 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
         </div>
       </div>
 
-      {/* 3. Schedule, Budget & Experience Requirements */}
+      {/* 3. Schedule & Experience Requirements */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
           <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#004ac6] flex items-center justify-center font-bold text-sm">
             3
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Duration, Budget & Experience</h3>
-            <p className="text-[11px] text-slate-500">Specify expected timeline, budget range, and seniority requirements</p>
+            <h3 className="text-sm font-bold text-slate-900">Schedule & Experience Requirements</h3>
+            <p className="text-[11px] text-slate-500">Select expected project start date, target end date, and seniority requirements</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Project Duration *</label>
-            <input
-              type="text"
-              {...register('duration')}
-              placeholder="e.g. 6 Months"
-              className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
-            />
-            {errors.duration && <p className="text-rose-600 text-[10px] mt-1">{errors.duration.message}</p>}
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Min Experience *</label>
             <select
@@ -343,33 +364,27 @@ export const ProjectRequestForm = ({ onSubmitSuccess, initialValues = {} }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Estimated Budget *</label>
-            <input
-              type="text"
-              {...register('budget')}
-              placeholder="e.g. $50,000 - $100,000"
-              className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
-            />
-            {errors.budget && <p className="text-rose-600 text-[10px] mt-1">{errors.budget.message}</p>}
-          </div>
-
-          <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Start Date *</label>
             <input
               type="date"
               {...register('startDate')}
-              className="w-full rounded-xl border border-slate-300 p-2 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+              className={`w-full rounded-xl border p-2 text-xs text-slate-900 outline-none transition-all ${
+                errors.startDate ? 'border-rose-400 bg-rose-50/20' : 'border-slate-300 focus:border-[#004ac6]'
+              }`}
             />
             {errors.startDate && <p className="text-rose-600 text-[10px] mt-1">{errors.startDate.message}</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Target End Date (Optional)</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Target End Date *</label>
             <input
               type="date"
               {...register('endDate')}
-              className="w-full rounded-xl border border-slate-300 p-2 text-xs text-slate-900 outline-none focus:border-[#004ac6]"
+              className={`w-full rounded-xl border p-2 text-xs text-slate-900 outline-none transition-all ${
+                errors.endDate ? 'border-rose-400 bg-rose-50/20' : 'border-slate-300 focus:border-[#004ac6]'
+              }`}
             />
+            {errors.endDate && <p className="text-rose-600 text-[10px] mt-1">{errors.endDate.message}</p>}
           </div>
         </div>
 

@@ -5,15 +5,20 @@ import com.flexistaff.backend.dto.response.ProjectDto;
 import com.flexistaff.backend.dto.response.WorkforceAllocationDto;
 import com.flexistaff.backend.entity.enums.ProjectStatus;
 import com.flexistaff.backend.entity.enums.Role;
+import com.flexistaff.backend.repository.FreelancerRepository;
 import com.flexistaff.backend.repository.ProjectRepository;
 import com.flexistaff.backend.repository.UserRepository;
 import com.flexistaff.backend.repository.WorkforceAllocationRepository;
+import com.flexistaff.backend.entity.Freelancer;
+import com.flexistaff.backend.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +26,7 @@ public class DashboardService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final FreelancerRepository freelancerRepository;
     private final WorkforceAllocationRepository allocationRepository;
     private final ProjectService projectService;
     private final WorkforceService workforceService;
@@ -31,8 +37,9 @@ public class DashboardService {
         long activeProjects = projectRepository.countByStatus(ProjectStatus.IN_PROGRESS);
         long completedProjects = projectRepository.countByStatus(ProjectStatus.COMPLETED);
         long totalUsers = userRepository.count();
-        long totalProfessionals = userRepository.findByRole(Role.ROLE_PROFESSIONAL).size();
-        long totalClients = userRepository.findByRole(Role.ROLE_CLIENT).size();
+        long totalProfessionals = calculateFreelancerCount();
+        long totalClients = userRepository.findByRoleAndActive(Role.ROLE_CLIENT, true).size();
+        long freelancerCount = calculateFreelancerCount();
 
         List<ProjectDto> recentProjects = projectService.getAllProjects().stream()
                 .limit(5)
@@ -46,8 +53,43 @@ public class DashboardService {
                 .totalUsers(totalUsers)
                 .totalProfessionals(totalProfessionals)
                 .totalClients(totalClients)
+                .freelancerCount(freelancerCount)
                 .recentProjects(recentProjects)
                 .build();
+    }
+
+    private long calculateFreelancerCount() {
+        Set<Long> distinctUserIds = new HashSet<>();
+
+        // 1. Count active users with ROLE_PROFESSIONAL from users table
+        List<User> proUsers = userRepository.findByRoleAndActive(Role.ROLE_PROFESSIONAL, true);
+        for (User u : proUsers) {
+            if (u != null && u.getId() != null) {
+                distinctUserIds.add(u.getId());
+            }
+        }
+
+        // 2. Cross-reference freelancers table to include all active entries
+        List<Freelancer> freelancerEntities = freelancerRepository.findAll();
+        for (Freelancer f : freelancerEntities) {
+            if (f != null && (f.getStatus() == null || !"Inactive".equalsIgnoreCase(f.getStatus()))) {
+                User u = f.getUser();
+                if (u != null && u.getId() != null) {
+                    distinctUserIds.add(u.getId());
+                } else if (f.getEmail() != null && !f.getEmail().isBlank()) {
+                    User dbUser = userRepository.findByEmailIgnoreCase(f.getEmail().trim()).orElse(null);
+                    if (dbUser != null && dbUser.getId() != null) {
+                        distinctUserIds.add(dbUser.getId());
+                    } else if (f.getId() != null) {
+                        distinctUserIds.add(f.getId());
+                    }
+                } else if (f.getId() != null) {
+                    distinctUserIds.add(f.getId());
+                }
+            }
+        }
+
+        return distinctUserIds.size();
     }
 
     @Transactional(readOnly = true)

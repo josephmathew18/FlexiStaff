@@ -31,6 +31,23 @@ export const ManagerWorkforce = () => {
 
   const filteredWorkforce = useMemo(() => {
     return (workforce || []).filter((emp) => {
+      if (!emp) return false;
+      const roleLower = (emp.role || emp.title || emp.category || '').toLowerCase().trim();
+      const userRoleLower = (emp.userRole || emp.user_role || '').toLowerCase().trim();
+      const emailLower = (emp.email || '').toLowerCase().trim();
+      const nameLower = (emp.name || emp.pseudonym || '').toLowerCase().trim();
+
+      if (
+        roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
+        userRoleLower === 'admin' || userRoleLower === 'manager' || userRoleLower === 'client' ||
+        roleLower === 'role_admin' || roleLower === 'role_manager' || roleLower === 'role_client' ||
+        roleLower.includes('admin') || roleLower.includes('manager') || roleLower.includes('client') ||
+        emailLower.includes('admin') || emailLower.includes('manager') ||
+        nameLower === 'admin' || nameLower === 'manager' || nameLower === 'client'
+      ) {
+        return false;
+      }
+
       if (roleFilter !== 'all' && !emp.role?.toLowerCase().includes(roleFilter.toLowerCase())) return false;
       if (availabilityFilter !== 'all' && emp.availability?.toLowerCase() !== availabilityFilter.toLowerCase()) return false;
       if (searchQuery.trim()) {

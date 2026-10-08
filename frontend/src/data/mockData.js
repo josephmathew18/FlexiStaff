@@ -13,7 +13,7 @@ export const initialCompanyProfile = {
   employeeCount: '500+ Professionals',
   status: 'Active',
   email: 'contact@flexistaff.ai',
-  phone: '+1 (800) 555-0199',
+  phone: '899 555-0199',
   website: 'https://flexistaff.ai',
   headquarters: {
     address: '100 Enterprise Way, Suite 500',

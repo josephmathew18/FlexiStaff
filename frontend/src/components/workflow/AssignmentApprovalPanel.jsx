@@ -19,6 +19,7 @@ import RejectionReasonModal from './RejectionReasonModal';
 import ConfirmationModal from './ConfirmationModal';
 import UserAvatar from '../common/UserAvatar';
 import { toast } from 'react-toastify';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 
 export const AssignmentApprovalPanel = ({
   assignment,
@@ -27,10 +28,14 @@ export const AssignmentApprovalPanel = ({
   onReject,
   className = '',
 }) => {
+  const { partners = [], clients = [] } = useData() || {};
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
 
   if (!assignment) return null;
+
+  const resolvedPartnerName = getPartnerCompanyName(assignment, partners, clients);
+  const partnerDisplay = resolvedPartnerName || assignment.partnerName || assignment.partnerCompany;
 
   const isPending =
     assignment.status === 'Pending Admin Approval' ||
@@ -39,7 +44,7 @@ export const AssignmentApprovalPanel = ({
   const isProf =
     assignment.roleType === 'Professional' ||
     assignment.source === 'Partner Company' ||
-    Boolean(assignment.partnerName && !assignment.partnerName.toLowerCase().includes('freelancer'));
+    Boolean(partnerDisplay && !partnerDisplay.toLowerCase().includes('freelancer'));
 
   const handleApproveConfirm = () => {
     if (onApprove) {
@@ -107,7 +112,7 @@ export const AssignmentApprovalPanel = ({
                     {isProf ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-100">
                         <Building2 size={10} />
-                        <span>Partner: {assignment.partnerName || 'Partner Organization'}</span>
+                        <span>Partner: {partnerDisplay || 'Partner Organization'}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold border border-purple-100">

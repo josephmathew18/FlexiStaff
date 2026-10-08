@@ -43,58 +43,35 @@ export const ManagerProjectDetails = () => {
     });
 
     if (matched) return matched;
-
-    return (
-      all[0] || {
-        id: id || 7142,
-        name: 'Enterprise Software Project',
-        client: 'Client Organization',
-        partner: 'Partner Organization',
-        category: 'Enterprise Software Engineering',
-        techStack: 'React.js, Node.js, Python',
-        priority: 'High',
-        description: 'Enterprise staffing requirement.',
-        workforceRequired: 5,
-        workforceAssigned: 0,
-        startDate: new Date().toISOString().split('T')[0],
-        expectedEndDate: '2027-01-31',
-        duration: '6 Months',
-        workType: 'Remote',
-        location: 'Bengaluru, India',
-        status: 'Approved',
-        requirements: [
-          { role: 'Enterprise Software Specialist', required: 5, assigned: 0, skills: 'React.js, Node.js, Cloud' }
-        ],
-      }
-    );
+    return all[0] || null;
   }, [id, projects, partnerProjects]);
 
-  const activeProject = project || {
-    id: id || 7142,
-    name: 'Enterprise Software Project',
-    client: 'Client Organization',
-    partner: 'Partner Organization',
-    category: 'Enterprise Software Engineering',
-    techStack: 'React.js, Node.js, Python',
-    priority: 'High',
-    description: 'Enterprise staffing requirement.',
-    workforceRequired: 5,
-    workforceAssigned: 0,
-    startDate: new Date().toISOString().split('T')[0],
-    expectedEndDate: '2027-01-31',
-    duration: '6 Months',
-    workType: 'Remote',
-    location: 'Bengaluru, India',
-    status: 'Approved',
-  };
+  const activeProject = project;
 
-  const isPetrol = String(activeProject.id || '').includes('7142') || String(activeProject.name || activeProject.title || '').toLowerCase().includes('petrol');
+  if (!activeProject) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center space-y-4 max-w-xl mx-auto my-8 shadow-xs">
+          <FolderKanban size={40} className="mx-auto text-slate-300" />
+          <h2 className="text-xl font-bold text-slate-800">Project Not Found</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            The requested project details could not be found or has not been assigned yet.
+          </p>
+          <button
+            onClick={() => navigate('/manager/projects')}
+            className="rounded-xl bg-[#004ac6] px-4 py-2 text-xs font-bold text-white hover:bg-[#003da6] transition-all"
+          >
+            Back to Projects
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const isCompletedProject =
     activeProject.status === 'Completed' ||
     activeProject.stage === 'Completed' ||
-    Number(activeProject.progress) >= 100 ||
-    isPetrol;
+    Number(activeProject.progress) >= 100;
 
   const requirementsList = useMemo(() => {
     const raw = activeProject.requirements && activeProject.requirements.length > 0 ? activeProject.requirements : [
@@ -224,8 +201,8 @@ export const ManagerProjectDetails = () => {
         {/* Project Meta Details (Section 5) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-6 text-xs">
           <div>
-            <span className="text-slate-400 font-medium">Partner Company</span>
-            <p className="font-bold text-slate-900 mt-0.5">{activeProject.client || activeProject.partner || 'Client Organization'}</p>
+            <span className="text-slate-400 font-medium">Client Organization</span>
+            <p className="font-bold text-slate-900 mt-0.5">{activeProject.client || activeProject.partner || ''}</p>
           </div>
           <div>
             <span className="text-slate-400 font-medium">Category</span>
@@ -330,44 +307,17 @@ export const ManagerProjectDetails = () => {
 
           <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-blue-50 border border-blue-100">
             <span className="text-xs font-bold text-slate-500">Overall Progress:</span>
-            <span className="text-sm font-black text-blue-700">{project.progress || 65}%</span>
+            <span className="text-sm font-black text-blue-700">{project.progress || 0}%</span>
           </div>
         </div>
 
         <div className="space-y-4">
           {((projectMilestones && projectMilestones[project?.id || 'PRJ-2026-001']) || [
-            {
-              id: 'ms-01',
-              title: 'Core OAuth2 & RBAC Auth Engine',
-              status: 'Completed',
-              dueDate: '2026-09-15',
-              commits: [
-                {
-                  id: 'cmt-101',
-                  commitHash: 'a7f3d91',
-                  commitMessage: 'feat(auth): Implement JWT token rotation & session refresh handler',
-                  workCompleted: 'Configured secure HttpOnly cookies, added middleware route protection, and wrote unit tests for auth flow.',
-                  authorName: 'Workforce Specialist',
-                  dateTime: '2026-08-28 02:45 PM',
-                },
-              ],
-            },
-            {
-              id: 'ms-02',
-              title: 'Real-time Analytics & Dashboard Metrics',
-              status: 'In Progress',
-              dueDate: '2026-10-01',
-              commits: [
-                {
-                  id: 'cmt-201',
-                  commitHash: 'c4d9e20',
-                  commitMessage: 'feat(analytics): Wire WebSocket live metrics feed to dashboard UI',
-                  workCompleted: 'Integrated Socket.io client listener with automatic reconnection and live chart state updates.',
-                  authorName: 'Workforce Specialist',
-                  dateTime: '2026-08-28 04:10 PM',
-                },
-              ],
-            },
+            { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: 'Sprint 1', weight: 10, commits: [] },
+            { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: 'Sprint 2', weight: 20, commits: [] },
+            { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: 'Sprint 3', weight: 25, commits: [] },
+            { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: 'Sprint 4', weight: 25, commits: [] },
+            { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: 'Sprint 5', weight: 20, commits: [] },
           ]).map((ms) => {
             const isCompleted = ms.status === 'Completed';
             const msCommits = ms.commits || [];

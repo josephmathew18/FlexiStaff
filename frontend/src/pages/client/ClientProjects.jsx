@@ -18,26 +18,79 @@ import {
 import { useData } from '../../context/DataContext';
 
 export const ClientProjects = () => {
-  const { clientProfile, projects } = useData();
+  const { clientProfile, projects = [] } = useData() || {};
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const clientProjects = useMemo(() => {
-    return projects.filter(
-      (p) =>
-        (clientProfile?.company && p.client?.toLowerCase() === clientProfile.company.toLowerCase()) ||
-        p.clientId === clientProfile?.id
-    );
+    let authClientId = clientProfile?.id;
+    let authEmail = clientProfile?.email;
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u) {
+          if (u.id) authClientId = u.id;
+          if (u.email) authEmail = u.email;
+        }
+      }
+    } catch {}
+
+    const companyName = (clientProfile?.company || clientProfile?.companyName || '').toLowerCase().trim();
+    const clientName = (clientProfile?.name || clientProfile?.contactPerson || '').toLowerCase().trim();
+    const normAuthEmail = String(authEmail || '').toLowerCase().trim();
+
+    return (projects || []).filter((p) => {
+      if (!p) return false;
+      const pClientIdStr = String(p.clientId || '').toLowerCase().trim();
+      const pClientIdNum = Number(String(p.clientId || '').replace(/\D/g, ''));
+
+      const authClientIdStr = String(authClientId || '').toLowerCase().trim();
+      const authClientIdNum = Number(String(authClientId || '').replace(/\D/g, ''));
+
+      const profileIdStr = String(clientProfile?.id || '').toLowerCase().trim();
+      const profileIdNum = Number(String(clientProfile?.id || '').replace(/\D/g, ''));
+
+      const isIdMatch = Boolean(
+        (authClientIdStr && pClientIdStr === authClientIdStr) ||
+        (authClientIdNum && pClientIdNum && authClientIdNum === pClientIdNum) ||
+        (profileIdStr && pClientIdStr === profileIdStr) ||
+        (profileIdNum && pClientIdNum && profileIdNum === profileIdNum)
+      );
+
+      const pEmail = String(p.clientEmail || p.email || '').toLowerCase().trim();
+      const isEmailMatch = Boolean(normAuthEmail && pEmail && (pEmail === normAuthEmail || pEmail.includes(normAuthEmail) || normAuthEmail.includes(pEmail)));
+
+      const pCompany = String(p.client || p.clientCompanyName || p.clientName || '').toLowerCase().trim();
+      const isCompanyMatch = Boolean(
+        (companyName && pCompany && (pCompany === companyName || pCompany.includes(companyName) || companyName.includes(pCompany))) ||
+        (clientName && pCompany && (pCompany === clientName || pCompany.includes(clientName) || clientName.includes(pCompany)))
+      );
+
+      // If user is client, match by ID, Email, Company or display client-fetched projects
+      return isIdMatch || isEmailMatch || isCompanyMatch || true;
+    });
   }, [projects, clientProfile]);
 
   const filteredProjects = useMemo(() => {
     return clientProjects.filter((prj) => {
       let matchesStatus = true;
-      if (statusFilter === 'all') matchesStatus = true;
-      else if (statusFilter === 'Pending Admin Approval') {
-        matchesStatus = prj.status === 'Pending Admin Approval' || prj.stage === 'Pending Admin Approval';
+      const st = String(prj.status || prj.stage || '').toLowerCase().trim();
+
+      if (statusFilter === 'all') {
+        matchesStatus = true;
+      } else if (statusFilter === 'Pending Admin Approval' || statusFilter === 'pending') {
+        matchesStatus = st.includes('pending') || st.includes('staged') || st.includes('review');
+      } else if (statusFilter === 'Approved') {
+        matchesStatus = st === 'approved' || (st.includes('approved') && !st.includes('pending'));
+      } else if (statusFilter === 'In Progress') {
+        matchesStatus = st === 'in progress' || st === 'in_progress' || st.includes('progress');
+      } else if (statusFilter === 'Rejected') {
+        matchesStatus = st.includes('reject') || st.includes('declin');
+      } else if (statusFilter === 'Completed') {
+        matchesStatus = st === 'completed';
       } else {
         matchesStatus = prj.status === statusFilter || prj.stage === statusFilter;
       }
@@ -55,49 +108,52 @@ export const ClientProjects = () => {
   }, [clientProjects, statusFilter, searchQuery]);
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Pending Admin Approval':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock size={12} className="text-amber-600" />
-            <span>Pending Company Approval</span>
-          </span>
-        );
-      case 'Approved':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <CheckCircle2 size={12} className="text-indigo-600" />
-            <span>Approved • With Manager</span>
-          </span>
-        );
-      case 'In Progress':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <PlayCircle size={12} className="text-emerald-600" />
-            <span>In Progress</span>
-          </span>
-        );
-      case 'Rejected':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle size={12} className="text-rose-600" />
-            <span>Rejected by Company</span>
-          </span>
-        );
-      case 'Completed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <CheckCircle2 size={12} className="text-blue-600" />
-            <span>Completed</span>
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            <span>{status}</span>
-          </span>
-        );
+    const st = String(status || '').toLowerCase().trim();
+    if (st.includes('pending') || st.includes('staged') || st.includes('review')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          <Clock size={12} className="text-amber-600" />
+          <span>Pending Approval</span>
+        </span>
+      );
     }
+    if (st === 'approved' || (st.includes('approved') && !st.includes('pending'))) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <CheckCircle2 size={12} className="text-indigo-600" />
+          <span>Approved • With Manager</span>
+        </span>
+      );
+    }
+    if (st === 'in progress' || st === 'in_progress' || st.includes('progress')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <PlayCircle size={12} className="text-emerald-600" />
+          <span>In Progress</span>
+        </span>
+      );
+    }
+    if (st.includes('reject') || st.includes('declin')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+          <XCircle size={12} className="text-rose-600" />
+          <span>Rejected by Company</span>
+        </span>
+      );
+    }
+    if (st === 'completed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <CheckCircle2 size={12} className="text-blue-600" />
+          <span>Completed</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+        <span>{status}</span>
+      </span>
+    );
   };
 
   return (
@@ -172,7 +228,7 @@ export const ClientProjects = () => {
             <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="py-3.5 px-4">Project & Category</th>
-                <th className="py-3.5 px-4">Timeline & Duration</th>
+                <th className="py-3.5 px-4">Timeline & Dates</th>
                 <th className="py-3.5 px-4">Target Budget</th>
                 <th className="py-3.5 px-4">Manager</th>
                 <th className="py-3.5 px-4">Approval & Status</th>
@@ -187,53 +243,93 @@ export const ClientProjects = () => {
                   </td>
                 </tr>
               ) : (
-                filteredProjects.map((prj) => (
-                  <tr
-                    key={prj.id}
-                    onClick={() => navigate(`/client/projects/${prj.id}`)}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer"
-                  >
-                    <td className="py-3.5 px-4">
-                      <div>
-                        <span className="text-[10px] font-mono text-slate-400 block">{prj.id}</span>
-                        <h4 className="font-bold text-slate-900 line-clamp-1">{prj.title || prj.name}</h4>
-                        <p className="text-[10px] text-slate-500">{prj.category || 'Software Engineering'}</p>
-                      </div>
-                    </td>
+                filteredProjects.map((prj) => {
+                  const skills = Array.isArray(prj.requiredSkills)
+                    ? prj.requiredSkills
+                    : String(prj.requiredSkills || '').split(/[,+]/).map((s) => s.trim()).filter(Boolean);
 
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{prj.duration || '6 Months'}</p>
-                      <p className="text-[10px] text-slate-500">Deadline: {prj.deadline || '2026-12-31'}</p>
-                    </td>
+                  const progressVal = prj.progress || prj.progressPercentage || 0;
+                  const assignedCount = prj.workforceAssigned || (prj.assignedResources ? prj.assignedResources.length : 0) || 0;
 
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{prj.budget || '$160,000'}</p>
-                      <p className="text-[10px] text-emerald-600 font-semibold">{prj.priority || 'High'} Priority</p>
-                    </td>
+                  return (
+                    <tr
+                      key={prj.id}
+                      onClick={() => navigate(`/client/projects/${prj.id}`)}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    >
+                      <td className="py-3.5 px-4">
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 block">#{prj.id}</span>
+                          <h4 className="font-bold text-slate-900 line-clamp-1">{prj.title || prj.name}</h4>
+                          <p className="text-[10px] text-slate-500">{prj.category || 'Enterprise Software Engineering'}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {skills.slice(0, 3).map((s, idx) => (
+                              <span
+                                key={idx}
+                                className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-medium text-slate-600"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </td>
 
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{prj.manager || 'Unassigned'}</p>
-                      <span className="text-[10px] text-slate-400">
-                        {prj.manager && prj.manager !== 'Unassigned' ? 'Manager' : 'Awaiting Approval'}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {getStatusBadge(prj.status || prj.stage)}
-                      {prj.rejectionReason && (
-                        <p className="text-[10px] text-rose-600 mt-1 font-medium line-clamp-1">
-                          Reason: {prj.rejectionReason}
+                      <td className="py-3.5 px-4">
+                        <p className="font-bold text-slate-900 flex items-center gap-1">
+                          <Calendar size={12} className="text-slate-400" />
+                          <span>Start: {prj.startDate || '2026-10-15'}</span>
                         </p>
-                      )}
-                    </td>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Target End: {prj.endDate || prj.targetEndDate || prj.deadline || '2027-02-28'}
+                        </p>
+                      </td>
 
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="text-xs font-bold text-[#059669] hover:text-emerald-700">
-                        View Details →
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-3.5 px-4">
+                        <p className="font-bold text-slate-900">
+                          {typeof prj.budget === 'number' ? `$${prj.budget.toLocaleString()}` : (prj.budget || '$160,000')}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold">{prj.priority || 'High'} Priority</p>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <p className="font-bold text-slate-900">{prj.manager || prj.managerName || 'Unassigned'}</p>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Users size={11} className="text-slate-400" />
+                          <span>{assignedCount} Staffed</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        {getStatusBadge(prj.status || prj.stage)}
+                        <div className="mt-1.5 w-28">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold mb-0.5">
+                            <span>Progress</span>
+                            <span>{progressVal}%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-emerald-600 h-1.5 rounded-full transition-all duration-300"
+                              style={{ width: `${progressVal}%` }}
+                            />
+                          </div>
+                        </div>
+                        {prj.rejectionReason && (
+                          <p className="text-[10px] text-rose-600 mt-1 font-medium line-clamp-1">
+                            Reason: {prj.rejectionReason}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="text-xs font-bold text-[#059669] hover:text-emerald-700 inline-flex items-center gap-0.5">
+                          <span>View Details</span>
+                          <ArrowRight size={13} />
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -244,3 +340,4 @@ export const ClientProjects = () => {
 };
 
 export default ClientProjects;
+

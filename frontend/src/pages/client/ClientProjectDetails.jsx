@@ -38,7 +38,7 @@ export const ClientProjectDetails = () => {
     const isNumMatch = Boolean(targetNumId && pNumId && targetNumId === pNumId);
 
     return isDirectMatch || isNumMatch;
-  }) || (projects || [])[0];
+  });
 
   if (!project) {
     return (

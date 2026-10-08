@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FolderKanban,
@@ -161,7 +161,11 @@ const DataTable = ({ columns = [], data = [], keyField = 'id', onRowClick }) => 
 };
 
 const ProjectCard = ({ project, onClick }) => {
-  const { id, title, client, stage, status, priority, budget, progress = 0, deadline, requiredSkills = [] } = project;
+  const { id, title, client, clientCompanyName, clientName, stage, status, priority, budget, progress = 0, deadline, requiredSkills = [] } = project;
+  const displayClient = (clientCompanyName && clientName && clientCompanyName !== clientName)
+    ? `${clientCompanyName} (${clientName})`
+    : (clientCompanyName || clientName || client);
+
   const numProg = Number(progress) || 0;
   let displayStage = stage || status || 'In Progress';
   if (numProg > 0 && numProg < 100 && (displayStage === 'Completed' || status === 'Completed')) {
@@ -183,7 +187,7 @@ const ProjectCard = ({ project, onClick }) => {
           </div>
         </div>
         <h4 className="text-sm font-bold text-[#191b23] dark:text-white group-hover:text-[#004ac6] dark:group-hover:text-blue-400 transition-colors line-clamp-1">{title}</h4>
-        <p className="text-xs text-[#565e74] dark:text-slate-400 mt-0.5">Client: <strong className="text-[#191b23] dark:text-white">{client}</strong></p>
+        <p className="text-xs text-[#565e74] dark:text-slate-400 mt-0.5">Client: <strong className="text-[#191b23] dark:text-white">{displayClient}</strong></p>
 
         <div className="mt-4">
           <div className="flex items-center justify-between text-[11px] font-semibold text-[#737686] dark:text-slate-400 mb-1">
@@ -306,6 +310,12 @@ export const ProjectManagement = () => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [assignedManagerSelect, setAssignedManagerSelect] = useState(managers[0]?.name || '');
   const [rejectionReason, setRejectionReason] = useState('');
+
+  useEffect(() => {
+    if (!assignedManagerSelect && managers.length > 0) {
+      setAssignedManagerSelect(managers[0].name);
+    }
+  }, [managers, assignedManagerSelect]);
 
   const {
     register,

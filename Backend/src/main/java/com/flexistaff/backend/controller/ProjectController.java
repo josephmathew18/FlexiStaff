@@ -54,11 +54,20 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT')")
     public ResponseEntity<ApiResponse<ProjectDto>> updateProject(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProjectRequest request) {
         ProjectDto updated = projectService.updateProject(id, request);
         return ResponseEntity.ok(ApiResponse.success("Project updated successfully", updated));
+    }
+
+    @PutMapping("/{id}/reject")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT')")
+    public ResponseEntity<ApiResponse<ProjectDto>> rejectProject(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        ProjectDto rejected = projectService.rejectProject(id, reason);
+        return ResponseEntity.ok(ApiResponse.success("Project rejected successfully", rejected));
     }
 }

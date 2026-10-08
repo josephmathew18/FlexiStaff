@@ -102,24 +102,30 @@ export const PartnerProfile = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleCompanySubmit = (e) => {
+  const handleCompanySubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
+    try {
       const specialtiesArray = typeof formData.specialties === 'string'
         ? formData.specialties.split(',').map((s) => s.trim()).filter(Boolean)
         : formData.specialties;
 
-      updatePartnerProfile({
+      await updatePartnerProfile({
         ...formData,
+        name: formData.name,
+        companyName: formData.name,
         domain: formData.specialties,
         specialties: specialtiesArray,
         avatar: formData.logoUrl,
         notifications,
       });
-      setIsSaving(false);
       toast.success('Profile updated successfully!');
-    }, 400);
+    } catch (err) {
+      console.warn('Profile update error:', err);
+      toast.error('Failed to update profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePasswordSubmit = (e) => {

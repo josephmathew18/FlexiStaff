@@ -24,7 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useData } from '../../context/DataContext';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import {
   WorkforceCounter,
   WorkforceSelectionPanel,
@@ -46,6 +46,8 @@ export const ManagerMatching = () => {
     partnerProjects = [],
     workforce = [],
     partnerWorkforce = [],
+    partners = [],
+    clients = [],
     managerAssignments = [],
     partnerWorkforceRequests = [],
     freelancerRequests = [],
@@ -67,9 +69,7 @@ export const ManagerMatching = () => {
         const isCompleted =
           p.status === 'Completed' ||
           p.stage === 'Completed' ||
-          Number(p.progress) >= 100 ||
-          String(p.id || '').includes('7142') ||
-          String(p.name || p.title || '').toLowerCase().includes('petrol');
+          Number(p.progress) >= 100;
 
         if (!isCompleted) {
           active.push(p);
@@ -113,17 +113,8 @@ export const ManagerMatching = () => {
           pidLower.replace(/-/g, '') === normalizedId.replace(/-/g, '')
         );
       }) ||
-      activeProjects[0] || {
-        id: selectedProjectId || 'PRJ-NEW',
-        name: 'Project Workspace',
-        title: 'Project Workspace',
-        client: 'Client Organization',
-        duration: 'FlexiStaff Sprint',
-        workforceRequired: 1,
-        workforceAssigned: 0,
-        requiredSkills: ['Full Stack', 'Software Engineering'],
-        status: 'Approved',
-      }
+      activeProjects[0] ||
+      null
     );
   }, [activeProjects, selectedProjectId]);
 
@@ -145,6 +136,20 @@ export const ManagerMatching = () => {
       if (!cand) return;
       const cid = String(cand.id || '').trim();
       const nameKey = (cand.name || cand.pseudonym || '').toLowerCase().trim();
+      const roleLower = (cand.role || cand.title || cand.category || '').toLowerCase().trim();
+      const userRoleLower = (cand.userRole || cand.user_role || '').toLowerCase().trim();
+      const emailLower = (cand.email || '').toLowerCase().trim();
+
+      if (
+        roleLower === 'admin' || roleLower === 'manager' || roleLower === 'client' ||
+        userRoleLower === 'admin' || userRoleLower === 'manager' || userRoleLower === 'client' ||
+        roleLower === 'role_admin' || roleLower === 'role_manager' || roleLower === 'role_client' ||
+        roleLower.includes('admin') || roleLower.includes('manager') || roleLower.includes('client') ||
+        emailLower.includes('admin') || emailLower.includes('manager') ||
+        nameKey === 'admin' || nameKey === 'manager' || nameKey === 'client'
+      ) {
+        return;
+      }
 
       if (cid && seenIds.has(cid)) return;
       if (nameKey && seenNames.has(nameKey)) return;
@@ -160,11 +165,13 @@ export const ManagerMatching = () => {
       if (cid) seenIds.add(cid);
       if (nameKey) seenNames.add(nameKey);
 
+      const resolvedPartner = getPartnerCompanyName(cand, partners, clients);
       combined.push({
         ...cand,
         source: cand.source || defaultSource,
         roleType: cand.roleType || defaultRoleType,
-        partnerName: cand.partnerCompany || cand.partner || cand.partnerName || defaultPartner,
+        partnerName: resolvedPartner || cand.partnerCompany || cand.partner || cand.partnerName || defaultPartner,
+        partnerCompany: resolvedPartner || cand.partnerCompany || cand.partner,
       });
     };
 
@@ -190,12 +197,22 @@ export const ManagerMatching = () => {
     const isCompletedProject =
       currentProject?.status === 'Completed' ||
       currentProject?.stage === 'Completed' ||
-      Number(currentProject?.progress) >= 100 ||
-      String(currentProject?.id || '').includes('7142') ||
-      String(currentProject?.name || currentProject?.title || '').toLowerCase().includes('petrol');
+      Number(currentProject?.progress) >= 100;
 
     if (isCompletedProject) {
       toast.warn('This project is completed and delivered. Candidate selection and matching are locked.');
+      return;
+    }
+
+    const isRejectedProject =
+      currentProject?.status === 'Rejected' ||
+      currentProject?.stage === 'Rejected' ||
+      currentProject?.status === 'REJECTED' ||
+      currentProject?.status === 'Cancelled' ||
+      currentProject?.stage === 'Cancelled';
+
+    if (isRejectedProject) {
+      toast.error('This project has been rejected or cancelled. Candidate selection and matching are locked.');
       return;
     }
 
@@ -277,6 +294,33 @@ export const ManagerMatching = () => {
     setSelectedSquad([]);
     navigate('/manager/assignments');
   };
+
+  if (!currentProject) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-5">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Workforce Matching & Squad Staging
+          </h1>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center space-y-4 max-w-xl mx-auto my-8 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#004ac6] flex items-center justify-center mx-auto">
+            <Cpu size={24} />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800">No Approved Projects for Matching</h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            There are currently no active or approved client projects available to match with workforce candidates.
+          </p>
+          <button
+            onClick={() => navigate('/manager/projects')}
+            className="rounded-xl bg-[#004ac6] px-4 py-2 text-xs font-bold text-white hover:bg-[#003da6] transition-all"
+          >
+            View Projects
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">

@@ -44,7 +44,6 @@ import {
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { chartAnalyticsData } from '../../data/mockData';
 
 // --- INLINE REUSABLE COMPONENTS ---
 const StatusBadge = ({ status = 'Active', size = 'md' }) => {
@@ -119,7 +118,7 @@ const DashboardCard = ({ title, value, icon: Icon, trend, trendLabel = 'vs last 
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { projects = [], workforce = [], partners = [], clients = [], managers = [], activities = [] } = useData();
+  const { projects = [], workforce = [], partners = [], clients = [], managers = [], activities = [], dashboardStats } = useData();
   const navigate = useNavigate();
 
   // General Metrics calculation for Admin
@@ -165,11 +164,21 @@ export const Dashboard = () => {
 
   // Helper functions for categorization
   const isFreelancerMember = (w) => {
+    if (!w) return false;
     const source = (w.source || '').toLowerCase();
     const profType = (w.professionalType || '').toLowerCase();
     const roleType = (w.roleType || '').toLowerCase();
     const type = (w.type || '').toLowerCase();
-    const role = (w.role || w.title || '').toLowerCase();
+    const role = (w.role || w.title || w.category || '').toLowerCase();
+
+    const isExcluded =
+      role.includes('admin') ||
+      role.includes('client') ||
+      role.includes('partner') ||
+      role.includes('manager') ||
+      role.includes('hr');
+
+    if (isExcluded) return false;
 
     return (
       source.includes('freelance') ||
@@ -181,6 +190,7 @@ export const Dashboard = () => {
   };
 
   const isApprovedMember = (w) => {
+    if (!w) return false;
     const appStat = (w.approvalStatus || '').toLowerCase();
     const verStat = (w.verificationStatus || '').toLowerCase();
     const accStat = (w.accountStatus || '').toLowerCase();
@@ -207,30 +217,39 @@ export const Dashboard = () => {
 
   const isAvailableMember = (w) => {
     if (!isApprovedMember(w)) return false;
-    const avail = (w.availability || w.status || '').toLowerCase().trim();
-    const unavailableList = ['busy', 'assigned', 'booked', 'inactive', 'unavailable', 'rejected'];
+    const avail = (w.availability || w.availabilityStatus || w.status || w.workingStatus || '').toLowerCase().trim();
+    const unavailableList = ['busy', 'assigned', 'booked', 'inactive', 'unavailable', 'rejected', 'working'];
     return !unavailableList.includes(avail);
   };
 
   const totalProfessionals = useMemo(
-    () => cleanWorkforceRoster.filter((w) => !isFreelancerMember(w) && isApprovedMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isApprovedMember(w)).length,
     [cleanWorkforceRoster]
   );
 
   const availableProfessionals = useMemo(
-    () => cleanWorkforceRoster.filter((w) => !isFreelancerMember(w) && isAvailableMember(w)).length,
-    [cleanWorkforceRoster]
+    () => {
+      const count = cleanWorkforceRoster.filter((w) => isAvailableMember(w)).length;
+      if (count === 0 && dashboardStats && typeof dashboardStats.totalProfessionals === 'number' && dashboardStats.totalProfessionals > 0) {
+        return dashboardStats.totalProfessionals;
+      }
+      return count;
+    },
+    [cleanWorkforceRoster, dashboardStats]
   );
 
   const totalFreelancers = useMemo(
-    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isApprovedMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isApprovedMember(w)).length,
     [cleanWorkforceRoster]
   );
 
   const availableFreelancers = useMemo(
-    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isAvailableMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isAvailableMember(w)).length,
     [cleanWorkforceRoster]
   );
+
+  const apiFreelancerCount = dashboardStats?.freelancerCount ?? dashboardStats?.totalFreelancers;
+  const realFreelancerCount = typeof apiFreelancerCount === 'number' ? apiFreelancerCount : totalFreelancers;
 
   // Project Stage Distribution Chart Data
   const stageDistribution = useMemo(() => {
@@ -254,13 +273,37 @@ export const Dashboard = () => {
     ];
   }, [projects]);
 
-  // Skill Demands (Mock aggregate)
-  const skillDemands = [
-    { name: 'Cloud & DevOps', value: 35, color: '#3b82f6' },
-    { name: 'AI & Data Science', value: 28, color: '#2563eb' },
-    { name: 'Full Stack & Web', value: 22, color: '#0ea5e9' },
-    { name: 'Cybersecurity', value: 15, color: '#6366f1' },
-  ];
+  // Dynamic Skill Demands calculated from real database workforce and projects
+  const skillDemands = useMemo(() => {
+    const skillMap = {};
+    (cleanWorkforceRoster || []).forEach((w) => {
+      let skillsArr = [];
+      if (Array.isArray(w.skills)) skillsArr = w.skills;
+      else if (typeof w.skills === 'string') skillsArr = w.skills.split(',').map((s) => s.trim()).filter(Boolean);
+      skillsArr.forEach((s) => {
+        skillMap[s] = (skillMap[s] || 0) + 1;
+      });
+    });
+
+    (projects || []).forEach((p) => {
+      let skillsArr = [];
+      if (Array.isArray(p.requiredSkills)) skillsArr = p.requiredSkills;
+      else if (typeof p.requiredSkills === 'string') skillsArr = p.requiredSkills.split(',').map((s) => s.trim()).filter(Boolean);
+      skillsArr.forEach((s) => {
+        skillMap[s] = (skillMap[s] || 0) + 1;
+      });
+    });
+
+    const totalCount = Object.values(skillMap).reduce((acc, v) => acc + v, 0);
+    if (totalCount === 0) return [];
+
+    const colors = ['#3b82f6', '#2563eb', '#0ea5e9', '#6366f1', '#8b5cf6'];
+    return Object.entries(skillMap).map(([name, count], idx) => ({
+      name,
+      value: Math.round((count / totalCount) * 100),
+      color: colors[idx % colors.length],
+    }));
+  }, [cleanWorkforceRoster, projects]);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -343,7 +386,7 @@ export const Dashboard = () => {
 
         <DashboardCard
           title="Freelancers"
-          value={availableFreelancers}
+          value={realFreelancerCount}
           icon={Code2}
           color="purple"
           onClick={() => navigate('/admin/workforce')}
@@ -394,8 +437,8 @@ export const Dashboard = () => {
               <UserCheck size={20} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 dark:text-white">{managers[0]?.name || 'Assigned Manager'}</p>
-              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">ID: #{managers[0]?.id || managers[0]?.numericId || managers[0]?.employeeId || 1}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{managers[0]?.name || 'Unassigned'}</p>
+              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">{managers[0] ? `ID: #${managers[0].id || managers[0].numericId || managers[0].employeeId}` : 'No Manager Appointed'}</p>
             </div>
           </div>
 
@@ -456,42 +499,50 @@ export const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="h-64 sm:h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stageDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis
-                  dataKey="name"
-                  stroke="#737686"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                />
-                <YAxis
-                  stroke="#737686"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={{ stroke: '#e2e8f0' }}
-                  allowDecimals={false}
-                />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderColor: '#cbd5e1',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-                  }}
-                />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={45}>
-                  {stageDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {projects.length === 0 ? (
+            <div className="h-64 sm:h-72 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+              <FolderKanban size={28} className="text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="font-semibold text-slate-600 dark:text-slate-400">No project activity yet</p>
+              <p className="text-[11px] text-slate-400">Project stages will be visualized as client requests are submitted.</p>
+            </div>
+          ) : (
+            <div className="h-64 sm:h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stageDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#737686"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                  />
+                  <YAxis
+                    stroke="#737686"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      borderColor: '#cbd5e1',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                    {stageDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Workforce Skill Distribution Pie Chart */}
@@ -505,43 +556,53 @@ export const Dashboard = () => {
             </p>
           </div>
 
-          <div className="h-52 w-full my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={skillDemands}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {skillDemands.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(val) => [`${val}%`, 'Allocation']}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderColor: '#cbd5e1',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-white/10 text-xs">
-            {skillDemands.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[#565e74] dark:text-slate-300 truncate text-[11px]">{item.name}</span>
+          {skillDemands.length === 0 ? (
+            <div className="h-52 flex flex-col items-center justify-center text-center text-xs text-slate-400">
+              <Code2 size={28} className="text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="font-semibold text-slate-600 dark:text-slate-400">No skill distribution data</p>
+              <p className="text-[11px] text-slate-400">Specializations appear as workforce and projects are created.</p>
+            </div>
+          ) : (
+            <>
+              <div className="h-52 w-full my-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={skillDemands}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {skillDemands.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val) => [`${val}%`, 'Allocation']}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        borderColor: '#cbd5e1',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-white/10 text-xs">
+                {skillDemands.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-[#565e74] dark:text-slate-300 truncate text-[11px]">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

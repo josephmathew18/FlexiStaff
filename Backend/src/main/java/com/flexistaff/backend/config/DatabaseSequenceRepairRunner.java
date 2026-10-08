@@ -29,12 +29,14 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
         List<String> tables = List.of(
                 "users",
                 "clients",
+                "partner_companies",
                 "freelancers",
                 "client_profiles",
                 "professional_profiles",
                 "projects",
                 "milestones",
-                "workforce_allocations"
+                "workforce_allocations",
+                "hr_managers"
         );
 
         for (String table : tables) {
@@ -72,6 +74,14 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
             } catch (Exception e) {
                 log.debug("Sequence synchronization notice for table '{}': {}", table, e.getMessage());
             }
+        }
+
+        try {
+            entityManager.createNativeQuery("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT', 'ROLE_PROFESSIONAL', 'ROLE_PARTNER'))").executeUpdate();
+            log.info("Successfully updated users_role_check constraint to include all roles including ROLE_PARTNER");
+        } catch (Exception ex) {
+            log.debug("Role check constraint sync notice: {}", ex.getMessage());
         }
     }
 }

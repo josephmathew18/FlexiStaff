@@ -28,4 +28,5 @@ public class FreelancerRegistrationRequest {
     private Integer experienceYears;
     private BigDecimal hourlyRate;
     private String availabilityStatus;
+    private Long partnerCompanyId;
 }

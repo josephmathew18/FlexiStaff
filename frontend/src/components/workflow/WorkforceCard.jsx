@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import StatusBadge from './StatusBadge';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 
 export const WorkforceCard = ({
   candidate,
@@ -27,14 +28,17 @@ export const WorkforceCard = ({
   disableSelection = false,
   className = '',
 }) => {
+  const { partners = [], clients = [] } = useData() || {};
   if (!candidate) return null;
+
+  const resolvedPartnerName = getPartnerCompanyName(candidate, partners, clients);
 
   const isProfessional =
     candidate.roleType === 'Professional' ||
     candidate.source === 'Partner Company' ||
-    Boolean(candidate.partnerCompany || candidate.partner);
+    Boolean(candidate.partnerCompanyId || candidate.partnerCompany || candidate.partner || resolvedPartnerName);
 
-  const partnerName = candidate.partnerCompany || candidate.partner || candidate.partnerName;
+  const partnerName = resolvedPartnerName || candidate.partnerCompany || candidate.partner || candidate.partnerName;
 
   const skillsList = Array.isArray(candidate.skills)
     ? candidate.skills
@@ -96,6 +100,24 @@ export const WorkforceCard = ({
 
           <StatusBadge status={isAlreadyQueued ? 'Staged' : candidate.availability || 'Available'} size="sm" />
         </div>
+
+        {/* Currently Working Active Project Badge */}
+        {(candidate.isCurrentlyWorking || candidate.currentProjectName || candidate.currentProject) && (
+          <div className="p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-[11px] space-y-0.5">
+            <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
+              <span>Currently Working</span>
+            </div>
+            <div className="font-extrabold text-slate-900 dark:text-white truncate">
+              {candidate.currentProjectName || candidate.currentProject}
+            </div>
+            {candidate.currentProjectClient && (
+              <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 truncate">
+                Client: {candidate.currentProjectClient}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-3 gap-2 text-center text-xs">

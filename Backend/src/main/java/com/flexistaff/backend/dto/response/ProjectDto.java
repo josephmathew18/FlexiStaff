@@ -25,12 +25,16 @@ public class ProjectDto {
     private Long clientId;
     private String clientName;
     private String clientCompanyName;
+    private String clientEmail;
 
     private Long managerId;
     private String managerName;
+    private String managerEmail;
+    private String managerPhone;
 
     private BigDecimal budget;
     private ProjectStatus status;
+    private Integer progressPercentage;
     private LocalDate startDate;
     private LocalDate endDate;
     private LocalDateTime createdAt;

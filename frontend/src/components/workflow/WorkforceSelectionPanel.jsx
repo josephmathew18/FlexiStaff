@@ -62,9 +62,7 @@ export const WorkforceSelectionPanel = ({
   const isCompletedProject =
     project?.status === 'Completed' ||
     project?.stage === 'Completed' ||
-    Number(project?.progress) >= 100 ||
-    String(project?.id || '').includes('7142') ||
-    String(project?.name || project?.title || '').toLowerCase().includes('petrol');
+    Number(project?.progress) >= 100;
 
   return (
     <div className="space-y-6">

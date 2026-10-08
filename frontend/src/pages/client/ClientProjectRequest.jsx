@@ -16,21 +16,30 @@ export const ClientProjectRequest = () => {
   const { submitClientProjectRequest, clientProfile } = useData() || {};
   const navigate = useNavigate();
 
-  const handleFormSubmit = (data) => {
+  const handleFormSubmit = async (data) => {
     if (!submitClientProjectRequest) {
       toast.error('System unavailable. Please refresh and try again.');
       return;
     }
 
-    const newPrj = submitClientProjectRequest({
+    let authClientId = clientProfile?.id;
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && savedUser.id) authClientId = savedUser.id;
+      }
+    } catch {}
+
+    const newPrj = await submitClientProjectRequest({
       ...data,
-      client: clientProfile?.company || 'Client Organization',
-      clientId: clientProfile?.id || 'cli-01',
+      client: clientProfile?.company || clientProfile?.companyName || clientProfile?.name || '',
+      clientId: authClientId,
     });
 
     if (newPrj && newPrj.id) {
       toast.success(`Project "${newPrj.name || newPrj.title}" submitted with status: Pending Admin Approval!`);
-      navigate(`/client/projects/${newPrj.id}`);
+      navigate('/client/projects');
     } else {
       toast.error('Failed to register project requirement.');
     }

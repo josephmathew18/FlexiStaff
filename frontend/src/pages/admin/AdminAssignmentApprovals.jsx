@@ -29,15 +29,17 @@ import {
   FileText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useData } from '../../context/DataContext';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const AdminAssignmentApprovals = () => {
-  const {
+    const {
     managerAssignments = [],
     approveWorkforceAssignment,
     rejectWorkforceAssignment,
     projects = [],
+    clients = [],
+    partners = [],
     workforce = [],
     partnerWorkforce = [],
   } = useData() || {};
@@ -52,9 +54,48 @@ export const AdminAssignmentApprovals = () => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  const isRejectedOrDeclined = (st) => {
+    if (!st) return false;
+    const s = String(st).toLowerCase().trim();
+    return s.includes('declined') || s.includes('reject') || s === 'declined_by_candidate';
+  };
+
+  const isAcceptedOrActive = (st) => {
+    if (!st) return false;
+    if (isRejectedOrDeclined(st)) return false;
+    const s = String(st).toLowerCase().trim();
+    return s === 'accepted' || s === 'working' || s === 'approved' || s === 'active' || s.includes('accepted') || s.includes('active');
+  };
+
+  const isAwaitingTalent = (st) => {
+    if (!st) return false;
+    if (isRejectedOrDeclined(st)) return false;
+    const s = String(st).toLowerCase().trim();
+    return s.includes('awaiting');
+  };
+
   const isPendingStatus = (st) => {
-    const s = String(st || '').toLowerCase();
+    if (!st) return false;
+    if (isRejectedOrDeclined(st)) return false;
+    const s = String(st).toLowerCase().trim();
     return s.includes('pending') || s.includes('staged') || s.includes('review');
+  };
+
+  const getStatusGroup = (st) => {
+    if (isRejectedOrDeclined(st)) return 'rejected';
+    if (isAcceptedOrActive(st)) return 'accepted';
+    if (isAwaitingTalent(st)) return 'awaiting';
+    if (isPendingStatus(st)) return 'pending';
+    return 'other';
+  };
+
+  const getFilterGroup = (filterValue) => {
+    if (!filterValue || filterValue === 'all') return 'all';
+    if (filterValue === 'pending' || isPendingStatus(filterValue)) return 'pending';
+    if (filterValue === 'awaiting' || isAwaitingTalent(filterValue)) return 'awaiting';
+    if (filterValue === 'accepted' || isAcceptedOrActive(filterValue)) return 'accepted';
+    if (filterValue === 'rejected' || isRejectedOrDeclined(filterValue)) return 'rejected';
+    return filterValue;
   };
 
   // Helper to enrich assignment records with master candidate data
@@ -86,10 +127,28 @@ export const AdminAssignmentApprovals = () => {
         (p.title || p.name || '').toLowerCase() === (asg.projectName || '').toLowerCase()
     );
 
+    const clientObj = (clients || []).find(
+      (c) =>
+        (projectObj?.clientId && String(c.id || c.numericId) === String(projectObj.clientId)) ||
+        (c.name && projectObj?.clientName && c.name.toLowerCase() === projectObj.clientName.toLowerCase()) ||
+        (c.companyName && projectObj?.clientCompanyName && c.companyName.toLowerCase() === projectObj.clientCompanyName.toLowerCase())
+    );
+
+    const clientOrg = projectObj?.clientCompanyName || clientObj?.companyName || '';
+    const clientContact = projectObj?.clientName || clientObj?.contactPerson || clientObj?.name || '';
+    let clientDisplay = '';
+    if (clientOrg && clientContact && clientOrg.toLowerCase() !== clientContact.toLowerCase()) {
+      clientDisplay = `${clientOrg} (${clientContact})`;
+    } else {
+      clientDisplay = clientOrg || clientContact || projectObj?.client || clientObj?.name || asg.client || '';
+    }
+
     const rawSkills = asg.skills || masterCandidate?.skills || ['React.js', 'PostgreSQL', 'Node.js'];
     const skillsArr = Array.isArray(rawSkills)
       ? rawSkills
       : String(rawSkills).split(/[,+]/).map((s) => s.trim()).filter(Boolean);
+
+    const resolvedPartnerName = getPartnerCompanyName(masterCandidate || asg, partners, clients);
 
     return {
       ...asg,
@@ -103,32 +162,30 @@ export const AdminAssignmentApprovals = () => {
       hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '$95/hr',
       rating: masterCandidate?.rating || 4.9,
       skills: skillsArr,
-      partnerName: asg.partnerName || masterCandidate?.partnerName || masterCandidate?.partnerCompany || (asg.source === 'Partner Company' ? 'Partner Enterprise Company' : 'Independent Freelancer Pool'),
+      partnerName: resolvedPartnerName || asg.partnerName || masterCandidate?.partnerName || masterCandidate?.partnerCompany || (asg.source === 'Partner Company' ? 'Partner Organization' : 'Independent Freelancer Pool'),
       roleType: asg.roleType || masterCandidate?.roleType || (asg.source === 'Partner Company' ? 'Professional' : 'Freelancer'),
-      client: asg.client || projectObj?.client || 'Enterprise Client',
-      manager: asg.manager || projectObj?.manager || 'Organization Manager',
+      client: clientDisplay,
+      clientCompanyName: clientOrg,
+      clientName: clientContact,
+      manager: asg.manager || projectObj?.manager || '',
     };
   };
 
   const enrichedAssignmentsList = useMemo(() => {
     return (managerAssignments || []).map(enrichAssignment);
-  }, [managerAssignments, workforce, partnerWorkforce, projects]);
+  }, [managerAssignments, workforce, partnerWorkforce, projects, clients]);
 
   const pendingCount = useMemo(() => {
-    return enrichedAssignmentsList.filter((a) => a && isPendingStatus(a.status)).length;
+    return enrichedAssignmentsList.filter((a) => a && getStatusGroup(a.status) === 'pending').length;
   }, [enrichedAssignmentsList]);
 
   const filteredAssignments = useMemo(() => {
+    const targetGroup = getFilterGroup(statusFilter);
     return enrichedAssignmentsList.filter((a) => {
       if (!a) return false;
-      if (statusFilter !== 'all') {
-        const isFilterPending = isPendingStatus(statusFilter);
-        const isAsgPending = isPendingStatus(a.status);
-        if (isFilterPending) {
-          if (!isAsgPending) return false;
-        } else if (a.status !== statusFilter) {
-          return false;
-        }
+      if (targetGroup !== 'all') {
+        const aGroup = getStatusGroup(a.status);
+        if (aGroup !== targetGroup) return false;
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -180,55 +237,58 @@ export const AdminAssignmentApprovals = () => {
   };
 
   const getStatusBadge = (status) => {
-    const isPending = isPendingStatus(status);
-    if (isPending) {
+    const group = getStatusGroup(status);
+    const sLower = String(status || '').toLowerCase();
+
+    if (group === 'pending') {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
           <Clock size={12} className="text-amber-600 dark:text-amber-400" />
-          <span>Pending Admin Approval</span>
+          <span>Pending Sign-off</span>
         </span>
       );
     }
 
-    switch (status) {
-      case 'Awaiting Workforce Response':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
-            <Clock size={12} className="text-blue-600 dark:text-blue-400" />
-            <span>Awaiting Talent Response</span>
-          </span>
-        );
-      case 'Accepted':
-      case 'Working':
-      case 'Approved':
-      case 'Active':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-            <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
-            <span>Accepted / Active</span>
-          </span>
-        );
-      case 'Rejected':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
-            <XCircle size={12} className="text-rose-600 dark:text-rose-400" />
-            <span>Rejected</span>
-          </span>
-        );
-      case 'Declined':
+    if (group === 'awaiting') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
+          <Clock size={12} className="text-blue-600 dark:text-blue-400" />
+          <span>Awaiting Talent</span>
+        </span>
+      );
+    }
+
+    if (group === 'accepted') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+          <CheckCircle2 size={12} className="text-emerald-600 dark:text-emerald-400" />
+          <span>Accepted / Active</span>
+        </span>
+      );
+    }
+
+    if (group === 'rejected') {
+      if (sLower.includes('declined') || sLower === 'declined_by_candidate') {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
             <XCircle size={12} className="text-slate-500 dark:text-slate-400" />
             <span>Declined by Candidate</span>
           </span>
         );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            <span>{status}</span>
-          </span>
-        );
+      }
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+          <XCircle size={12} className="text-rose-600 dark:text-rose-400" />
+          <span>Rejected</span>
+        </span>
+      );
     }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+        <span>{status}</span>
+      </span>
+    );
   };
 
   return (
@@ -268,19 +328,19 @@ export const AdminAssignmentApprovals = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Awaiting Talent Response</span>
           <p className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
-            {enrichedAssignmentsList.filter((a) => a.status === 'Awaiting Workforce Response').length}
+            {enrichedAssignmentsList.filter((a) => getStatusGroup(a.status) === 'awaiting').length}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Active / Accepted</span>
           <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-            {enrichedAssignmentsList.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'Approved').length}
+            {enrichedAssignmentsList.filter((a) => getStatusGroup(a.status) === 'accepted').length}
           </p>
         </div>
         <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Rejected / Declined</span>
           <p className="text-xl font-extrabold text-slate-700 dark:text-slate-300 mt-1">
-            {enrichedAssignmentsList.filter((a) => a.status === 'Rejected' || a.status === 'Declined').length}
+            {enrichedAssignmentsList.filter((a) => getStatusGroup(a.status) === 'rejected').length}
           </p>
         </div>
       </div>
@@ -301,17 +361,17 @@ export const AdminAssignmentApprovals = () => {
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
             { label: 'All Proposals', value: 'all' },
-            { label: 'Pending Sign-off', value: 'Pending Assignment Approval' },
-            { label: 'Awaiting Talent', value: 'Awaiting Workforce Response' },
-            { label: 'Accepted', value: 'Accepted' },
-            { label: 'Rejected', value: 'Rejected' },
+            { label: 'Pending Sign-off', value: 'pending' },
+            { label: 'Awaiting Talent', value: 'awaiting' },
+            { label: 'Accepted', value: 'accepted' },
+            { label: 'Rejected', value: 'rejected' },
           ].map((tab) => (
             <button
               key={tab.value}
               type="button"
               onClick={() => setStatusFilter(tab.value)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                statusFilter === tab.value
+                getFilterGroup(statusFilter) === tab.value
                   ? 'bg-[#004ac6] text-white shadow-xs'
                   : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20'
               }`}

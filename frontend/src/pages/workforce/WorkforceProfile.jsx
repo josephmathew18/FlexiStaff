@@ -19,7 +19,7 @@ import {
   X,
   Plus,
 } from 'lucide-react';
-import { useData } from '../../context/DataContext';
+import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 import SkillInputWithSuggestions from '../../components/common/SkillInputWithSuggestions';
@@ -33,9 +33,13 @@ const formatCapitalizedName = (str) => {
 };
 
 export const WorkforceProfile = () => {
-  const { workforceUserProfile, updateWorkforceUserProfile } = useData() || {};
+  const { workforceUserProfile, updateWorkforceUserProfile, partners = [], clients = [] } = useData() || {};
+
+  const displayPartnerName = getPartnerCompanyName(workforceUserProfile, partners, clients) || workforceUserProfile?.partnerCompany || workforceUserProfile?.partnerName;
 
   const isCompanyEmployee =
+    Boolean(workforceUserProfile?.partnerCompanyId) ||
+    Boolean(displayPartnerName) ||
     Boolean(workforceUserProfile?.partnerCompany) ||
     Boolean(workforceUserProfile?.partnerName) ||
     Boolean(workforceUserProfile?.partner) ||
@@ -297,7 +301,7 @@ export const WorkforceProfile = () => {
                     Partner Company Affiliation & Governance
                   </h3>
                   <p className="text-xs text-indigo-900/80 dark:text-indigo-300/80 mt-0.5">
-                    You are registered under <strong>{workforceUserProfile?.partnerCompany || 'Partner Organization'}</strong>. Your corporate employment terms, bench allocation, and billing rates are managed directly by your partner company.
+                    You are registered under <strong>{displayPartnerName || 'Partner Organization'}</strong>. Your corporate employment terms, bench allocation, and billing rates are managed directly by your partner company.
                   </p>
                 </div>
               </div>
@@ -305,7 +309,7 @@ export const WorkforceProfile = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
                 <div className="bg-white/80 dark:bg-[#1c1a36] p-3 rounded-xl border border-indigo-100 dark:border-white/10">
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Affiliated Company</span>
-                  <p className="font-extrabold text-slate-900 dark:text-white">{workforceUserProfile?.partnerCompany || 'Partner Organization'}</p>
+                  <p className="font-extrabold text-slate-900 dark:text-white">{displayPartnerName || 'Partner Organization'}</p>
                 </div>
                 <div className="bg-white/80 dark:bg-[#1c1a36] p-3 rounded-xl border border-indigo-100 dark:border-white/10">
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Employment Model</span>
@@ -354,7 +358,7 @@ export const WorkforceProfile = () => {
                 <div className="bg-slate-50 dark:bg-[#1c1a36] p-3 rounded-xl border border-slate-100 dark:border-white/10">
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase">Sprint Completion</span>
                   <p className="font-black text-emerald-700 dark:text-emerald-400">
-                    {workforceUserProfile.currentAssignment.progress || 75}% Completed
+                    {workforceUserProfile.currentAssignment.progress || 0}% Completed
                   </p>
                 </div>
               </div>

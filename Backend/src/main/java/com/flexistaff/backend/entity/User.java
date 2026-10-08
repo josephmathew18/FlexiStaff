@@ -24,6 +24,7 @@ public class User extends BaseEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Column(length = 30)
     private String phone;
 
     @Enumerated(EnumType.STRING)
@@ -42,4 +43,10 @@ public class User extends BaseEntity {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ClientProfile clientProfile;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private HrManager hrManager;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private PartnerCompany partnerCompany;
 }
