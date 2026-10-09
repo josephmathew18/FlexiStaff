@@ -60,18 +60,6 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: 'Please enter your password.' };
     }
 
-    // Check if account has been explicitly deleted
-    try {
-      const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
-      const deletedList = deletedAccountsStr ? JSON.parse(deletedAccountsStr) : [];
-      if (Array.isArray(deletedList) && deletedList.filter(e => e !== 'admin@gmail.com').includes(trimmedEmail)) {
-        return {
-          success: false,
-          error: `Account not found: The account "${trimmedEmail}" has been permanently deleted.`,
-        };
-      }
-    } catch {}
-
     // Check if partner organization account is deactivated by Admin
     try {
       const savedPartnersStr = localStorage.getItem('flexistaff_partners');
@@ -105,6 +93,26 @@ export const AuthProvider = ({ children }) => {
         if (authData.accessToken) {
           localStorage.setItem('flexistaff_token', authData.accessToken);
         }
+
+        // Successfully authenticated with backend: clear any stale local deleted flag
+        try {
+          const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
+          if (deletedAccountsStr) {
+            let delList = JSON.parse(deletedAccountsStr);
+            if (Array.isArray(delList)) {
+              delList = delList.filter((e) => String(e).toLowerCase().trim() !== trimmedEmail);
+              localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(delList));
+            }
+          }
+          const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+          if (delWfStr) {
+            let delWfList = JSON.parse(delWfStr);
+            if (Array.isArray(delWfList)) {
+              delWfList = delWfList.filter((e) => String(e).toLowerCase().trim() !== trimmedEmail);
+              localStorage.setItem('flexistaff_deleted_workforce', JSON.stringify(delWfList));
+            }
+          }
+        } catch {}
 
         let portalPath = '/admin/dashboard';
         let userRole = selectedRole || 'Admin';
@@ -176,6 +184,11 @@ export const AuthProvider = ({ children }) => {
           success: true,
           user: backendUser,
           redirectPath: portalPath,
+        };
+      } else if (apiRes && apiRes.success === false) {
+        return {
+          success: false,
+          error: apiRes.error || 'Authentication failed. Please check your credentials.',
         };
       }
     } catch (err) {
@@ -290,16 +303,19 @@ export const AuthProvider = ({ children }) => {
       }
     } catch {}
 
-    // Check if account has been explicitly deleted
+    // Check if account has been explicitly deleted (unless re-registered or in active workforce)
     try {
       const deletedAccountsStr = localStorage.getItem('flexistaff_deleted_accounts');
       if (deletedAccountsStr) {
         const deletedList = JSON.parse(deletedAccountsStr);
         if (Array.isArray(deletedList) && (deletedList.includes(trimmedEmail) || (trimmedEmail.includes('sharon') && deletedList.some(e => e.includes('sharon'))))) {
-          return {
-            success: false,
-            error: 'Account not found: This account has been permanently deleted by Admin.',
-          };
+          const isActivelyRegistered = matchedUser || matchedWorkforceOrg || matchedPartnerWorkforceOrg;
+          if (!isActivelyRegistered) {
+            return {
+              success: false,
+              error: 'Account not found: This account has been permanently deleted by Admin.',
+            };
+          }
         }
       }
     } catch {}
@@ -317,6 +333,21 @@ export const AuthProvider = ({ children }) => {
       return {
         success: false,
         error: 'Account not found. Please check your email address or register for an account.',
+      };
+    }
+
+    const candidateStatus = (matchedAccount?.approvalStatus || matchedAccount?.status || matchedAccount?.accountStatus || '').toLowerCase();
+    const isCandidateFreelancer = matchedAccount?.roleType === 'Freelancer' || matchedAccount?.source === 'Freelancer' || matchedAccount?.source === 'Freelancer Registration';
+    if (isCandidateFreelancer && (candidateStatus.includes('pending') || candidateStatus === 'pending review')) {
+      return {
+        success: false,
+        error: 'Your freelancer account is currently pending Admin approval. Please wait for an administrator to review and approve your registration.',
+      };
+    }
+    if (isCandidateFreelancer && candidateStatus === 'rejected') {
+      return {
+        success: false,
+        error: 'Your freelancer application has been rejected by the administrator.',
       };
     }
 

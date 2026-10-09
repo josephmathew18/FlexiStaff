@@ -893,8 +893,18 @@ export const WorkforceManagement = () => {
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredWorkforce.map((talent) => {
-            const isPending = talent.approvalStatus === 'Pending Review';
-            const isRejected = talent.approvalStatus === 'Rejected';
+            const isPending =
+              talent.approvalStatus === 'Pending Review' ||
+              talent.approvalStatus === 'Pending' ||
+              talent.verificationStatus === 'Pending' ||
+              talent.status === 'Pending Review' ||
+              talent.status === 'Pending' ||
+              talent.accountStatus === 'Pending Review';
+            const isRejected =
+              talent.approvalStatus === 'Rejected' ||
+              talent.verificationStatus === 'Rejected' ||
+              talent.status === 'Rejected' ||
+              talent.accountStatus === 'Rejected';
 
             return (
               <motion.div
@@ -1068,7 +1078,13 @@ export const WorkforceManagement = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/10">
                 {filteredWorkforce.map((talent) => {
-                  const isPending = talent.approvalStatus === 'Pending Review';
+                  const isPending =
+                    talent.approvalStatus === 'Pending Review' ||
+                    talent.approvalStatus === 'Pending' ||
+                    talent.verificationStatus === 'Pending' ||
+                    talent.status === 'Pending Review' ||
+                    talent.status === 'Pending' ||
+                    talent.accountStatus === 'Pending Review';
                   return (
                     <tr key={talent.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">

@@ -999,6 +999,12 @@ export const DataProvider = ({ children }) => {
           const backendFreelancers = flRes.data.map((f) => {
             const isPartnerEmp = Boolean(f.partnerCompanyId || f.partnerCompany || f.partnerName || f.partnerCompanyName);
             const pName = f.partnerCompany || f.partnerName || f.partnerCompanyName || (isPartnerEmp ? 'Partner Organization' : '');
+            const isPending = f.status === 'Pending Review' || f.status === 'Pending' || f.approvalStatus === 'Pending Review' || f.approvalStatus === 'Pending';
+            const isRejected = f.status === 'Rejected' || f.approvalStatus === 'Rejected';
+            const approvalStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.approvalStatus || 'Approved'));
+            const verificationStatus = isRejected ? 'Rejected' : (isPending ? 'Pending' : (f.verificationStatus || 'Approved'));
+            const accountStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.accountStatus || 'Active'));
+            const status = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.status || 'Active'));
 
             return {
               id: f.id || f.userId,
@@ -1036,26 +1042,35 @@ export const DataProvider = ({ children }) => {
               assignedProject: f.currentProjectName || f.currentProject || null,
               clientName: f.currentProjectClient || null,
               workingStatus: (f.isCurrentlyWorking || f.currentProject || f.currentProjectName || f.availabilityStatus === 'Assigned' || f.availabilityStatus === 'Busy') ? 'Working' : 'Available',
-              approvalStatus: f.approvalStatus || f.status || 'Approved',
-              verificationStatus: f.verificationStatus || f.status || 'Approved',
-              accountStatus: f.accountStatus || f.status || 'Active',
-              status: f.status || 'Active',
+              approvalStatus,
+              verificationStatus,
+              accountStatus,
+              status,
               joinedDate: f.createdAt ? String(f.createdAt).split('T')[0] : new Date().toISOString().split('T')[0],
               bio: f.bio || '',
             };
           });
 
-          let deletedIds = new Set();
+          // Auto-heal: Active database records cannot be marked as deleted in localStorage
           try {
-            const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
-            if (delWfStr) {
-              const parsed = JSON.parse(delWfStr);
-              if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
-            }
+            const activeBackendEmails = new Set(backendFreelancers.map((b) => (b.email || '').toLowerCase().trim()).filter(Boolean));
+            const activeBackendIds = new Set(backendFreelancers.map((b) => String(b.id || b.numericId || '')).filter(Boolean));
+
             const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
             if (delAccStr) {
               const parsed = JSON.parse(delAccStr);
-              if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
+              if (Array.isArray(parsed)) {
+                const cleaned = parsed.filter((e) => !activeBackendEmails.has(String(e).toLowerCase().trim()));
+                localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(cleaned));
+              }
+            }
+            const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+            if (delWfStr) {
+              const parsed = JSON.parse(delWfStr);
+              if (Array.isArray(parsed)) {
+                const cleaned = parsed.filter((id) => !activeBackendIds.has(String(id).toLowerCase().trim()) && !activeBackendEmails.has(String(id).toLowerCase().trim()));
+                localStorage.setItem('flexistaff_deleted_workforce', JSON.stringify(cleaned));
+              }
             }
           } catch {}
 
@@ -1064,19 +1079,6 @@ export const DataProvider = ({ children }) => {
             const r = (w.role || w.title || w.roleType || '').toLowerCase().trim();
             const e = (w.email || '').toLowerCase().trim();
             const n = (w.name || w.pseudonym || '').toLowerCase().trim();
-            const idStr = String(w.id || '').toLowerCase().trim();
-            const numIdStr = String(w.numericId || '').toLowerCase().trim();
-            const uIdStr = String(w.userId || '').toLowerCase().trim();
-
-            if (
-              deletedIds.has(idStr) ||
-              deletedIds.has(numIdStr) ||
-              deletedIds.has(uIdStr) ||
-              (e && deletedIds.has(e)) ||
-              (n && deletedIds.has(n))
-            ) {
-              return false;
-            }
 
             if (
               r.includes('admin') || r.includes('client') || r.includes('manager') ||
@@ -1090,6 +1092,49 @@ export const DataProvider = ({ children }) => {
           setWorkforce(validBackendWorkforce);
           try {
             localStorage.setItem('flexistaff_workforce', JSON.stringify(validBackendWorkforce));
+          } catch {}
+
+          // Synchronize partnerWorkforce from PostgreSQL backend for the active partner company
+          try {
+            const savedUserStr = localStorage.getItem('flexistaff_user');
+            let currentPartnerId = partnerProfile?.id || partnerProfile?.numericId;
+            let currentPartnerName = (partnerProfile?.name || partnerProfile?.companyName || '').toLowerCase().trim();
+            if (savedUserStr) {
+              try {
+                const u = JSON.parse(savedUserStr);
+                if (u.partnerCompanyId) currentPartnerId = currentPartnerId || u.partnerCompanyId;
+                if (u.companyName || u.company) currentPartnerName = currentPartnerName || (u.companyName || u.company).toLowerCase().trim();
+                if (u.role === 'Partner Company' || u.role === 'Partner' || u.role === 'ROLE_PARTNER') {
+                  currentPartnerId = currentPartnerId || u.id;
+                }
+              } catch {}
+            }
+
+            const partnerEmployees = validBackendWorkforce.filter((w) => {
+              if (!w) return false;
+              const isPartnerEmp = w.partnerCompanyId != null || w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE';
+              if (!isPartnerEmp) return false;
+
+              if (currentPartnerId && String(w.partnerCompanyId) === String(currentPartnerId)) return true;
+              const wCompany = (w.partnerCompany || w.partner || w.partnerName || w.partnerCompanyName || '').toLowerCase().trim();
+              if (currentPartnerName && wCompany && (wCompany === currentPartnerName || currentPartnerName.includes(wCompany) || wCompany.includes(currentPartnerName))) return true;
+              return false;
+            });
+
+            if (partnerEmployees.length > 0) {
+              setPartnerWorkforce((prev) => {
+                const merged = [...partnerEmployees];
+                (prev || []).forEach((item) => {
+                  if (!item) return;
+                  const exists = merged.some((m) => String(m.numericId || m.id) === String(item.numericId || item.id) || (m.email && item.email && m.email.toLowerCase() === item.email.toLowerCase()));
+                  if (!exists) merged.push(item);
+                });
+                try {
+                  localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+            }
           } catch {}
         }
       } catch (err) {
@@ -1289,6 +1334,65 @@ export const DataProvider = ({ children }) => {
               logoUrl: logoVal,
               status: matchedPrt?.status || 'Active',
             });
+
+            // Fetch this partner's employees from PostgreSQL backend API
+            if (partnerId) {
+              const numPartnerId = Number(partnerId);
+              if (!isNaN(numPartnerId)) {
+                api.freelancers.getByPartner(numPartnerId).then((res) => {
+                  if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+                    const mappedBackendEmployees = res.data.map((f) => ({
+                      id: `WF-${f.id}`,
+                      numericId: f.id,
+                      userId: f.userId,
+                      name: f.name,
+                      pseudonym: f.name,
+                      role: f.title || f.role || 'Employee',
+                      title: f.title || f.role || 'Employee',
+                      roleCategory: f.title || 'Engineering',
+                      partner: companyDisplayName,
+                      partnerName: companyDisplayName,
+                      partnerCompany: companyDisplayName,
+                      companyName: companyDisplayName,
+                      partnerCompanyId: numPartnerId,
+                      roleType: 'Professional',
+                      professionalType: 'PARTNER_EMPLOYEE',
+                      source: 'Partner Company',
+                      userType: 'PARTNER_EMPLOYEE',
+                      skills: Array.isArray(f.skills) ? f.skills : (f.skills ? f.skills.split(',').map((s) => s.trim()).filter(Boolean) : []),
+                      experience: f.experienceYears ? `${f.experienceYears} years` : '3 years',
+                      hourlyRate: f.hourlyRate ? (String(f.hourlyRate).startsWith('$') ? f.hourlyRate : `$${f.hourlyRate}/hr`) : '$100/hr',
+                      availability: f.availabilityStatus || 'Available',
+                      availabilityStatus: f.availabilityStatus || 'Available',
+                      workingStatus: (f.isCurrentlyWorking || f.currentProject) ? 'Working' : 'Available',
+                      assignedProject: f.currentProject || 'None',
+                      currentProject: f.currentProject || 'None',
+                      clientName: f.currentProjectClient || 'None',
+                      email: f.email,
+                      phone: f.phone || '',
+                      bio: f.bio || '',
+                      approvalStatus: f.approvalStatus || 'Approved',
+                      verificationStatus: f.verificationStatus || 'Approved',
+                      accountStatus: f.accountStatus || 'Active',
+                      avatar: f.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+                    }));
+
+                    setPartnerWorkforce((prev) => {
+                      const merged = [...mappedBackendEmployees];
+                      (prev || []).forEach((item) => {
+                        if (!item) return;
+                        const exists = merged.some((m) => String(m.numericId || m.id) === String(item.numericId || item.id) || (m.email && item.email && m.email.toLowerCase() === item.email.toLowerCase()));
+                        if (!exists) merged.push(item);
+                      });
+                      try {
+                        localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(merged));
+                      } catch {}
+                      return merged;
+                    });
+                  }
+                }).catch(() => {});
+              }
+            }
           }
         } else {
           setPartnerProfile(initialPartnerProfile);
@@ -1317,41 +1421,21 @@ export const DataProvider = ({ children }) => {
         if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
       }
     } catch {}
+
+    if (!list || list.length === 0) {
+      try {
+        const savedWf = localStorage.getItem('flexistaff_workforce');
+        if (savedWf) {
+          const parsedWf = JSON.parse(savedWf);
+          if (Array.isArray(parsedWf)) {
+            list = parsedWf.filter((w) => w && (w.partnerCompanyId != null || w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE'));
+          }
+        }
+      } catch {}
+    }
+
     if (!list || list.length === 0) list = initialPartnerWorkforce || [];
-
-    let deletedIds = new Set();
-    try {
-      const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
-      if (delWfStr) {
-        const parsed = JSON.parse(delWfStr);
-        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
-      }
-      const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
-      if (delAccStr) {
-        const parsed = JSON.parse(delAccStr);
-        if (Array.isArray(parsed)) parsed.forEach(id => deletedIds.add(String(id).toLowerCase().trim()));
-      }
-    } catch {}
-
-    return list.filter((pw) => {
-      if (!pw) return false;
-      const idStr = String(pw.id || '').toLowerCase().trim();
-      const numIdStr = String(pw.numericId || '').toLowerCase().trim();
-      const uIdStr = String(pw.userId || '').toLowerCase().trim();
-      const e = (pw.email || '').toLowerCase().trim();
-      const n = (pw.name || pw.pseudonym || '').toLowerCase().trim();
-
-      if (
-        deletedIds.has(idStr) ||
-        deletedIds.has(numIdStr) ||
-        deletedIds.has(uIdStr) ||
-        (e && deletedIds.has(e)) ||
-        (n && deletedIds.has(n))
-      ) {
-        return false;
-      }
-      return true;
-    });
+    return list;
   });
 
   // Self-heal and sync all partner workforce into flexistaff_registered_users so they can log in
@@ -2204,7 +2288,7 @@ export const DataProvider = ({ children }) => {
       id: assignedId || `fl-app-${Date.now()}`,
       numericId: numericId || assignedId || null,
       submittedAt: new Date().toISOString().split('T')[0],
-      status: 'Approved',
+      status: 'Pending Admin Approval',
       ...appData,
     };
     setFreelancerApplications((prev) => [newApp, ...prev]);
@@ -2222,10 +2306,11 @@ export const DataProvider = ({ children }) => {
       bio: appData.bioOverview || appData.bio,
       hourlyRate: appData.hourlyRate ? `₹${appData.hourlyRate}/hr` : '₹1500/hr',
       availabilityStatus: 'Available',
-      approvalStatus: 'Approved',
-      verificationStatus: 'Verified',
-      accountStatus: 'Active',
-      source: 'Freelancer Registration',
+      approvalStatus: 'Pending Review',
+      verificationStatus: 'Pending',
+      accountStatus: 'Pending Review',
+      status: 'Pending Review',
+      source: 'Freelancer',
       location: appData.personalDetails?.city || appData.location || 'India',
       avatar: appData.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
     };
@@ -2259,46 +2344,93 @@ export const DataProvider = ({ children }) => {
 
     const app = freelancerApplications.find((a) => a.id === appId);
     if (app) {
-      const newWorkforceMember = {
-        id: `wf-app-${Date.now()}`,
-        name: app.fullName,
-        title: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
-        role: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
-        category: app.category || 'Independent Freelancer',
-        specialties: app.specialties || [],
-        location: app.personalDetails?.city
-          ? `${app.personalDetails.city}, ${app.personalDetails.country || 'India'}`
-          : app.place || 'Remote',
-        email: app.email,
-        phone: app.phone || app.personalDetails?.phoneNumber,
-        experience: app.experienceLevel || '3+ years',
-        skills: app.skills || ['React.js', 'Node.js'],
-        status: 'Available',
-        approvalStatus: 'Approved',
-        verificationStatus: 'Approved',
-        accountStatus: 'Active',
-        source: 'Freelancer',
-        roleType: 'Freelancer',
-        hourlyRate: typeof app.hourlyRate === 'number' ? `$${app.hourlyRate.toFixed(2)}/hr` : (app.hourlyRate || '$75.00/hr'),
-        rating: 5.0,
-        avatar: app.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        bioOverview: app.bioOverview,
-        experiences: app.experiences,
-        educations: app.educations,
-        languages: app.languages,
-        personalDetails: app.personalDetails,
-        importMethod: app.importMethod,
-        resumeFileName: app.resumeFileName,
-        linkedInPdfName: app.linkedInPdfName,
-      };
-      setWorkforce((prev) => [newWorkforceMember, ...prev]);
+      const targetId = app.numericId || app.id;
+      if (targetId) {
+        api.freelancers.approve(targetId).catch((err) => {
+          console.warn('API approve error:', err);
+        });
+      }
+
+      setWorkforce((prev) => {
+        const existingIdx = prev.findIndex((w) => (w.email && app.email && w.email.toLowerCase() === app.email.toLowerCase()) || w.id === appId || w.numericId === targetId);
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            approvalStatus: 'Approved',
+            verificationStatus: 'Approved',
+            accountStatus: 'Active',
+            status: 'Available',
+          };
+          return updated;
+        }
+
+        const newWorkforceMember = {
+          id: targetId || `wf-app-${Date.now()}`,
+          numericId: targetId,
+          name: app.fullName,
+          title: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
+          role: app.roleTitle || (app.skills?.[0] ? `${app.skills[0]} Specialist` : 'Software Engineer'),
+          category: app.category || 'Independent Freelancer',
+          specialties: app.specialties || [],
+          location: app.personalDetails?.city
+            ? `${app.personalDetails.city}, ${app.personalDetails.country || 'India'}`
+            : app.place || 'Remote',
+          email: app.email,
+          phone: app.phone || app.personalDetails?.phoneNumber,
+          experience: app.experienceLevel || '3+ years',
+          skills: app.skills || ['React.js', 'Node.js'],
+          status: 'Available',
+          approvalStatus: 'Approved',
+          verificationStatus: 'Approved',
+          accountStatus: 'Active',
+          source: 'Freelancer',
+          roleType: 'Freelancer',
+          hourlyRate: typeof app.hourlyRate === 'number' ? `$${app.hourlyRate.toFixed(2)}/hr` : (app.hourlyRate || '$75.00/hr'),
+          rating: 5.0,
+          avatar: app.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+          bioOverview: app.bioOverview,
+          experiences: app.experiences,
+          educations: app.educations,
+          languages: app.languages,
+          personalDetails: app.personalDetails,
+          importMethod: app.importMethod,
+          resumeFileName: app.resumeFileName,
+          linkedInPdfName: app.linkedInPdfName,
+        };
+        return [newWorkforceMember, ...prev];
+      });
     }
   };
 
-  const rejectFreelancerApplication = (appId) => {
+  const rejectFreelancerApplication = (appId, reason = 'Declined by Administrator') => {
     setFreelancerApplications((prev) =>
       prev.map((app) => (app.id === appId ? { ...app, status: 'Rejected' } : app))
     );
+
+    const app = freelancerApplications.find((a) => a.id === appId);
+    if (app) {
+      const targetId = app.numericId || app.id;
+      if (targetId) {
+        api.freelancers.reject(targetId, reason).catch((err) => {
+          console.warn('API reject error:', err);
+        });
+      }
+      setWorkforce((prev) =>
+        prev.map((wf) => {
+          if ((wf.email && app.email && wf.email.toLowerCase() === app.email.toLowerCase()) || wf.id === appId || wf.numericId === targetId) {
+            return {
+              ...wf,
+              approvalStatus: 'Rejected',
+              verificationStatus: 'Rejected',
+              accountStatus: 'Rejected',
+              status: 'Rejected',
+            };
+          }
+          return wf;
+        })
+      );
+    }
   };
 
   // Central Support & Feedback Tickets State (Submitted by Client, Manager, Partner, Workforce to Admin)
@@ -5028,19 +5160,38 @@ export const DataProvider = ({ children }) => {
   const approveWorkforceMember = (id) => {
     let approvedName = '';
     let approvedSource = '';
+    let targetNumericId = null;
+
     setWorkforce((prev) =>
       prev.map((wf) => {
-        if (wf.id === id) {
+        if (wf.id === id || wf.numericId === id || String(wf.id) === String(id) || String(wf.numericId) === String(id)) {
           approvedName = wf.name;
           approvedSource = wf.source;
+          targetNumericId = wf.numericId || wf.id;
           return {
             ...wf,
             approvalStatus: 'Approved',
+            verificationStatus: 'Approved',
+            accountStatus: 'Active',
             status: wf.availability === 'Busy' ? 'Assigned' : 'Available',
           };
         }
         return wf;
       })
+    );
+
+    if (targetNumericId) {
+      api.freelancers.approve(targetNumericId).catch((err) => {
+        console.warn('Backend freelancer approve sync error:', err);
+      });
+    }
+
+    setFreelancerApplications((prev) =>
+      prev.map((app) =>
+        app.id === id || app.numericId === id || String(app.id) === String(id)
+          ? { ...app, status: 'Approved' }
+          : app
+      )
     );
 
     addActivity({
@@ -5065,19 +5216,38 @@ export const DataProvider = ({ children }) => {
   // Admin Reject recruitment or partner request
   const rejectWorkforceMember = (id, reason = 'Did not meet requirements') => {
     let rejectedName = '';
+    let targetNumericId = null;
+
     setWorkforce((prev) =>
       prev.map((wf) => {
-        if (wf.id === id) {
+        if (wf.id === id || wf.numericId === id || String(wf.id) === String(id) || String(wf.numericId) === String(id)) {
           rejectedName = wf.name;
+          targetNumericId = wf.numericId || wf.id;
           return {
             ...wf,
             approvalStatus: 'Rejected',
+            verificationStatus: 'Rejected',
+            accountStatus: 'Rejected',
             status: 'Rejected',
             rejectionReason: reason,
           };
         }
         return wf;
       })
+    );
+
+    if (targetNumericId) {
+      api.freelancers.reject(targetNumericId, reason).catch((err) => {
+        console.warn('Backend freelancer reject sync error:', err);
+      });
+    }
+
+    setFreelancerApplications((prev) =>
+      prev.map((app) =>
+        app.id === id || app.numericId === id || String(app.id) === String(id)
+          ? { ...app, status: 'Rejected' }
+          : app
+      )
     );
 
     addActivity({
@@ -5273,6 +5443,25 @@ export const DataProvider = ({ children }) => {
       } catch {}
       return updated;
     });
+
+    // Auto-clear from deleted accounts/workforce
+    try {
+      const emailLower = (newProf.email || '').toLowerCase().trim();
+      const delAccStr = localStorage.getItem('flexistaff_deleted_accounts');
+      if (delAccStr) {
+        let parsed = JSON.parse(delAccStr);
+        if (Array.isArray(parsed)) {
+          localStorage.setItem('flexistaff_deleted_accounts', JSON.stringify(parsed.filter((e) => String(e).toLowerCase().trim() !== emailLower)));
+        }
+      }
+      const delWfStr = localStorage.getItem('flexistaff_deleted_workforce');
+      if (delWfStr) {
+        let parsed = JSON.parse(delWfStr);
+        if (Array.isArray(parsed)) {
+          localStorage.setItem('flexistaff_deleted_workforce', JSON.stringify(parsed.filter((e) => String(e).toLowerCase().trim() !== emailLower && String(e).toLowerCase().trim() !== String(newProf.id).toLowerCase().trim())));
+        }
+      }
+    } catch {}
 
     // Save to flexistaff_registered_users so employee can log in immediately
     try {

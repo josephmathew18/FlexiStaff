@@ -30,6 +30,7 @@ import {
   GitPullRequest,
   ArrowRight,
   TrendingUp,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -109,9 +110,42 @@ export const PartnerWorkforce = () => {
     managerAssignments = [],
     updatePartnerProfessionalAvailability,
     updateWorkforceMember,
+    deleteWorkforceMember,
     respondPartnerWorkforceRequest,
     rejectPartnerWorkforceRequest,
+    partnerProfile,
+    workforce = [],
   } = useData() || {};
+
+  // Combined roster: partnerWorkforce + any matching partner employees in central workforce
+  const combinedPartnerWorkforce = useMemo(() => {
+    const list = [...(partnerWorkforce || [])];
+    const partnerId = partnerProfile?.id || partnerProfile?.numericId;
+    const partnerName = (partnerProfile?.name || partnerProfile?.companyName || '').toLowerCase().trim();
+
+    (workforce || []).forEach((w) => {
+      if (!w) return;
+      const isPartEmp = w.partnerCompanyId != null || w.source === 'Partner Company' || w.professionalType === 'PARTNER_EMPLOYEE';
+      if (!isPartEmp) return;
+
+      const idMatch = partnerId && String(w.partnerCompanyId) === String(partnerId);
+      const wCompany = (w.partnerCompany || w.partner || w.partnerName || w.partnerCompanyName || '').toLowerCase().trim();
+      const nameMatch = partnerName && wCompany && (wCompany === partnerName || partnerName.includes(wCompany) || wCompany.includes(partnerName));
+
+      if (idMatch || nameMatch) {
+        const alreadyInList = list.some(
+          (item) => String(item.id) === String(w.id) ||
+                    String(item.numericId || '') === String(w.numericId || w.id || '') ||
+                    (item.email && w.email && item.email.toLowerCase() === w.email.toLowerCase())
+        );
+        if (!alreadyInList) {
+          list.push(w);
+        }
+      }
+    });
+
+    return list;
+  }, [partnerWorkforce, workforce, partnerProfile]);
 
   // Top-level View Tab: 'roster' | 'requests'
   const [activeView, setActiveView] = useState('roster');
@@ -283,6 +317,20 @@ export const PartnerWorkforce = () => {
     setEditingEmployee(null);
   };
 
+  const handleDeleteEmployee = (emp) => {
+    if (!emp) return;
+    const confirmName = emp.name || emp.pseudonym || 'this professional';
+    if (window.confirm(`Are you sure you want to delete ${confirmName} from your company's workforce roster? This will permanently delete their account.`)) {
+      if (typeof deleteWorkforceMember === 'function') {
+        deleteWorkforceMember(emp);
+      }
+      toast.success(`Removed "${confirmName}" from company workforce.`);
+      if (selectedEmployee?.id === emp.id) {
+        setSelectedEmployee(null);
+      }
+    }
+  };
+
   // Workforce Requests Filters & Fulfillment Modal
   const [requestSearch, setRequestSearch] = useState('');
   const [requestStatusFilter, setRequestStatusFilter] = useState('all');
@@ -292,23 +340,23 @@ export const PartnerWorkforce = () => {
   // Extract all distinct roles
   const allRoles = useMemo(() => {
     const set = new Set();
-    (partnerWorkforce || []).forEach((w) => {
+    (combinedPartnerWorkforce || []).forEach((w) => {
       if (w && (w.roleCategory || w.role)) set.add(w.roleCategory || w.role);
     });
     return ['all', ...Array.from(set)];
-  }, [partnerWorkforce]);
+  }, [combinedPartnerWorkforce]);
 
   // Extract all distinct projects
   const allProjects = useMemo(() => {
     const set = new Set();
-    (partnerWorkforce || []).forEach((w) => {
+    (combinedPartnerWorkforce || []).forEach((w) => {
       if (w && w.assignedProject) set.add(w.assignedProject);
     });
     return ['all', ...Array.from(set)];
-  }, [partnerWorkforce]);
+  }, [combinedPartnerWorkforce]);
 
   const filteredWorkforce = useMemo(() => {
-    return (partnerWorkforce || []).filter((emp) => {
+    return (combinedPartnerWorkforce || []).filter((emp) => {
       if (!emp) return false;
       const roleLower = (emp.role || emp.title || emp.category || '').toLowerCase().trim();
       const userRoleLower = (emp.userRole || emp.user_role || '').toLowerCase().trim();
@@ -344,7 +392,7 @@ export const PartnerWorkforce = () => {
 
       return true;
     });
-  }, [partnerWorkforce, projectFilter, roleFilter, availabilityFilter, statusFilter, searchQuery]);
+  }, [combinedPartnerWorkforce, projectFilter, roleFilter, availabilityFilter, statusFilter, searchQuery]);
 
   // Workforce Requests computations
   const filteredRequests = useMemo(() => {
@@ -407,7 +455,7 @@ export const PartnerWorkforce = () => {
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
             activeView === 'roster' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'
           }`}>
-            {(partnerWorkforce || []).length}
+            {(combinedPartnerWorkforce || []).length}
           </span>
         </button>
 
@@ -631,6 +679,15 @@ export const PartnerWorkforce = () => {
                       <Eye size={13} />
                       <span>View Profile</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEmployee(emp)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-xs font-bold transition-colors"
+                      title="Delete employee from company roster"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete</span>
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -825,13 +882,23 @@ export const PartnerWorkforce = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedEmployee(null)}
-                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteEmployee(selectedEmployee)}
+                    className="rounded-xl p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                    title="Delete employee from company roster"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEmployee(null)}
+                    className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="p-6 max-h-[72vh] overflow-y-auto space-y-5 text-xs">
@@ -1117,7 +1184,7 @@ export const PartnerWorkforce = () => {
                   </div>
 
                   <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                    {partnerWorkforce.map((prof) => {
+                    {combinedPartnerWorkforce.map((prof) => {
                       const isSelected = selectedProfIdsForFulfillment.includes(prof.id);
                       return (
                         <div

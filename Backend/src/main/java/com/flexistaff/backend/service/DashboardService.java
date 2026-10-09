@@ -30,6 +30,7 @@ public class DashboardService {
     private final WorkforceAllocationRepository allocationRepository;
     private final ProjectService projectService;
     private final WorkforceService workforceService;
+    private final FreelancerService freelancerService;
 
     @Transactional(readOnly = true)
     public DashboardSummaryDto getAdminDashboardSummary() {
@@ -37,9 +38,9 @@ public class DashboardService {
         long activeProjects = projectRepository.countByStatus(ProjectStatus.IN_PROGRESS);
         long completedProjects = projectRepository.countByStatus(ProjectStatus.COMPLETED);
         long totalUsers = userRepository.count();
-        long totalProfessionals = calculateFreelancerCount();
+        long totalProfessionals = calculatePartnerProfessionalCount();
         long totalClients = userRepository.findByRoleAndActive(Role.ROLE_CLIENT, true).size();
-        long freelancerCount = calculateFreelancerCount();
+        long freelancerCount = calculateIndependentFreelancerCount();
 
         List<ProjectDto> recentProjects = projectService.getAllProjects().stream()
                 .limit(5)
@@ -58,38 +59,32 @@ public class DashboardService {
                 .build();
     }
 
-    private long calculateFreelancerCount() {
-        Set<Long> distinctUserIds = new HashSet<>();
-
-        // 1. Count active users with ROLE_PROFESSIONAL from users table
-        List<User> proUsers = userRepository.findByRoleAndActive(Role.ROLE_PROFESSIONAL, true);
-        for (User u : proUsers) {
-            if (u != null && u.getId() != null) {
-                distinctUserIds.add(u.getId());
-            }
+    private long calculatePartnerProfessionalCount() {
+        try {
+            List<com.flexistaff.backend.dto.response.FreelancerDto> all = freelancerService.getAllFreelancers();
+            return all.stream()
+                    .filter(t -> (t.getPartnerCompanyId() != null || "PARTNER_EMPLOYEE".equalsIgnoreCase(t.getProfessionalType()) || "Partner Company".equalsIgnoreCase(t.getSource()))
+                            && !"Inactive".equalsIgnoreCase(t.getStatus()) && !"Rejected".equalsIgnoreCase(t.getStatus()))
+                    .count();
+        } catch (Exception ex) {
+            return freelancerRepository.findAll().stream()
+                    .filter(f -> f.getPartnerCompanyId() != null && (f.getStatus() == null || !"Inactive".equalsIgnoreCase(f.getStatus())))
+                    .count();
         }
+    }
 
-        // 2. Cross-reference freelancers table to include all active entries
-        List<Freelancer> freelancerEntities = freelancerRepository.findAll();
-        for (Freelancer f : freelancerEntities) {
-            if (f != null && (f.getStatus() == null || !"Inactive".equalsIgnoreCase(f.getStatus()))) {
-                User u = f.getUser();
-                if (u != null && u.getId() != null) {
-                    distinctUserIds.add(u.getId());
-                } else if (f.getEmail() != null && !f.getEmail().isBlank()) {
-                    User dbUser = userRepository.findByEmailIgnoreCase(f.getEmail().trim()).orElse(null);
-                    if (dbUser != null && dbUser.getId() != null) {
-                        distinctUserIds.add(dbUser.getId());
-                    } else if (f.getId() != null) {
-                        distinctUserIds.add(f.getId());
-                    }
-                } else if (f.getId() != null) {
-                    distinctUserIds.add(f.getId());
-                }
-            }
+    private long calculateIndependentFreelancerCount() {
+        try {
+            List<com.flexistaff.backend.dto.response.FreelancerDto> all = freelancerService.getAllFreelancers();
+            return all.stream()
+                    .filter(t -> (t.getPartnerCompanyId() == null && !"PARTNER_EMPLOYEE".equalsIgnoreCase(t.getProfessionalType()) && !"Partner Company".equalsIgnoreCase(t.getSource()))
+                            && !"Inactive".equalsIgnoreCase(t.getStatus()) && !"Rejected".equalsIgnoreCase(t.getStatus()))
+                    .count();
+        } catch (Exception ex) {
+            return freelancerRepository.findAll().stream()
+                    .filter(f -> f.getPartnerCompanyId() == null && (f.getStatus() == null || !"Inactive".equalsIgnoreCase(f.getStatus())))
+                    .count();
         }
-
-        return distinctUserIds.size();
     }
 
     @Transactional(readOnly = true)

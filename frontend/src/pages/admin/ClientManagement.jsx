@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Plus,
@@ -27,6 +28,7 @@ import {
   Star,
   Award,
   Trash2,
+  FolderKanban,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -253,19 +255,131 @@ const FormInput = ({ label, name, type = 'text', placeholder, register, error, r
 
 
 export const ClientManagement = () => {
-  const { clients = [], deleteClient, clearClients, refreshClients } = useData();
+  const { clients = [], projects = [], deleteClient, clearClients, refreshClients, refreshProjects } = useData() || {};
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (refreshClients) {
       refreshClients();
     }
+    if (refreshProjects) {
+      refreshProjects();
+    }
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [industryFilter, setIndustryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
   const [selectedClient, setSelectedClient] = useState(null);
+
+  // Helper to format spend values accurately
+  const formatProjectSpend = (proj) => {
+    if (!proj) return '₹0';
+    const raw = proj.spent ?? proj.spend ?? proj.totalSpend ?? proj.budget;
+    if (raw === undefined || raw === null || raw === '') return '₹0';
+    if (typeof raw === 'number') {
+      return `₹${raw.toLocaleString()}`;
+    }
+    const str = String(raw).trim();
+    if (str.startsWith('$') || str.startsWith('₹') || str.startsWith('€') || str.startsWith('£')) {
+      return str;
+    }
+    const num = Number(str.replace(/[^0-9.-]+/g, ''));
+    if (!isNaN(num) && num > 0) {
+      return `₹${num.toLocaleString()}`;
+    }
+    return str || '₹0';
+  };
+
+  // Helper to compute progress safely
+  const getProjectProgress = (proj) => {
+    if (!proj) return 0;
+    const val = Number(proj.progress ?? proj.progressPercentage ?? 0);
+    if (isNaN(val)) return 0;
+    return Math.min(100, Math.max(0, Math.round(val)));
+  };
+
+  // Filter actual real projects linked to a client without any demo samples
+  const getClientProjects = (client) => {
+    if (!client) return [];
+    const cId = String(client.id || client.userId || client.numericId || '').toLowerCase().trim();
+    const cName = String(client.name || '').toLowerCase().trim();
+    const cCompany = String(client.companyName || '').toLowerCase().trim();
+    const cEmail = String(client.email || '').toLowerCase().trim();
+
+    return (projects || []).filter((p) => {
+      if (!p) return false;
+
+      // Filter out any demo dummy projects
+      const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+      if (
+        pTitle.includes('sample') ||
+        pTitle.includes('demo') ||
+        pTitle.includes('test project unique')
+      ) {
+        return false;
+      }
+
+      const pClientId = String(p.clientId || p.client_id || p.userId || '').toLowerCase().trim();
+      const pClientName = String(p.clientName || '').toLowerCase().trim();
+      const pClientCompany = String(p.clientCompanyName || p.companyName || p.client || '').toLowerCase().trim();
+      const pEmail = String(p.clientEmail || p.email || '').toLowerCase().trim();
+
+      const idMatch = Boolean(cId && pClientId && (cId === pClientId));
+      const emailMatch = Boolean(cEmail && pEmail && (cEmail === pEmail));
+      const companyMatch = Boolean(
+        cCompany && pClientCompany && (
+          cCompany === pClientCompany ||
+          pClientCompany.includes(cCompany) ||
+          cCompany.includes(pClientCompany)
+        )
+      );
+      const nameMatch = Boolean(
+        cName && pClientName && (
+          cName === pClientName ||
+          pClientName.includes(cName) ||
+          cName.includes(pClientName)
+        )
+      );
+      const clientFieldMatch = Boolean(
+        (cCompany && String(p.client || '').toLowerCase().trim() === cCompany) ||
+        (cName && String(p.client || '').toLowerCase().trim() === cName)
+      );
+
+      return idMatch || emailMatch || companyMatch || nameMatch || clientFieldMatch;
+    });
+  };
+
+  // Compute stats for a client dynamically
+  const getClientStats = (client) => {
+    if (!client) return { projectCount: 0, totalSpend: '₹0', clientProjects: [] };
+    const matched = getClientProjects(client);
+
+    let total = 0;
+    let hasVal = false;
+    matched.forEach((p) => {
+      const raw = p.spent ?? p.spend ?? p.totalSpend ?? p.budget;
+      if (raw !== undefined && raw !== null && raw !== '') {
+        const num = Number(String(raw).replace(/[^0-9.-]+/g, ''));
+        if (!isNaN(num) && num > 0) {
+          total += num;
+          hasVal = true;
+        }
+      }
+    });
+
+    const projectCount = matched.length > 0 ? matched.length : (client.activeProjects || 0);
+    const totalSpend = hasVal ? `₹${total.toLocaleString()}` : (client.totalSpent || '₹0');
+
+    return { projectCount, totalSpend, clientProjects: matched };
+  };
+
+  const selectedClientProjects = useMemo(() => {
+    return getClientProjects(selectedClient);
+  }, [selectedClient, projects]);
+
+  const selectedClientStats = useMemo(() => {
+    return getClientStats(selectedClient);
+  }, [selectedClient, projects]);
 
   const handleDeleteClient = (client) => {
     if (!client) return;
@@ -307,15 +421,6 @@ export const ClientManagement = () => {
     return (clients || []).filter((c) => !isDemoRecord(c));
   }, [clients]);
 
-  // Extract unique industries for filter
-  const industryOptions = useMemo(() => {
-    const unique = Array.from(new Set(cleanClients.map((c) => c.industry).filter(Boolean)));
-    return [
-      { value: 'all', label: 'All Industries' },
-      ...unique.map((ind) => ({ value: ind, label: ind })),
-    ];
-  }, [cleanClients]);
-
   // Filtered clients
   const filteredClients = useMemo(() => {
     return cleanClients.filter((client) => {
@@ -324,15 +429,9 @@ export const ClientManagement = () => {
         (client.contactPerson || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (client.email || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === 'all' || (client.status || '').toLowerCase() === statusFilter.toLowerCase();
-
-      const matchesIndustry =
-        industryFilter === 'all' || client.industry === industryFilter;
-
-      return matchesSearch && matchesStatus && matchesIndustry;
+      return matchesSearch;
     });
-  }, [cleanClients, searchQuery, statusFilter, industryFilter]);
+  }, [cleanClients, searchQuery]);
 
   const columns = [
     {
@@ -391,19 +490,25 @@ export const ClientManagement = () => {
       header: 'Active Projects',
       accessor: 'activeProjects',
       sortable: true,
-      render: (row) => (
-        <span className="font-semibold text-[#191b23] dark:text-white">
-          {row.activeProjects || 0} {row.activeProjects === 1 ? 'Project' : 'Projects'}
-        </span>
-      ),
+      render: (row) => {
+        const stats = getClientStats(row);
+        return (
+          <span className="font-semibold text-[#191b23] dark:text-white">
+            {stats.projectCount} {stats.projectCount === 1 ? 'Project' : 'Projects'}
+          </span>
+        );
+      },
     },
     {
       header: 'Total Spend',
       accessor: 'totalSpent',
       sortable: true,
-      render: (row) => (
-        <span className="font-mono font-bold text-[#004ac6] dark:text-blue-400">{row.totalSpent || '₹0'}</span>
-      ),
+      render: (row) => {
+        const stats = getClientStats(row);
+        return (
+          <span className="font-mono font-bold text-[#004ac6] dark:text-blue-400">{stats.totalSpend}</span>
+        );
+      },
     },
     {
       header: 'Location',
@@ -477,26 +582,7 @@ export const ClientManagement = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <FilterDropdown
-            label="Status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: 'all', label: 'All Statuses' },
-              { value: 'Active', label: 'Active' },
-              { value: 'Onboarding', label: 'Onboarding' },
-              { value: 'Inactive', label: 'Inactive' },
-            ]}
-          />
-
-          <FilterDropdown
-            label="Industry"
-            value={industryFilter}
-            onChange={setIndustryFilter}
-            options={industryOptions}
-          />
-
+        <div className="flex items-center gap-2.5">
           {/* View Toggle */}
           <div className="flex items-center rounded-lg border border-[#c3c6d7]/80 dark:border-white/15 bg-slate-100 dark:bg-[#1c1a36] p-0.5">
             <button
@@ -548,8 +634,8 @@ export const ClientManagement = () => {
               status={client.status}
               location={client.location}
               metrics={[
-                { label: 'Active Projects', value: client.activeProjects },
-                { label: 'Total Spend', value: client.totalSpent },
+                { label: 'Active Projects', value: getClientStats(client).projectCount },
+                { label: 'Total Spend', value: getClientStats(client).totalSpend },
               ]}
               actionLabel="View Client Details"
               onAction={() => setSelectedClient(client)}
@@ -563,14 +649,14 @@ export const ClientManagement = () => {
         <Modal
           isOpen={Boolean(selectedClient)}
           onClose={() => setSelectedClient(null)}
-          title={selectedClient.name}
-          subtitle={`Client Account Overview • ${selectedClient.tier}`}
-          size="md"
+          title={selectedClient.name || selectedClient.companyName}
+          subtitle={`Client Account Overview • ${selectedClient.tier || 'Enterprise Client'}`}
+          maxWidth="max-w-xl"
         >
           <div className="space-y-4 text-xs">
             <div className="flex items-center gap-3 bg-slate-50 dark:bg-[#1c1a36] p-3.5 rounded-xl border border-slate-100 dark:border-white/10">
               <img
-                src={selectedClient.logo}
+                src={selectedClient.logo || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80'}
                 alt={selectedClient.name}
                 className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
               />
@@ -587,12 +673,122 @@ export const ClientManagement = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-50 dark:bg-[#1c1a36] p-3 rounded-lg border border-slate-100 dark:border-white/10">
                 <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Active Projects</span>
-                <p className="text-base font-bold text-[#191b23] dark:text-white">{selectedClient.activeProjects || 0}</p>
+                <p className="text-base font-bold text-[#191b23] dark:text-white">
+                  {selectedClientStats.projectCount}
+                </p>
               </div>
               <div className="bg-slate-50 dark:bg-[#1c1a36] p-3 rounded-lg border border-slate-100 dark:border-white/10">
-                <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Total Invoiced</span>
-                <p className="text-base font-bold text-[#004ac6] dark:text-blue-400">{selectedClient.totalSpent || '₹0'}</p>
+                <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase font-bold">Total Invoiced / Spend</span>
+                <p className="text-base font-bold text-[#004ac6] dark:text-blue-400">
+                  {selectedClientStats.totalSpend}
+                </p>
               </div>
+            </div>
+
+            {/* Client Projects List (One by One) */}
+            <div className="border-t border-slate-100 dark:border-white/10 pt-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderKanban size={15} className="text-[#004ac6] dark:text-blue-400" />
+                  <span className="text-xs font-bold text-[#191b23] dark:text-white uppercase tracking-wider">
+                    Client Projects
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                  {selectedClientProjects.length} {selectedClientProjects.length === 1 ? 'Project' : 'Projects'}
+                </span>
+              </div>
+
+              {selectedClientProjects.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/10 p-5 text-center bg-slate-50/50 dark:bg-[#1c1a36]/50">
+                  <FolderKanban className="mx-auto h-7 w-7 text-slate-400 mb-1.5 opacity-60" />
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Projects Registered</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    No active projects registered for {selectedClient.name || selectedClient.companyName} yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                  {selectedClientProjects.map((proj, pIdx) => {
+                    const prog = getProjectProgress(proj);
+                    const spend = formatProjectSpend(proj);
+                    const projName = proj.name || proj.title || `Project #${proj.id || pIdx + 1}`;
+                    const projStatus = proj.status || proj.stage || 'In Progress';
+
+                    return (
+                      <div
+                        key={proj.id || pIdx}
+                        onClick={() => proj.id && navigate(`/admin/projects/${proj.id}`)}
+                        className={`rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36] p-3 space-y-2 transition-all ${
+                          proj.id ? 'hover:border-[#004ac6]/40 hover:shadow-xs cursor-pointer' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                #{proj.id || pIdx + 1}
+                              </span>
+                              <h5 className="font-bold text-xs text-[#191b23] dark:text-white truncate">
+                                {projName}
+                              </h5>
+                            </div>
+                            {proj.category && (
+                              <p className="text-[10px] text-[#737686] dark:text-slate-400 mt-0.5 truncate">
+                                {proj.category}
+                              </p>
+                            )}
+                          </div>
+                          <StatusBadge status={projStatus} size="sm" />
+                        </div>
+
+                        {/* Progress Bar & Percentage */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-[#737686] dark:text-slate-400 font-medium flex items-center gap-1">
+                              <PlayCircle size={11} className="text-blue-500" />
+                              Progress
+                            </span>
+                            <span className="font-bold text-[#191b23] dark:text-white">
+                              {prog}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-1.5 rounded-full transition-all duration-300 ${
+                                prog >= 100
+                                  ? 'bg-emerald-500'
+                                  : prog >= 50
+                                  ? 'bg-[#004ac6] dark:bg-blue-500'
+                                  : prog > 0
+                                  ? 'bg-amber-500'
+                                  : 'bg-slate-300 dark:bg-slate-600'
+                              }`}
+                              style={{ width: `${prog}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Spend and Details Footer */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-white/5 text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[#737686] dark:text-slate-400 font-medium">Spend:</span>
+                            <span className="font-mono font-bold text-[#004ac6] dark:text-blue-400">
+                              {spend}
+                            </span>
+                          </div>
+                          {(proj.manager || proj.managerName) && proj.manager !== 'Unassigned' && (
+                            <div className="text-[10px] text-[#737686] dark:text-slate-400 flex items-center gap-1">
+                              <Users size={11} />
+                              <span>{proj.manager || proj.managerName}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 border-t border-slate-100 dark:border-white/10 pt-3 text-[#434655] dark:text-slate-300">

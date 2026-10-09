@@ -20,6 +20,7 @@ import com.flexistaff.backend.repository.ProfessionalProfileRepository;
 import com.flexistaff.backend.repository.UserRepository;
 import com.flexistaff.backend.repository.WorkforceAllocationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FreelancerService {
@@ -48,6 +50,11 @@ public class FreelancerService {
             throw new BadRequestException("Email address already registered: " + email);
         }
 
+        // Independent freelancers register with "Pending Review" status and require Admin approval before login
+        boolean isPartnerEmployee = request.getPartnerCompanyId() != null;
+        boolean initialActive = isPartnerEmployee;
+        String initialStatus = isPartnerEmployee ? "Active" : "Pending Review";
+
         // 1. Create and save central User entity (PostgreSQL generates unique auto-increment ID)
         User user = User.builder()
                 .fullName(request.getFullName())
@@ -55,7 +62,7 @@ public class FreelancerService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .role(Role.ROLE_PROFESSIONAL)
-                .active(true)
+                .active(initialActive)
                 .build();
 
         User savedUser;
@@ -82,7 +89,7 @@ public class FreelancerService {
                 .hourlyRate(request.getHourlyRate())
                 .availabilityStatus(request.getAvailabilityStatus() != null ? request.getAvailabilityStatus() : "Available")
                 .partnerCompanyId(request.getPartnerCompanyId())
-                .status("Active")
+                .status(initialStatus)
                 .build();
 
         Freelancer savedFreelancer = freelancerRepository.save(freelancer);
@@ -297,7 +304,14 @@ public class FreelancerService {
             if (request.getExperienceYears() != null) freelancer.setExperienceYears(request.getExperienceYears());
             if (request.getHourlyRate() != null) freelancer.setHourlyRate(request.getHourlyRate());
             if (request.getAvailabilityStatus() != null) freelancer.setAvailabilityStatus(request.getAvailabilityStatus());
-            if (request.getStatus() != null) freelancer.setStatus(request.getStatus());
+            if (request.getStatus() != null) {
+                freelancer.setStatus(request.getStatus());
+                boolean makeActive = "Approved".equalsIgnoreCase(request.getStatus()) || "Active".equalsIgnoreCase(request.getStatus());
+                if (user != null) {
+                    user.setActive(makeActive);
+                    user = userRepository.save(user);
+                }
+            }
             if (request.getPartnerCompanyId() != null) freelancer.setPartnerCompanyId(request.getPartnerCompanyId());
 
             freelancer = freelancerRepository.save(freelancer);
@@ -336,14 +350,56 @@ public class FreelancerService {
         return freelancer != null ? mapToDto(freelancer) : mapUserToDto(user);
     }
 
+    @Transactional
+    public FreelancerDto approveFreelancer(Long id) {
+        Freelancer freelancer = freelancerRepository.findById(id)
+                .or(() -> freelancerRepository.findByUserId(id))
+                .orElseThrow(() -> new ResourceNotFoundException("Freelancer", "id", id));
+
+        freelancer.setStatus("Approved");
+        freelancer = freelancerRepository.save(freelancer);
+
+        User user = freelancer.getUser();
+        if (user == null && freelancer.getEmail() != null) {
+            user = userRepository.findByEmailIgnoreCase(freelancer.getEmail().trim()).orElse(null);
+        }
+        if (user != null) {
+            user.setActive(true);
+            userRepository.save(user);
+        }
+
+        log.info("Admin approved freelancer: id={}, email={}", freelancer.getId(), freelancer.getEmail());
+        return mapToDto(freelancer);
+    }
+
+    @Transactional
+    public FreelancerDto rejectFreelancer(Long id, String reason) {
+        Freelancer freelancer = freelancerRepository.findById(id)
+                .or(() -> freelancerRepository.findByUserId(id))
+                .orElseThrow(() -> new ResourceNotFoundException("Freelancer", "id", id));
+
+        freelancer.setStatus("Rejected");
+        freelancer = freelancerRepository.save(freelancer);
+
+        User user = freelancer.getUser();
+        if (user == null && freelancer.getEmail() != null) {
+            user = userRepository.findByEmailIgnoreCase(freelancer.getEmail().trim()).orElse(null);
+        }
+        if (user != null) {
+            user.setActive(false);
+            userRepository.save(user);
+        }
+
+        log.info("Admin rejected freelancer: id={}, email={}, reason={}", freelancer.getId(), freelancer.getEmail(), reason);
+        return mapToDto(freelancer);
+    }
+
     public FreelancerDto mapToDto(Freelancer freelancer) {
         if (freelancer == null) return null;
         User user = freelancer.getUser();
         if (user == null && freelancer.getEmail() != null && !freelancer.getEmail().isBlank()) {
             user = userRepository.findByEmailIgnoreCase(freelancer.getEmail().trim()).orElse(null);
         }
-
-
 
         Long userId = user != null ? user.getId() : freelancer.getId();
         String name = freelancer.getName() != null && !freelancer.getName().isBlank()
@@ -384,6 +440,14 @@ public class FreelancerService {
         String professionalType = isPartnerEmployee ? "PARTNER_EMPLOYEE" : "FREELANCER";
         String source = isPartnerEmployee ? "Partner Company" : "Freelancer";
 
+        String rawStatus = freelancer.getStatus() != null ? freelancer.getStatus().trim() : (isPartnerEmployee ? "Active" : "Pending Review");
+        boolean isApproved = "Approved".equalsIgnoreCase(rawStatus) || "Active".equalsIgnoreCase(rawStatus);
+        boolean isRejected = "Rejected".equalsIgnoreCase(rawStatus);
+
+        String approvalStatus = isRejected ? "Rejected" : (isApproved ? "Approved" : "Pending Review");
+        String verificationStatus = isRejected ? "Rejected" : (isApproved ? "Approved" : "Pending");
+        String accountStatus = isRejected ? "Rejected" : (isApproved ? "Active" : "Pending Review");
+
         FreelancerDto dto = FreelancerDto.builder()
                 .id(freelancer.getId())
                 .userId(userId)
@@ -396,7 +460,7 @@ public class FreelancerService {
                 .experienceYears(freelancer.getExperienceYears() != null ? freelancer.getExperienceYears() : 3)
                 .hourlyRate(freelancer.getHourlyRate() != null ? freelancer.getHourlyRate() : new java.math.BigDecimal("50.00"))
                 .availabilityStatus(freelancer.getAvailabilityStatus() != null ? freelancer.getAvailabilityStatus() : "Available")
-                .status(freelancer.getStatus() != null ? freelancer.getStatus() : "Active")
+                .status(rawStatus)
                 .roleType(roleType)
                 .professionalType(professionalType)
                 .source(source)
@@ -404,9 +468,9 @@ public class FreelancerService {
                 .partnerCompany(partnerCompanyName)
                 .partnerName(partnerCompanyName)
                 .partnerCompanyName(partnerCompanyName)
-                .approvalStatus(freelancer.getStatus() != null ? freelancer.getStatus() : "Approved")
-                .verificationStatus("Approved")
-                .accountStatus("Active")
+                .approvalStatus(approvalStatus)
+                .verificationStatus(verificationStatus)
+                .accountStatus(accountStatus)
                 .createdAt(freelancer.getCreatedAt())
                 .build();
 

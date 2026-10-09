@@ -47,6 +47,25 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest loginRequest) {
+        String loginEmail = loginRequest.getEmail() != null ? loginRequest.getEmail().trim().toLowerCase() : "";
+        User checkUser = userRepository.findByEmailIgnoreCase(loginEmail).orElse(null);
+        if (checkUser != null && checkUser.getRole() == Role.ROLE_PROFESSIONAL) {
+            var flOpt = freelancerRepository.findByEmailIgnoreCase(checkUser.getEmail())
+                    .or(() -> freelancerRepository.findByUserId(checkUser.getId()));
+            if (flOpt.isPresent()) {
+                Freelancer fl = flOpt.get();
+                if (fl.getPartnerCompanyId() == null) {
+                    String status = fl.getStatus() != null ? fl.getStatus().trim() : "";
+                    if ("Rejected".equalsIgnoreCase(status)) {
+                        throw new BadRequestException("Your freelancer application has been rejected by the administrator.");
+                    }
+                    if (!"Approved".equalsIgnoreCase(status) && !"Active".equalsIgnoreCase(status)) {
+                        throw new BadRequestException("Your freelancer account is currently pending Admin approval. Please wait for an administrator to review and approve your registration.");
+                    }
+                }
+            }
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getEmail(),
@@ -115,13 +134,15 @@ public class AuthService {
             throw new BadRequestException("Email address already registered: " + email);
         }
 
+        boolean isFreelancer = registerRequest.getRole() == Role.ROLE_PROFESSIONAL;
+
         User user = User.builder()
                 .fullName(registerRequest.getFullName())
                 .email(email)
                 .password(passwordEncoder.encode(registerRequest.getPassword()))
                 .phone(registerRequest.getPhone())
                 .role(registerRequest.getRole())
-                .active(true)
+                .active(!isFreelancer)
                 .build();
 
         User savedUser;
@@ -153,7 +174,7 @@ public class AuthService {
                     .title(registerRequest.getTitle() != null ? registerRequest.getTitle() : "Software Professional")
                     .skills(registerRequest.getSkills())
                     .availabilityStatus("Available")
-                    .status("Active")
+                    .status("Pending Review")
                     .build();
             freelancerRepository.save(freelancer);
         } else if (registerRequest.getRole() == Role.ROLE_CLIENT) {

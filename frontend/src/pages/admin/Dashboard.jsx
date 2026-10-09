@@ -163,8 +163,24 @@ export const Dashboard = () => {
   );
 
   // Helper functions for categorization
+  const isPartnerProfessionalMember = (w) => {
+    if (!w) return false;
+    return Boolean(
+      w.partnerCompanyId ||
+      w.partnerCompany ||
+      w.partnerName ||
+      w.partnerCompanyName ||
+      w.category === 'Partner Employee' ||
+      w.professionalType === 'PARTNER_EMPLOYEE' ||
+      w.source === 'Partner Company' ||
+      (w.roleType === 'Professional' && !String(w.roleType).toLowerCase().includes('freelanc'))
+    );
+  };
+
   const isFreelancerMember = (w) => {
     if (!w) return false;
+    if (isPartnerProfessionalMember(w)) return false;
+
     const source = (w.source || '').toLowerCase();
     const profType = (w.professionalType || '').toLowerCase();
     const roleType = (w.roleType || '').toLowerCase();
@@ -174,7 +190,6 @@ export const Dashboard = () => {
     const isExcluded =
       role.includes('admin') ||
       role.includes('client') ||
-      role.includes('partner') ||
       role.includes('manager') ||
       role.includes('hr');
 
@@ -185,7 +200,8 @@ export const Dashboard = () => {
       profType === 'freelancer' ||
       roleType === 'freelancer' ||
       type === 'freelancer' ||
-      role.includes('freelanc')
+      role.includes('freelanc') ||
+      (!w.partnerCompanyId && !w.partnerCompany)
     );
   };
 
@@ -223,14 +239,14 @@ export const Dashboard = () => {
   };
 
   const totalProfessionals = useMemo(
-    () => cleanWorkforceRoster.filter((w) => isApprovedMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isApprovedMember(w) && isPartnerProfessionalMember(w)).length,
     [cleanWorkforceRoster]
   );
 
   const availableProfessionals = useMemo(
     () => {
-      const count = cleanWorkforceRoster.filter((w) => isAvailableMember(w)).length;
-      if (count === 0 && dashboardStats && typeof dashboardStats.totalProfessionals === 'number' && dashboardStats.totalProfessionals > 0) {
+      const count = cleanWorkforceRoster.filter((w) => isAvailableMember(w) && isPartnerProfessionalMember(w)).length;
+      if (count === 0 && cleanWorkforceRoster.length === 0 && dashboardStats && typeof dashboardStats.totalProfessionals === 'number' && dashboardStats.totalProfessionals > 0) {
         return dashboardStats.totalProfessionals;
       }
       return count;
@@ -239,17 +255,22 @@ export const Dashboard = () => {
   );
 
   const totalFreelancers = useMemo(
-    () => cleanWorkforceRoster.filter((w) => isApprovedMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isApprovedMember(w)).length,
     [cleanWorkforceRoster]
   );
 
   const availableFreelancers = useMemo(
-    () => cleanWorkforceRoster.filter((w) => isAvailableMember(w)).length,
+    () => cleanWorkforceRoster.filter((w) => isFreelancerMember(w) && isAvailableMember(w)).length,
     [cleanWorkforceRoster]
   );
 
-  const apiFreelancerCount = dashboardStats?.freelancerCount ?? dashboardStats?.totalFreelancers;
-  const realFreelancerCount = typeof apiFreelancerCount === 'number' ? apiFreelancerCount : totalFreelancers;
+  const realFreelancerCount = useMemo(() => {
+    if (cleanWorkforceRoster.length > 0) {
+      return totalFreelancers;
+    }
+    const apiFreelancerCount = dashboardStats?.freelancerCount ?? dashboardStats?.totalFreelancers;
+    return typeof apiFreelancerCount === 'number' ? apiFreelancerCount : totalFreelancers;
+  }, [cleanWorkforceRoster, totalFreelancers, dashboardStats]);
 
   // Project Stage Distribution Chart Data
   const stageDistribution = useMemo(() => {

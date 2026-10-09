@@ -63,6 +63,23 @@ public class FreelancerController {
         return ResponseEntity.ok(ApiResponse.success("Freelancer profile updated successfully", updated));
     }
 
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<FreelancerDto>> approveFreelancer(@PathVariable Long id) {
+        log.info("Admin approved freelancer with id: {}", id);
+        FreelancerDto approved = freelancerService.approveFreelancer(id);
+        return ResponseEntity.ok(ApiResponse.success("Freelancer approved and activated successfully", approved));
+    }
+
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<FreelancerDto>> rejectFreelancer(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> payload) {
+        String reason = payload != null && payload.containsKey("reason") ? payload.get("reason") : "Application declined by administrator";
+        log.info("Admin rejected freelancer with id: {}, reason: {}", id, reason);
+        FreelancerDto rejected = freelancerService.rejectFreelancer(id, reason);
+        return ResponseEntity.ok(ApiResponse.success("Freelancer application rejected", rejected));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteFreelancer(@PathVariable Long id) {
         freelancerService.deleteFreelancer(id);

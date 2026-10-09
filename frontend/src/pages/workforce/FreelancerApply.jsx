@@ -467,10 +467,10 @@ export const FreelancerApply = () => {
         setLoading(false);
       }
 
-      toast.success('Freelancer profile created successfully and saved to database!');
+      toast.success('Freelancer application submitted! Awaiting Administrator review and approval before login access is granted.', { duration: 5000 });
       setTimeout(() => {
         navigate('/login');
-      }, 800);
+      }, 1200);
     } catch (err) {
       setLoading(false);
       toast.error(err.message || 'Registration failed. Please try again.');

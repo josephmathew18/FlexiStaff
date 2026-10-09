@@ -190,6 +190,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(freelancerData),
       }),
+    approve: (id) =>
+      request(`/freelancers/${id}/approve`, {
+        method: 'POST',
+      }),
+    reject: (id, reason) =>
+      request(`/freelancers/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || 'Declined by Administrator' }),
+      }),
     update: (id, freelancerData) =>
       request(`/freelancers/${id}`, {
         method: 'PUT',
