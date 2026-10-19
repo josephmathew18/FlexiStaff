@@ -262,6 +262,10 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ status, adminResponse }),
       }),
+    clearAllStatuses: () =>
+      request('/support/tickets/clear-status', {
+        method: 'POST',
+      }),
   },
 };
 

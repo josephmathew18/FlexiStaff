@@ -16,7 +16,6 @@ import {
   X,
   Send,
   Sparkles,
-  RefreshCw,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -27,6 +26,7 @@ export const AdminSupportTickets = () => {
     loadingTickets,
     refreshSupportTickets,
     updateSupportTicketStatus,
+    clearAllTicketStatuses,
   } = useData() || {};
 
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'Client' | 'Manager' | 'Partner' | 'Workforce'
@@ -130,19 +130,13 @@ export const AdminSupportTickets = () => {
             type="button"
             onClick={async () => {
               try {
-                const res = await fetch('http://localhost:8080/api/v1/support-tickets/clear-all-status', {
-                  method: 'POST',
-                });
-                if (res.ok) {
-                  toast.success('All support ticket statuses cleared and reset to "Pending Admin Review" in PostgreSQL!');
-                  if (refreshSupportTickets) refreshSupportTickets();
-                } else {
-                  toast.info('Ticket statuses cleared locally.');
-                  if (refreshSupportTickets) refreshSupportTickets();
+                if (clearAllTicketStatuses) {
+                  await clearAllTicketStatuses();
                 }
-              } catch {
-                toast.info('Ticket statuses cleared.');
-                if (refreshSupportTickets) refreshSupportTickets();
+                setStatusFilter('all');
+                toast.success('All support ticket statuses cleared and reset to "Pending Admin Review"!');
+              } catch (err) {
+                toast.error('Failed to reset ticket statuses. Please try again.');
               }
             }}
             className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold border border-amber-600 flex items-center gap-1.5 transition-all shadow-xs"
@@ -150,15 +144,6 @@ export const AdminSupportTickets = () => {
           >
             <Clock size={14} />
             <span>Clear All Ticket Statuses</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => refreshSupportTickets && refreshSupportTickets()}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-white/10 flex items-center gap-1.5 transition-all shadow-xs"
-          >
-            <RefreshCw size={14} className={loadingTickets ? 'animate-spin text-blue-600' : ''} />
-            <span>Sync Database ({supportTickets.length})</span>
           </button>
         </div>
       </div>
