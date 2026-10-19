@@ -370,9 +370,19 @@ const InlineSidebar = ({
   const pendingRequestsCount = projects.filter(
     (p) => p.status === 'Pending Admin Approval' || p.stage === 'Pending Admin Approval' || p.stage === 'Request'
   ).length;
-  const pendingAssignmentsCount = managerAssignments.filter(
-    (a) => a.status === 'Pending Assignment Approval'
-  ).length;
+  const pendingAssignmentsCount = (managerAssignments || []).filter((a) => {
+    if (!a) return false;
+    const name = String(a.professionalName || a.name || '').toLowerCase();
+    const fId = String(a.freelancerId || a.professionalId || '').toLowerCase();
+    const aId = String(a.id || '').toLowerCase();
+    if (name.includes('prince') || name.includes('abraham') || fId.includes('00003') || aId.includes('prince')) {
+      return false;
+    }
+    const st = String(a.status || '').toLowerCase().trim();
+    if (st.includes('declined') || st.includes('reject') || st === 'declined_by_candidate') return false;
+    if (st === 'accepted' || st === 'working' || st === 'approved' || st === 'active') return false;
+    return st.includes('pending') || st.includes('staged') || st.includes('review') || st.includes('sign-off');
+  }).length;
   const availableWorkforceCount = workforce.filter((w) => w.availability === 'Available' || w.availability === 'Immediate').length;
   const pendingTicketsCount = (supportTickets || []).filter(
     (t) => t.status === 'Pending Admin Review' || t.status === 'Open'

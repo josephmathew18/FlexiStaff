@@ -2024,6 +2024,34 @@ export const DataProvider = ({ children }) => {
     } catch { }
   }, [managerAssignments]);
 
+  // Purge demonstration samples from active assignments on mount
+  useEffect(() => {
+    setManagerAssignments((prev) => {
+      const filtered = (prev || []).filter((a) => {
+        if (!a) return false;
+        const profName = (a.professionalName || a.name || '').toLowerCase();
+        const profEmail = (a.email || a.professionalEmail || '').toLowerCase();
+        const fId = String(a.freelancerId || a.professionalId || '').toLowerCase();
+        const aId = String(a.id || '').toLowerCase();
+        if (
+          profName.includes('sharon') || profEmail.includes('sharon') ||
+          profName.includes('prince') || profName.includes('abraham') ||
+          profEmail.includes('prince') ||
+          fId.includes('00003') ||
+          aId.includes('prince')
+        ) return false;
+        return true;
+      });
+      if (filtered.length !== prev.length) {
+        try {
+          localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(filtered));
+        } catch { }
+        return filtered;
+      }
+      return prev;
+    });
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(freelancerRequests));
@@ -4513,15 +4541,28 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   const approveWorkforceAssignment = (assignmentId) => {
     let targetAsg = null;
+    const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+
+    try {
+      const numId = parseInt(targetIdStr.replace(/\D/g, ''), 10);
+      if (numId && !isNaN(numId) && api?.workforce?.updateStatus) {
+        api.workforce.updateStatus(numId, 'ACTIVE').catch((err) => console.warn('Backend workforce update status offline fallback:', err));
+      }
+    } catch { }
+
     setManagerAssignments((prev) => {
-      const updated = prev.map((a) => {
-        if (a.id === assignmentId || String(a.professionalId || '').toLowerCase() === String(assignmentId || '').toLowerCase()) {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        const aIdStr = String(a.id || '').toLowerCase().trim();
+        const aProfIdStr = String(a.professionalId || '').toLowerCase().trim();
+        if (aIdStr === targetIdStr || aProfIdStr === targetIdStr) {
           targetAsg = {
             ...a,
-            status: 'Awaiting Workforce Response',
-            progress: 0,
-            currentTask: 'Approved by Company Admin. Awaiting candidate response.',
+            status: 'Accepted',
+            progress: a.progress || 0,
+            currentTask: 'Assignment authorized by Company Admin. Project execution active.',
             approvedDate: new Date().toISOString().split('T')[0],
+            acceptedDate: new Date().toISOString().split('T')[0],
           };
           return targetAsg;
         }
@@ -4535,45 +4576,106 @@ export const DataProvider = ({ children }) => {
 
     if (!targetAsg) return;
 
-    // Synchronize project assignedResources in state and localStorage
-    setProjects((prevProjects) => {
-      const updatedProjects = prevProjects.map((p) => {
-        const pNormId = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-        const asgNormId = String(targetAsg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-        if (pNormId === asgNormId) {
-          const res = (p.assignedResources || []).map((r) => {
-            const rId = String(r.id || r.professionalId || '').toLowerCase().trim();
-            const asgProfId = String(targetAsg.professionalId || targetAsg.id || '').toLowerCase().trim();
-            if (rId === asgProfId) {
-              return { ...r, status: 'Awaiting Workforce Response' };
-            }
-            return r;
-          });
-          return { ...p, assignedResources: res };
+    // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
+    setWorkforce((prev) => {
+      const updated = (prev || []).map((w) =>
+        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
+          ? {
+            ...w,
+            availability: 'Assigned',
+            workingStatus: 'Working',
+            currentProject: targetAsg.projectName,
+            assignedProject: targetAsg.projectName,
+          }
+          : w
+      );
+      try { localStorage.setItem('flexistaff_workforce', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setPartnerWorkforce((prev) =>
+      (prev || []).map((w) =>
+        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
+          ? {
+            ...w,
+            availability: 'Assigned',
+            workingStatus: 'Working',
+            currentProject: targetAsg.projectName,
+            assignedProject: targetAsg.projectName,
+          }
+          : w
+      )
+    );
+
+    // 2. Synchronize project assignedResources and status in state and localStorage
+    const updateProjObj = (p) => {
+      if (!p) return p;
+      const pIdStr = String(p.id || '').toLowerCase().trim();
+      const asgProjIdStr = String(targetAsg.projectId || '').toLowerCase().trim();
+      const pTitleLower = (p.title || p.name || '').toLowerCase().trim();
+      const asgTitleLower = (targetAsg.projectName || '').toLowerCase().trim();
+
+      if (pIdStr === asgProjIdStr || (pTitleLower && asgTitleLower && (pTitleLower === asgTitleLower || pTitleLower.includes(asgTitleLower)))) {
+        const candidateResource = {
+          id: targetAsg.professionalId || targetAsg.id,
+          professionalId: targetAsg.professionalId || targetAsg.id,
+          allocationId: targetAsg.allocationId || targetAsg.id,
+          name: targetAsg.professionalName,
+          professionalName: targetAsg.professionalName,
+          role: targetAsg.role || targetAsg.roleInProject || 'Software Specialist',
+          roleInProject: targetAsg.role || targetAsg.roleInProject || 'Software Specialist',
+          skills: targetAsg.skills || [],
+          hourlyRate: targetAsg.hourlyRate || '$95/hr',
+          workload: targetAsg.workload || '40h/wk',
+          avatar: targetAsg.avatar || '',
+          status: 'Accepted',
+          partnerName: targetAsg.partnerName || 'Independent Freelancer',
+          projectId: p.id,
+          projectName: p.title || p.name,
+        };
+
+        const existingRes = p.assignedResources || [];
+        const existingIdx = existingRes.findIndex(
+          (r) => String(r.id || r.professionalId || '').toLowerCase().trim() === String(targetAsg.professionalId || targetAsg.id || '').toLowerCase().trim()
+        );
+
+        let newAssignedResources = [];
+        if (existingIdx >= 0) {
+          newAssignedResources = existingRes.map((r, i) => (i === existingIdx ? { ...r, ...candidateResource, status: 'Accepted' } : r));
+        } else {
+          newAssignedResources = [...existingRes, candidateResource];
         }
-        return p;
-      });
+
+        return {
+          ...p,
+          status: p.status === 'Completed' ? 'Completed' : 'In Progress',
+          stage: p.stage === 'Completed' ? 'Completed' : 'In Progress',
+          assignedResources: newAssignedResources,
+          workforceAssigned: newAssignedResources.length,
+        };
+      }
+      return p;
+    };
+
+    setProjects((prevProjects) => {
+      const updatedProjects = (prevProjects || []).map(updateProjObj);
       try {
         localStorage.setItem('flexistaff_projects', JSON.stringify(updatedProjects));
       } catch {}
       return updatedProjects;
     });
 
-    // Notify backend API if allocationId exists
-    try {
-      const numAllocId = parseInt(String(targetAsg.allocationId || targetAsg.id).replace(/\D/g, ''), 10);
-      if (!isNaN(numAllocId) && numAllocId > 0 && api?.workforce?.updateStatus) {
-        api.workforce.updateStatus(numAllocId, 'AWAITING_TALENT_RESPONSE').catch(() => {});
-      }
-    } catch {}
+    setPartnerProjects((prev) => {
+      const updated = (prev || []).map(updateProjObj);
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
 
-    if (!targetAsg) return;
-
-    // 1. Notify Workforce Member, Manager & Client
+    // 3. Notify Workforce Member, Manager & Client
     const wfNotif = {
       id: `wnotif-${Date.now()}`,
       title: 'Project Assignment Approved by Admin',
-      message: `Your assignment proposal on "${targetAsg.projectName}" as ${targetAsg.role} was approved by Admin. Please Accept or Decline the offer.`,
+      message: `Your assignment on "${targetAsg.projectName}" as ${targetAsg.role} was approved and authorized by Company Admin. Project execution active.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -4584,13 +4686,24 @@ export const DataProvider = ({ children }) => {
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
       title: 'Assignment Proposal Approved by Admin',
-      message: `Admin approved the assignment proposal for ${targetAsg.professionalName} on "${targetAsg.projectName}". Offer sent to talent.`,
+      message: `Admin approved and authorized ${targetAsg.professionalName} on "${targetAsg.projectName}". Project is now In Progress.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
       link: '/manager/assignments',
     };
     setManagerNotifications((prev) => [mgrNotif, ...prev]);
+
+    const clientNotif = {
+      id: `cnotif-${Date.now()}`,
+      title: 'Workforce Assigned to Project',
+      message: `${targetAsg.professionalName} (${targetAsg.role}) was approved and activated for your project "${targetAsg.projectName}".`,
+      type: 'project',
+      unread: true,
+      time: 'Just now',
+      link: `/client/projects/${targetAsg.projectId}`,
+    };
+    setClientNotifications((prev) => [clientNotif, ...prev]);
   };
 
   // =========================================================================
@@ -4773,16 +4886,16 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map((a) => {
         if (!a) return a;
         const aIdStr = String(a.id || '').toLowerCase().trim();
-        const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+        const aProfIdStr = String(a.professionalId || '').toLowerCase().trim();
 
-        if (aIdStr === targetIdStr || aProjIdStr === targetIdStr) {
+        if (aIdStr === targetIdStr || aProfIdStr === targetIdStr) {
           targetAsg = {
             ...a,
             status: 'Declined',
             progress: 0,
             declineReason: reason,
             rejectionReason: reason,
-            currentTask: 'Assignment declined by candidate.',
+            currentTask: 'Assignment declined by candidate or admin.',
           };
           return targetAsg;
         }
@@ -4796,8 +4909,8 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map((r) => {
         if (!r) return r;
         const rIdStr = String(r.id || '').toLowerCase().trim();
-        const rProjIdStr = String(r.projectId || '').toLowerCase().trim();
-        if (rIdStr === targetIdStr || rProjIdStr === targetIdStr) {
+        const rProfIdStr = String(r.freelancerId || r.professionalId || '').toLowerCase().trim();
+        if (rIdStr === targetIdStr || rProfIdStr === targetIdStr) {
           return { ...r, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return r;
@@ -4810,8 +4923,7 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map((pr) => {
         if (!pr) return pr;
         const prIdStr = String(pr.id || '').toLowerCase().trim();
-        const prProjIdStr = String(pr.projectId || '').toLowerCase().trim();
-        if (prIdStr === targetIdStr || prProjIdStr === targetIdStr) {
+        if (prIdStr === targetIdStr) {
           return { ...pr, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return pr;
