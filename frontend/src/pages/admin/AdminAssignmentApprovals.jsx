@@ -62,6 +62,8 @@ export const AdminAssignmentApprovals = () => {
   const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
   const [candidateModalTab, setCandidateModalTab] = useState('overview'); // 'overview' | 'credentials' | 'experience' | 'resume'
   const [isResumeViewerOpen, setIsResumeViewerOpen] = useState(false);
+  const [resumeTabMode, setResumeTabMode] = useState('document'); // 'document' | 'dossier'
+  const [fullscreenResumeMode, setFullscreenResumeMode] = useState('document'); // 'document' | 'dossier'
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -241,36 +243,37 @@ export const AdminAssignmentApprovals = () => {
     const isBackgroundChecked = Boolean(masterCandidate?.isBackgroundChecked || asg.isBackgroundChecked);
     const isNdaSigned = Boolean(masterCandidate?.isNdaSigned || asg.isNdaSigned);
 
-    // Authentic Work Experiences (Empty if none provided)
-    const experiences =
-      Array.isArray(masterCandidate?.experiences) && masterCandidate.experiences.length > 0
-        ? masterCandidate.experiences
-        : [];
-
-    // Authentic Education History (Empty if none provided)
-    const educations =
-      Array.isArray(masterCandidate?.educations) && masterCandidate.educations.length > 0
-        ? masterCandidate.educations
-        : [];
-
-    // Authentic Professional Certifications (Empty if none provided)
-    const certifications =
-      Array.isArray(masterCandidate?.certifications) && masterCandidate.certifications.length > 0
-        ? masterCandidate.certifications
-        : [];
+    // Auto-enrich candidate credentials from attached resume
+    const baseCandidate = {
+      ...masterCandidate,
+      name: candName,
+      professionalName: candName,
+      role: asg.role || masterCandidate?.role || masterCandidate?.title || (isEmployee ? 'Professional' : 'Freelancer'),
+      skills: skillsArr,
+      resumeUrl,
+      resumeName,
+      experiences: masterCandidate?.experiences || [],
+      educations: masterCandidate?.educations || [],
+      certifications: masterCandidate?.certifications || [],
+      bio: masterCandidate?.bio || masterCandidate?.summary || asg.notes || '',
+      hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '',
+      experience: asg.experience || masterCandidate?.experience || '',
+      rating: masterCandidate?.rating || asg.rating || null,
+    };
+    const autoEnriched = baseCandidate;
 
     return {
       ...asg,
-      professionalName: candName,
+      professionalName: autoEnriched.professionalName || candName,
       avatar: asg.avatar || masterCandidate?.avatar || '',
       email: asg.email || asg.professionalEmail || masterCandidate?.email || '',
       phone: asg.phone || masterCandidate?.phone || '',
       location: asg.location || masterCandidate?.location || '',
-      bio: masterCandidate?.bio || masterCandidate?.summary || asg.notes || '',
-      experience: asg.experience || masterCandidate?.experience || '',
-      hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '',
+      bio: autoEnriched.bio || masterCandidate?.bio || masterCandidate?.summary || asg.notes || '',
+      experience: asg.experience || masterCandidate?.experience || (autoEnriched.experienceYears ? `${autoEnriched.experienceYears} Years` : ''),
+      hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || autoEnriched.hourlyRate || '',
       rating: masterCandidate?.rating || asg.rating || null,
-      skills: skillsArr,
+      skills: autoEnriched.skills || skillsArr,
       partnerName: companyName,
       roleType: asg.roleType || masterCandidate?.roleType || (isEmployee ? 'Professional' : 'Freelancer'),
       client: clientDisplay,
@@ -289,18 +292,29 @@ export const AdminAssignmentApprovals = () => {
       linkedin,
       github,
       portfolio,
-      resumeName,
-      resumeUrl,
+      resumeName: autoEnriched.resumeName || resumeName,
+      resumeUrl: autoEnriched.resumeUrl || resumeUrl,
       isBackgroundChecked,
       isNdaSigned,
-      experiences,
-      educations,
-      certifications,
+      experiences: autoEnriched.experiences || [],
+      educations: autoEnriched.educations || [],
+      certifications: autoEnriched.certifications || [],
     };
   };
 
   const handleDownloadResume = (cand) => {
     if (!cand) return;
+    if (cand.resumeUrl) {
+      const link = document.createElement('a');
+      link.href = cand.resumeUrl;
+      link.download = cand.resumeName || `${(cand.professionalName || 'Candidate').replace(/\s+/g, '_')}_Resume.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Downloaded attached resume for ${cand.professionalName}`);
+      return;
+    }
+
     const fileName = (cand.resumeName || `${(cand.professionalName || 'Candidate').replace(/\s+/g, '_')}_CV.txt`).replace(/\.pdf$/i, '.txt');
     
     const content = `================================================================================
@@ -334,7 +348,7 @@ ${idx + 1}. ${exp.title} | ${exp.company || ''}
 `).join('\n') : 'No past work experience recorded.'}
 
 ACADEMIC QUALIFICATIONS:
-${(cand.educations || []).length > 0 ? (cand.educations || []).map((edu) => `* ${edu.degree} - ${edu.school} (${edu.dates || ''})`).join('\n') : 'No academic qualifications recorded.'}
+${(cand.educations || []).length > 0 ? (cand.educations || []).map((edu) => `* ${edu.degree} - ${edu.school} (${edu.dates || edu.year || ''})`).join('\n') : 'No academic qualifications recorded.'}
 
 PROFESSIONAL CERTIFICATIONS:
 ${(cand.certifications || []).length > 0 ? (cand.certifications || []).map((cert) => `* ${cert}`).join('\n') : 'No certifications recorded.'}
@@ -1399,20 +1413,56 @@ Generated on: ${new Date().toLocaleDateString()}
                     {/* Resume Header & Actions Card */}
                     <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-[#1c1a36] dark:to-[#14132b] border border-blue-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
                           <FileText size={20} />
                         </div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                            {selectedCandidateDetails.resumeName}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                              {selectedCandidateDetails.resumeName || 'resume.pdf'}
+                            </h4>
+                            {selectedCandidateDetails.resumeUrl && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800/50">
+                                Real Upload Attached
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {selectedCandidateDetails.resumeUrl ? 'Candidate Document Attachment' : 'Official Candidate Profile Overview'}
+                            {selectedCandidateDetails.resumeUrl
+                              ? 'Interactive Candidate Resume Document'
+                              : 'Official FlexiStaff Profile Dossier'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedCandidateDetails.resumeUrl && (
+                          <div className="flex items-center bg-white dark:bg-[#14132b] p-1 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold shadow-2xs mr-1">
+                            <button
+                              type="button"
+                              onClick={() => setResumeTabMode('document')}
+                              className={`px-3 py-1 rounded-lg transition-all ${
+                                resumeTabMode === 'document'
+                                  ? 'bg-[#004ac6] text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Uploaded Document
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setResumeTabMode('dossier')}
+                              className={`px-3 py-1 rounded-lg transition-all ${
+                                resumeTabMode === 'dossier'
+                                  ? 'bg-[#004ac6] text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Structured CV
+                            </button>
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleDownloadResume(selectedCandidateDetails)}
@@ -1423,7 +1473,10 @@ Generated on: ${new Date().toLocaleDateString()}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setIsResumeViewerOpen(true)}
+                          onClick={() => {
+                            setFullscreenResumeMode(selectedCandidateDetails.resumeUrl ? 'document' : 'dossier');
+                            setIsResumeViewerOpen(true);
+                          }}
                           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#004ac6] hover:bg-[#003da6] text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
                         >
                           <Eye size={14} />
@@ -1432,101 +1485,166 @@ Generated on: ${new Date().toLocaleDateString()}
                       </div>
                     </div>
 
-                    {/* Inline Document Presentation Card */}
-                    <div className="p-6 rounded-2xl bg-white dark:bg-[#100f24] border border-slate-200 dark:border-white/10 shadow-inner font-sans space-y-5 text-slate-800 dark:text-slate-200">
-                      {/* Document Header */}
-                      <div className="border-b border-slate-200 dark:border-white/10 pb-4 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-2">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                            {selectedCandidateDetails.professionalName}
-                          </h2>
-                          <p className="text-xs font-bold text-[#004ac6] dark:text-blue-400 mt-0.5">
-                            {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Specialist'}
-                          </p>
+                    {/* VIEW OPTION 1: EMBEDDED REAL DOCUMENT IF AVAILABLE */}
+                    {resumeTabMode === 'document' && selectedCandidateDetails.resumeUrl ? (
+                      <div className="w-full bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-lg flex flex-col">
+                        <div className="bg-slate-800 px-4 py-2.5 flex items-center justify-between text-xs text-slate-300 border-b border-slate-700">
+                          <div className="flex items-center gap-2">
+                            <FileText size={15} className="text-blue-400" />
+                            <span className="font-bold text-white truncate max-w-sm">
+                              {selectedCandidateDetails.resumeName || 'Candidate_Resume.pdf'}
+                            </span>
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-semibold">
+                              Attached PDF Document
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={selectedCandidateDetails.resumeUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold flex items-center gap-1 transition-colors"
+                            >
+                              <ExternalLink size={12} />
+                              <span>Open in Tab</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadResume(selectedCandidateDetails)}
+                              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 transition-colors shadow-xs"
+                            >
+                              <Download size={12} />
+                              <span>Download File</span>
+                            </button>
+                          </div>
                         </div>
-                        <div className="text-right text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
-                          {selectedCandidateDetails.email && <p>{selectedCandidateDetails.email}</p>}
-                          <p>
-                            {[selectedCandidateDetails.phone, selectedCandidateDetails.location].filter(Boolean).join(' • ')}
-                          </p>
-                          {selectedCandidateDetails.linkedin && (
-                            <p className="text-[#004ac6] dark:text-blue-400 font-semibold">{selectedCandidateDetails.linkedin}</p>
+
+                        <iframe
+                          src={selectedCandidateDetails.resumeUrl}
+                          title="Candidate Uploaded Resume"
+                          className="w-full h-[620px] bg-white border-0"
+                        />
+                      </div>
+                    ) : (
+                      /* VIEW OPTION 2: STRUCTURED RESUME DOSSIER WITH AUTO-ENRICHED DATA */
+                      <div className="p-6 rounded-2xl bg-white dark:bg-[#100f24] border border-slate-200 dark:border-white/10 shadow-inner font-sans space-y-5 text-slate-800 dark:text-slate-200">
+                        {/* Document Header */}
+                        <div className="border-b border-slate-200 dark:border-white/10 pb-4 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-2">
+                          <div>
+                            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                              {selectedCandidateDetails.professionalName}
+                            </h2>
+                            <p className="text-xs font-bold text-[#004ac6] dark:text-blue-400 mt-0.5">
+                              {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Specialist'}
+                            </p>
+                          </div>
+                          <div className="text-right text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                            {selectedCandidateDetails.email && <p>{selectedCandidateDetails.email}</p>}
+                            <p>
+                              {[selectedCandidateDetails.phone, selectedCandidateDetails.location].filter(Boolean).join(' • ')}
+                            </p>
+                            {selectedCandidateDetails.linkedin && (
+                              <p className="text-[#004ac6] dark:text-blue-400 font-semibold">{selectedCandidateDetails.linkedin}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Summary */}
+                        {selectedCandidateDetails.bio && (
+                          <div>
+                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                              Professional Summary
+                            </h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                              {selectedCandidateDetails.bio}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Technical Competencies */}
+                        {(selectedCandidateDetails.skills || []).length > 0 && (
+                          <div>
+                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                              Core Technical Competencies
+                            </h4>
+                            <p className="text-xs text-slate-700 dark:text-slate-300 font-mono">
+                              {selectedCandidateDetails.skills.join(' • ')}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Work History */}
+                        <div>
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-3">
+                            Employment Experience
+                          </h4>
+                          {(selectedCandidateDetails.experiences || []).length > 0 ? (
+                            <div className="space-y-3.5">
+                              {selectedCandidateDetails.experiences.map((exp, idx) => (
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex justify-between items-center text-xs font-bold text-slate-900 dark:text-white">
+                                    <span>{exp.title} {exp.company ? `— ${exp.company}` : ''}</span>
+                                    {exp.period && <span className="text-slate-400 font-mono text-[10px]">{exp.period}</span>}
+                                  </div>
+                                  {exp.description && <p className="text-[11px] text-slate-600 dark:text-slate-300">{exp.description}</p>}
+                                  {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                                    <ul className="list-disc list-inside text-[11px] text-slate-500 dark:text-slate-400">
+                                      {exp.achievements.map((a, i) => (
+                                        <li key={i}>{a}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
                           )}
                         </div>
-                      </div>
 
-                      {/* Summary */}
-                      {selectedCandidateDetails.bio && (
+                        {/* Education */}
                         <div>
                           <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
-                            Professional Summary
+                            Education & Honors
                           </h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                            {selectedCandidateDetails.bio}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Technical Competencies */}
-                      {(selectedCandidateDetails.skills || []).length > 0 && (
-                        <div>
-                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
-                            Core Technical Competencies
-                          </h4>
-                          <p className="text-xs text-slate-700 dark:text-slate-300 font-mono">
-                            {selectedCandidateDetails.skills.join(' • ')}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Work History */}
-                      <div>
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-3">
-                          Employment Experience
-                        </h4>
-                        {(selectedCandidateDetails.experiences || []).length > 0 ? (
-                          <div className="space-y-3.5">
-                            {selectedCandidateDetails.experiences.map((exp, idx) => (
-                              <div key={idx} className="space-y-1">
-                                <div className="flex justify-between items-center text-xs font-bold text-slate-900 dark:text-white">
-                                  <span>{exp.title} {exp.company ? `— ${exp.company}` : ''}</span>
-                                  {exp.period && <span className="text-slate-400 font-mono text-[10px]">{exp.period}</span>}
+                          {(selectedCandidateDetails.educations || []).length > 0 ? (
+                            <div className="space-y-1.5">
+                              {selectedCandidateDetails.educations.map((edu, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-xs">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                    {edu.degree} {edu.school ? `— ${edu.school}` : ''}
+                                  </span>
+                                  {(edu.dates || edu.year) && (
+                                    <span className="text-slate-400 text-[10px] font-mono">{edu.dates || edu.year}</span>
+                                  )}
                                 </div>
-                                {exp.description && <p className="text-[11px] text-slate-600 dark:text-slate-300">{exp.description}</p>}
-                                {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
-                                  <ul className="list-disc list-inside text-[11px] text-slate-500 dark:text-slate-400">
-                                    {exp.achievements.map((a, i) => (
-                                      <li key={i}>{a}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
-                        )}
-                      </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
+                          )}
+                        </div>
 
-                      {/* Education */}
-                      <div>
-                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
-                          Education & Honors
-                        </h4>
-                        {(selectedCandidateDetails.educations || []).length > 0 ? (
-                          <div className="space-y-1">
-                            {selectedCandidateDetails.educations.map((edu, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-xs">
-                                <span className="font-bold text-slate-800 dark:text-slate-200">{edu.degree} {edu.school ? `— ${edu.school}` : ''}</span>
-                                {edu.dates && <span className="text-slate-400 text-[10px]">{edu.dates}</span>}
-                              </div>
-                            ))}
+                        {/* Certifications */}
+                        {(selectedCandidateDetails.certifications || []).length > 0 && (
+                          <div>
+                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                              Verified Certifications
+                            </h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedCandidateDetails.certifications.map((c, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                                >
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        ) : (
-                          <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
                         )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1591,25 +1709,59 @@ Generated on: ${new Date().toLocaleDateString()}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative z-10 w-full max-w-3xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-6 flex flex-col max-h-[92vh]"
+              className="relative z-10 w-full max-w-5xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-6 flex flex-col max-h-[94vh]"
             >
               {/* Document Modal Action Bar */}
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-6 py-4 bg-slate-50 dark:bg-[#1c1a36]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-white/10 px-6 py-4 bg-slate-50 dark:bg-[#1c1a36] gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
-                    <FileText size={16} />
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <FileText size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      {selectedCandidateDetails.professionalName} — Curriculum Vitae
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        {selectedCandidateDetails.professionalName} — Candidate Resume
+                      </h3>
+                      {selectedCandidateDetails.resumeUrl && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800/50">
+                          Verified Document
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Official FlexiStaff Verified Talent Credentials
+                      Official FlexiStaff Verified Talent Credentials & Attachment
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedCandidateDetails.resumeUrl && (
+                    <div className="flex items-center bg-white dark:bg-[#14132b] p-1 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold shadow-2xs mr-1">
+                      <button
+                        type="button"
+                        onClick={() => setFullscreenResumeMode('document')}
+                        className={`px-3 py-1 rounded-lg transition-all ${
+                          fullscreenResumeMode === 'document'
+                            ? 'bg-[#004ac6] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Uploaded Document (PDF)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFullscreenResumeMode('dossier')}
+                        className={`px-3 py-1 rounded-lg transition-all ${
+                          fullscreenResumeMode === 'dossier'
+                            ? 'bg-[#004ac6] text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Structured Dossier
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={handlePrintResume}
@@ -1621,7 +1773,7 @@ Generated on: ${new Date().toLocaleDateString()}
                   <button
                     type="button"
                     onClick={() => handleDownloadResume(selectedCandidateDetails)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 text-xs font-bold hover:bg-blue-100 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 text-xs font-bold hover:bg-blue-100 transition-colors"
                   >
                     <Download size={14} />
                     <span>Download</span>
@@ -1636,163 +1788,178 @@ Generated on: ${new Date().toLocaleDateString()}
                 </div>
               </div>
 
-              {/* Printable / Formatted Resume Body */}
-              <div className="p-8 overflow-y-auto space-y-6 font-sans text-slate-800 dark:text-slate-200 bg-white dark:bg-[#14132b]">
-                {/* Header */}
-                <div className="border-b-2 border-slate-900 dark:border-white pb-5 flex flex-col sm:flex-row justify-between items-start gap-4">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
-                      {selectedCandidateDetails.professionalName}
-                    </h1>
-                    <p className="text-sm font-bold text-[#004ac6] dark:text-blue-400 mt-1">
-                      {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Consultant'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-200">
-                        {selectedCandidateDetails.isEmployee ? `STAFF ID: ${selectedCandidateDetails.companyId}` : `TALENT ID: ${selectedCandidateDetails.freelancerId}`}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle size={13} />
-                        <span>Platform Verified</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-right text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                    {selectedCandidateDetails.email && (
-                      <p className="flex items-center sm:justify-end gap-1.5">
-                        <Mail size={12} className="text-[#004ac6]" />
-                        <span>{selectedCandidateDetails.email}</span>
-                      </p>
-                    )}
-                    {selectedCandidateDetails.phone && (
-                      <p className="flex items-center sm:justify-end gap-1.5">
-                        <Phone size={12} className="text-emerald-600" />
-                        <span>{selectedCandidateDetails.phone}</span>
-                      </p>
-                    )}
-                    {selectedCandidateDetails.location && (
-                      <p className="flex items-center sm:justify-end gap-1.5">
-                        <MapPin size={12} className="text-rose-500" />
-                        <span>{selectedCandidateDetails.location}</span>
-                      </p>
-                    )}
-                    {selectedCandidateDetails.linkedin && (
-                      <p className="flex items-center sm:justify-end gap-1.5 font-bold text-[#004ac6] dark:text-blue-400">
-                        <FaLinkedin size={12} />
-                        <a 
-                          href={selectedCandidateDetails.linkedin.startsWith('http') ? selectedCandidateDetails.linkedin : `https://${selectedCandidateDetails.linkedin}`} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="hover:underline"
-                        >
-                          {selectedCandidateDetails.linkedin}
-                        </a>
-                      </p>
-                    )}
-                  </div>
+              {/* Fullscreen Body Content */}
+              {fullscreenResumeMode === 'document' && selectedCandidateDetails.resumeUrl ? (
+                <div className="flex-1 w-full bg-slate-900 min-h-[72vh] flex flex-col">
+                  <iframe
+                    src={selectedCandidateDetails.resumeUrl}
+                    title="Candidate Resume Document Fullscreen"
+                    className="w-full h-full min-h-[72vh] border-0 bg-white"
+                  />
                 </div>
-
-                {/* Executive Summary */}
-                {selectedCandidateDetails.bio && (
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
-                      Executive Summary
-                    </h3>
-                    <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-                      {selectedCandidateDetails.bio}
-                    </p>
-                  </div>
-                )}
-
-                {/* Technical Stack */}
-                {(selectedCandidateDetails.skills || []).length > 0 && (
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
-                      Verified Technical Stack & Competencies
-                    </h3>
-                    <p className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                      {selectedCandidateDetails.skills.join(' • ')}
-                    </p>
-                  </div>
-                )}
-
-                {/* Experience */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
-                    Work History & Professional Experience
-                  </h3>
-
-                  {(selectedCandidateDetails.experiences || []).length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedCandidateDetails.experiences.map((exp, idx) => (
-                        <div key={idx} className="space-y-1 text-xs">
-                          <div className="flex justify-between items-baseline">
-                            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
-                              {exp.title} {exp.company ? <>— <span className="text-[#004ac6] dark:text-blue-400">{exp.company}</span></> : null}
-                            </h4>
-                            {exp.period && <span className="font-mono text-[11px] text-slate-500">{exp.period}</span>}
-                          </div>
-                          {exp.description && <p className="text-slate-600 dark:text-slate-300">{exp.description}</p>}
-                          {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
-                            <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-400 pl-1 text-[11px]">
-                              {exp.achievements.map((ach, aIdx) => (
-                                <li key={aIdx}>{ach}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
-                  )}
-                </div>
-
-                {/* Education */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
-                    Education & Credentials
-                  </h3>
-                  {(selectedCandidateDetails.educations || []).length > 0 ? (
-                    <div className="space-y-1.5">
-                      {selectedCandidateDetails.educations.map((edu, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{edu.degree} {edu.school ? `— ${edu.school}` : ''}</span>
-                          {edu.dates && <span className="text-slate-400 font-mono text-[11px]">{edu.dates}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
-                  )}
-                </div>
-
-                {/* Certifications */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
-                    Professional Certifications
-                  </h3>
-                  {(selectedCandidateDetails.certifications || []).length > 0 ? (
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      {selectedCandidateDetails.certifications.map((cert, idx) => (
-                        <span key={idx} className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/10 font-bold text-slate-700 dark:text-slate-300">
-                          {cert}
+              ) : (
+                /* Printable / Formatted Resume Body */
+                <div className="p-8 overflow-y-auto space-y-6 font-sans text-slate-800 dark:text-slate-200 bg-white dark:bg-[#14132b]">
+                  {/* Header */}
+                  <div className="border-b-2 border-slate-900 dark:border-white pb-5 flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                        {selectedCandidateDetails.professionalName}
+                      </h1>
+                      <p className="text-sm font-bold text-[#004ac6] dark:text-blue-400 mt-1">
+                        {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Consultant'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-200">
+                          {selectedCandidateDetails.isEmployee ? `STAFF ID: ${selectedCandidateDetails.companyId || 'N/A'}` : `TALENT ID: ${selectedCandidateDetails.freelancerId || 'TAL-003'}`}
                         </span>
-                      ))}
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle size={13} />
+                          <span>Platform Verified</span>
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No professional certifications recorded.</p>
+
+                    <div className="text-right text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                      {selectedCandidateDetails.email && (
+                        <p className="flex items-center sm:justify-end gap-1.5">
+                          <Mail size={12} className="text-[#004ac6]" />
+                          <span>{selectedCandidateDetails.email}</span>
+                        </p>
+                      )}
+                      {selectedCandidateDetails.phone && (
+                        <p className="flex items-center sm:justify-end gap-1.5">
+                          <Phone size={12} className="text-emerald-600" />
+                          <span>{selectedCandidateDetails.phone}</span>
+                        </p>
+                      )}
+                      {selectedCandidateDetails.location && (
+                        <p className="flex items-center sm:justify-end gap-1.5">
+                          <MapPin size={12} className="text-rose-500" />
+                          <span>{selectedCandidateDetails.location}</span>
+                        </p>
+                      )}
+                      {selectedCandidateDetails.linkedin && (
+                        <p className="flex items-center sm:justify-end gap-1.5 font-bold text-[#004ac6] dark:text-blue-400">
+                          <FaLinkedin size={12} />
+                          <a 
+                            href={selectedCandidateDetails.linkedin.startsWith('http') ? selectedCandidateDetails.linkedin : `https://${selectedCandidateDetails.linkedin}`} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="hover:underline"
+                          >
+                            {selectedCandidateDetails.linkedin}
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Executive Summary */}
+                  {selectedCandidateDetails.bio && (
+                    <div className="space-y-1.5">
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                        Executive Summary
+                      </h3>
+                      <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                        {selectedCandidateDetails.bio}
+                      </p>
+                    </div>
                   )}
+
+                  {/* Technical Stack */}
+                  {(selectedCandidateDetails.skills || []).length > 0 && (
+                    <div className="space-y-1.5">
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                        Verified Technical Stack & Competencies
+                      </h3>
+                      <p className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                        {selectedCandidateDetails.skills.join(' • ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Experience */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                      Work History & Professional Experience
+                    </h3>
+
+                    {(selectedCandidateDetails.experiences || []).length > 0 ? (
+                      <div className="space-y-4">
+                        {selectedCandidateDetails.experiences.map((exp, idx) => (
+                          <div key={idx} className="space-y-1 text-xs">
+                            <div className="flex justify-between items-baseline">
+                              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                                {exp.title} {exp.company ? <>— <span className="text-[#004ac6] dark:text-blue-400">{exp.company}</span></> : null}
+                              </h4>
+                              {exp.period && <span className="font-mono text-[11px] text-slate-500">{exp.period}</span>}
+                            </div>
+                            {exp.description && <p className="text-slate-600 dark:text-slate-300">{exp.description}</p>}
+                            {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                              <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-400 pl-1 text-[11px]">
+                                {exp.achievements.map((ach, aIdx) => (
+                                  <li key={aIdx}>{ach}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
+                    )}
+                  </div>
+
+                  {/* Education */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                      Education & Credentials
+                    </h3>
+                    {(selectedCandidateDetails.educations || []).length > 0 ? (
+                      <div className="space-y-1.5">
+                        {selectedCandidateDetails.educations.map((edu, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                              {edu.degree} {edu.school ? `— ${edu.school}` : ''}
+                            </span>
+                            {(edu.dates || edu.year) && (
+                              <span className="text-slate-400 font-mono text-[11px]">{edu.dates || edu.year}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
+                    )}
+                  </div>
+
+                  {/* Certifications */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                      Professional Certifications
+                    </h3>
+                    {(selectedCandidateDetails.certifications || []).length > 0 ? (
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {selectedCandidateDetails.certifications.map((cert, idx) => (
+                          <span key={idx} className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/10 font-bold text-slate-700 dark:text-slate-300">
+                            {cert}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No professional certifications recorded.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Bottom footer */}
               <div className="px-6 py-3 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1c1a36] flex justify-end">
                 <button
                   type="button"
                   onClick={() => setIsResumeViewerOpen(false)}
-                  className="px-5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white text-xs font-bold transition-all"
+                  className="px-5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs"
                 >
                   Close Resume Viewer
                 </button>

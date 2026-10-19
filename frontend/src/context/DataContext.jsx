@@ -1272,7 +1272,7 @@ export const DataProvider = ({ children }) => {
             const accountStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.accountStatus || 'Active'));
             const status = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.status || 'Active'));
 
-            return {
+            const rawCandidate = {
               id: f.id || f.userId,
               numericId: f.userId || f.id,
               userId: f.userId || f.id,
@@ -1324,8 +1324,12 @@ export const DataProvider = ({ children }) => {
               resumeUrl: f.resumeUrl || '',
               resumeName: f.resumeName || '',
               github: f.github || '',
+              experiences: f.experiences || [],
+              educations: f.educations || [],
+              certifications: f.certifications || [],
               location: f.location || (isPartnerEmp ? (pName ? `${pName} Office` : 'Partner Office') : 'Remote'),
             };
+            return rawCandidate;
           });
 
           // Auto-heal: Active database records cannot be marked as deleted in localStorage
@@ -2756,6 +2760,8 @@ export const DataProvider = ({ children }) => {
         bio: appData.bioOverview || appData.bio,
         hourlyRate: appData.hourlyRate ? parseFloat(appData.hourlyRate) : 1500,
         experienceYears: appData.experienceYears || 3,
+        resumeUrl: appData.resumeUrl || appData.resume || '',
+        resumeName: appData.resumeFileName || appData.resumeName || 'resume.pdf',
       });
 
       if (apiRes && apiRes.success === false) {
@@ -2798,6 +2804,7 @@ export const DataProvider = ({ children }) => {
       status: 'Pending Review',
       source: 'Freelancer',
       freelancerId: `FL-${String(numericId || assignedId || Date.now()).replace(/\D/g, '').slice(-5).padStart(5, '0')}`,
+      resumeUrl: appData.resumeUrl || appData.resume || '',
       resumeFileName: appData.resumeFileName || appData.resumeDocName || `${(appData.fullName || 'Freelancer').replace(/\s+/g, '_')}_Resume.pdf`,
       resumeName: appData.resumeFileName || appData.resumeDocName || `${(appData.fullName || 'Freelancer').replace(/\s+/g, '_')}_Resume.pdf`,
       linkedin: appData.linkedin || (appData.fullName ? `https://linkedin.com/in/${appData.fullName.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : ''),
@@ -6376,6 +6383,9 @@ export const DataProvider = ({ children }) => {
       staffBadgeName: profData.staffBadgeName || profData.companyId || '',
       staffBadgeUrl: profData.staffBadgeUrl || '',
       resumeName: profData.resumeName || '',
+      resumeUrl: profData.resumeUrl || '',
+      experiences: profData.experiences || [],
+      educations: profData.educations || [],
       isBackgroundChecked: profData.isBackgroundChecked ?? true,
       isNdaSigned: profData.isNdaSigned ?? true,
       certifications: profData.certifications || [],
@@ -6388,9 +6398,10 @@ export const DataProvider = ({ children }) => {
         profData.avatar ||
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
     };
+    const enrichedProf = newProf;
 
     setPartnerWorkforce((prev) => {
-      const updated = [newProf, ...prev];
+      const updated = [enrichedProf, ...prev];
       try {
         localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated));
       } catch {}
@@ -6398,7 +6409,7 @@ export const DataProvider = ({ children }) => {
     });
 
     setWorkforce((prev) => {
-      const updated = [newProf, ...prev];
+      const updated = [enrichedProf, ...prev];
       try {
         localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
       } catch {}
@@ -6489,6 +6500,8 @@ export const DataProvider = ({ children }) => {
         experienceYears: numExp,
         availabilityStatus: newProf.availability || 'Available',
         partnerCompanyId: !isNaN(numPartnerCoId) && numPartnerCoId > 0 ? numPartnerCoId : null,
+        resumeUrl: enrichedProf.resumeUrl || '',
+        resumeName: enrichedProf.resumeName || '',
       }).catch((err) => {
         console.warn('Backend freelancer registration async notice:', err);
       });

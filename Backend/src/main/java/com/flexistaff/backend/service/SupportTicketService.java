@@ -123,6 +123,35 @@ public class SupportTicketService {
         return toDto(updated);
     }
 
+    @Transactional
+    public void deleteTicket(Long ticketId) {
+        if (!supportTicketRepository.existsById(ticketId)) {
+            throw new ResourceNotFoundException("SupportTicket", "id", ticketId);
+        }
+        supportTicketRepository.deleteById(ticketId);
+        log.info("Deleted support ticket #{}", ticketId);
+    }
+
+    @Transactional
+    public void deleteAllTickets() {
+        supportTicketRepository.deleteAll();
+        log.info("Cleared all support tickets from database");
+    }
+
+    @Transactional
+    public List<SupportTicketDto> clearAllTicketStatus() {
+        List<SupportTicket> all = supportTicketRepository.findAll();
+        for (SupportTicket t : all) {
+            t.setStatus("Pending Admin Review");
+            t.setAdminResponse(null);
+            t.setRespondedAt(null);
+            t.setRespondedBy(null);
+        }
+        List<SupportTicket> saved = supportTicketRepository.saveAll(all);
+        log.info("Reset/cleared status for {} support tickets", saved.size());
+        return saved.stream().map(this::toDto).toList();
+    }
+
     public SupportTicketDto toDto(SupportTicket ticket) {
         String formattedDate = ticket.getCreatedAt() != null
                 ? ticket.getCreatedAt().format(UI_FORMATTER)

@@ -17,6 +17,9 @@ import {
   Phone,
   X,
   Plus,
+  FileText,
+  Download,
+  Eye,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -28,6 +31,7 @@ export const ClientWorkforce = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedContractor, setSelectedContractor] = useState(null);
+  const [previewResumeModal, setPreviewResumeModal] = useState(null);
 
   // Client projects list with comprehensive matching (ID, email, company)
   const clientProjects = useMemo(() => {
@@ -552,6 +556,104 @@ export const ClientWorkforce = () => {
                 </div>
               </div>
 
+              {/* Work History & Projects */}
+              {Array.isArray(selectedContractor.experiences) && selectedContractor.experiences.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-slate-400 font-bold block">Verified Commercial Projects & Work History</span>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {selectedContractor.experiences.map((exp, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-0.5">
+                        <div className="flex justify-between items-center">
+                          <p className="font-bold text-slate-900">{exp.title}</p>
+                          {exp.period && <span className="text-[10px] text-slate-500 font-mono">{exp.period}</span>}
+                        </div>
+                        <p className="text-[11px] text-emerald-700 font-semibold">{exp.company}</p>
+                        {exp.description && <p className="text-[11px] text-slate-600 mt-0.5">{exp.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Academic Education */}
+              {Array.isArray(selectedContractor.educations) && selectedContractor.educations.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-slate-400 font-bold block">Academic Qualifications</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedContractor.educations.map((edu, idx) => (
+                      <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-0.5">
+                        <p className="font-bold text-slate-900 text-[11px]">{edu.degree}</p>
+                        <p className="text-[10px] text-slate-600">{edu.school}</p>
+                        {(edu.year || edu.dates) && (
+                          <span className="text-[9px] text-slate-400 font-mono block">{edu.year || edu.dates}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Professional Certifications */}
+              {Array.isArray(selectedContractor.certifications) && selectedContractor.certifications.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-slate-400 font-bold block">Verified Certifications</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedContractor.certifications.map((cert, idx) => (
+                      <span key={idx} className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold flex items-center gap-1">
+                        <CheckCircle2 size={11} className="text-amber-600" />
+                        <span>{cert}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Attached Resume Document Card */}
+              {selectedContractor.resumeUrl && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <FileText size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 truncate max-w-[180px]">
+                        {selectedContractor.resumeName || `${selectedContractor.name}_Resume.pdf`}
+                      </p>
+                      <span className="text-[10px] text-emerald-800 font-bold block">
+                        Verified Attached PDF Document
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewResumeModal({
+                          url: selectedContractor.resumeUrl,
+                          name: selectedContractor.resumeName || `${selectedContractor.name}_Resume.pdf`,
+                          title: `${selectedContractor.name} — Resume Document`,
+                        });
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs flex items-center gap-1 transition-all"
+                    >
+                      <Eye size={12} />
+                      <span>Preview</span>
+                    </button>
+                    <a
+                      href={selectedContractor.resumeUrl}
+                      download={selectedContractor.resumeName || `${selectedContractor.name}_Resume.pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                    >
+                      <Download size={12} />
+                      <span>PDF</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
                 <button
                   type="button"
@@ -571,6 +673,68 @@ export const ClientWorkforce = () => {
                   Request Resource Adjustment
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EMBEDDED RESUME DOCUMENT VIEWER MODAL */}
+      {previewResumeModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div
+            onClick={() => setPreviewResumeModal(null)}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs"
+          />
+          <div className="relative z-10 w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-6 flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {previewResumeModal.title || 'Candidate Resume'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {previewResumeModal.name}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewResumeModal.url}
+                  download={previewResumeModal.name || 'Resume.pdf'}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all"
+                >
+                  <Download size={13} />
+                  <span>Download PDF</span>
+                </a>
+                <a
+                  href={previewResumeModal.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                >
+                  <ExternalLink size={13} />
+                  <span>Open in Tab</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewResumeModal(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg ml-1"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full h-[640px] bg-slate-900 border-0">
+              <iframe
+                src={previewResumeModal.url}
+                title={previewResumeModal.title || 'Resume Document'}
+                className="w-full h-full bg-white border-0"
+              />
             </div>
           </div>
         </div>

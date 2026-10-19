@@ -72,9 +72,13 @@ export const WorkforceProfile = () => {
     user?.professionalType === 'PARTNER_EMPLOYEE';
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [formData, setFormData] = useState(() => {
-    const src = workforceUserProfile || user || {};
-    const resolvedSkills = (workforceUserProfile?.skills && Array.isArray(workforceUserProfile.skills) && workforceUserProfile.skills.length > 0)
+    const raw = workforceUserProfile || user || {};
+    const src = raw;
+    const resolvedSkills = (src?.skills && Array.isArray(src.skills) && src.skills.length > 0)
+      ? src.skills
+      : (workforceUserProfile?.skills && Array.isArray(workforceUserProfile.skills) && workforceUserProfile.skills.length > 0)
       ? workforceUserProfile.skills
       : (user?.skills && Array.isArray(user.skills) && user.skills.length > 0)
       ? user.skills
@@ -104,12 +108,15 @@ export const WorkforceProfile = () => {
       bio: src.bio || '',
       avatar: src.avatar || '',
       skills: resolvedSkills,
+      experiences: src.experiences || [],
+      educations: src.educations || [],
     };
   });
 
   React.useEffect(() => {
-    const src = (workforceUserProfile && (workforceUserProfile.email || workforceUserProfile.name)) ? workforceUserProfile : user;
-    if (src && (src.email || src.name || src.fullName)) {
+    const raw = (workforceUserProfile && (workforceUserProfile.email || workforceUserProfile.name)) ? workforceUserProfile : user;
+    if (raw && (raw.email || raw.name || raw.fullName)) {
+      const src = raw;
       setFormData((prev) => ({
         ...prev,
         name: formatCapitalizedName(src.name || src.fullName || prev.name || 'Professional'),
@@ -137,6 +144,8 @@ export const WorkforceProfile = () => {
         bio: src.bio !== undefined && src.bio !== '' ? src.bio : prev.bio,
         avatar: src.avatar || prev.avatar || '',
         skills: Array.isArray(src.skills) && src.skills.length > 0 ? src.skills : prev.skills,
+        experiences: src.experiences || prev.experiences || [],
+        educations: src.educations || prev.educations || [],
       }));
     }
   }, [workforceUserProfile, user, isCompanyEmployee]);
@@ -902,16 +911,26 @@ export const WorkforceProfile = () => {
 
                         <div className="flex items-center gap-1 shrink-0">
                           {formData.resumeUrl && (
-                            <a
-                              href={formData.resumeUrl}
-                              download={formData.resumeName || 'Resume.pdf'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-                              title="Download / View Resume"
-                            >
-                              <Download size={14} />
-                            </a>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setIsPreviewOpen(true)}
+                                className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                title="Preview Uploaded Resume Document"
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <a
+                                href={formData.resumeUrl}
+                                download={formData.resumeName || 'Resume.pdf'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                title="Download Resume"
+                              >
+                                <Download size={14} />
+                              </a>
+                            </>
                           )}
                           <button
                             type="button"
@@ -1052,6 +1071,51 @@ export const WorkforceProfile = () => {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Resume Document Preview Modal */}
+      {isPreviewOpen && formData.resumeUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div
+            onClick={() => setIsPreviewOpen(false)}
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs"
+          />
+          <div className="relative z-10 w-full max-w-4xl bg-white dark:bg-[#14132b] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-6">
+            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#1c1a36] border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-emerald-600" />
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  {formData.resumeName || 'Resume Document Preview'}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={formData.resumeUrl}
+                  download={formData.resumeName || 'Resume.pdf'}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                >
+                  <Download size={13} />
+                  <span>Download PDF</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full h-[640px] bg-slate-900">
+              <iframe
+                src={formData.resumeUrl}
+                title="Resume Preview"
+                className="w-full h-full bg-white border-0"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

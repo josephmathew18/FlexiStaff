@@ -215,6 +215,8 @@ export const PartnerAddWorkforce = () => {
         resumeName: formData.resumeName || '',
         resumeFile: formData.resumeFile || undefined,
         resumeUrl: formData.resumeUrl || '',
+        experiences: formData.experiences || [],
+        educations: formData.educations || [],
         github: formData.github.trim(),
         linkedin: formData.linkedin.trim(),
         portfolioUrl: formData.linkedin.trim(),

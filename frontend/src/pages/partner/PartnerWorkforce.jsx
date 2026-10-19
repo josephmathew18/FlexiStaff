@@ -166,6 +166,7 @@ export const PartnerWorkforce = () => {
 
   // Selected Professional Details Modal
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [previewResumeModal, setPreviewResumeModal] = useState(null);
 
   // Compute dynamic project assignment details for the selected employee
   const activeEmployeeAssignment = useMemo(() => {
@@ -292,7 +293,7 @@ export const PartnerWorkforce = () => {
     const resolvedSkills = selectedEmployee.skills || matchedPartnerWf?.skills || matchedWf?.skills || localProfile?.skills || [];
     const skillsArray = Array.isArray(resolvedSkills) ? resolvedSkills : String(resolvedSkills).split(',').map((s) => s.trim()).filter(Boolean);
 
-    return {
+    const baseEmployee = {
       ...matchedWf,
       ...matchedPartnerWf,
       ...localProfile,
@@ -317,7 +318,11 @@ export const PartnerWorkforce = () => {
       resumeSize: selectedEmployee.resumeSize || localProfile?.resumeSize || '',
       partnerCompany: selectedEmployee.partnerCompany || selectedEmployee.partnerName || matchedPartnerWf?.partnerCompany || partnerProfile?.name || 'Partner Organization',
       certifications: selectedEmployee.certifications || matchedPartnerWf?.certifications || matchedWf?.certifications || localProfile?.certifications || [],
+      experiences: selectedEmployee.experiences || matchedPartnerWf?.experiences || matchedWf?.experiences || localProfile?.experiences || [],
+      educations: selectedEmployee.educations || matchedPartnerWf?.educations || matchedWf?.educations || localProfile?.educations || [],
     };
+
+    return baseEmployee;
   }, [selectedEmployee, workforce, partnerWorkforce, partnerProfile]);
 
   // Edit Professional Modal State
@@ -1177,20 +1182,36 @@ export const PartnerWorkforce = () => {
                       </div>
 
                       {displayEmployee.resumeUrl ? (
-                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
                           <span className="text-[10px] text-emerald-700 font-bold">
                             {displayEmployee.resumeSize || 'Verified CV'}
                           </span>
-                          <a
-                            href={displayEmployee.resumeUrl}
-                            download={displayEmployee.resumeName || `${displayEmployee.name}_Resume.pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
-                          >
-                            <Download size={11} />
-                            <span>Download</span>
-                          </a>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPreviewResumeModal({
+                                  url: displayEmployee.resumeUrl,
+                                  name: displayEmployee.resumeName || `${displayEmployee.name}_Resume.pdf`,
+                                  title: `${displayEmployee.name} — Resume Document`,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#004ac6] hover:bg-[#003da6] text-white text-[10px] font-bold shadow-xs transition-all"
+                            >
+                              <Eye size={11} />
+                              <span>Preview</span>
+                            </button>
+                            <a
+                              href={displayEmployee.resumeUrl}
+                              download={displayEmployee.resumeName || `${displayEmployee.name}_Resume.pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-bold transition-colors"
+                            >
+                              <Download size={11} />
+                              <span>Download</span>
+                            </a>
+                          </div>
                         </div>
                       ) : (
                         <span className="text-[10px] text-slate-400 italic">No CV document uploaded</span>
@@ -1395,6 +1416,92 @@ export const PartnerWorkforce = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Verified Employment History & Commercial Projects */}
+                {Array.isArray(displayEmployee.experiences) && displayEmployee.experiences.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <Briefcase size={14} className="text-[#004ac6]" />
+                        <span>Work History & Projects</span>
+                      </h4>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {displayEmployee.experience || 'Verified Timeline'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      {displayEmployee.experiences.map((exp, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h5 className="font-bold text-slate-900 text-xs">{exp.title}</h5>
+                            {exp.period && (
+                              <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                                {exp.period}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] font-semibold text-[#004ac6]">{exp.company}</p>
+                          {exp.description && (
+                            <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">{exp.description}</p>
+                          )}
+                          {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                            <ul className="list-disc list-inside text-[10px] text-slate-500 space-y-0.5 pt-1">
+                              {exp.achievements.map((ach, aIdx) => (
+                                <li key={aIdx}>{ach}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Academic Qualifications & Degrees */}
+                {Array.isArray(displayEmployee.educations) && displayEmployee.educations.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                        <Award size={14} className="text-indigo-600" />
+                        <span>Academic Education</span>
+                      </h4>
+                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Credentials Verified
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                      {displayEmployee.educations.map((edu, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                          <h5 className="font-bold text-slate-900 text-xs">{edu.degree}</h5>
+                          <p className="text-[11px] text-indigo-700 font-medium">{edu.school}</p>
+                          {(edu.year || edu.dates) && (
+                            <span className="text-[10px] text-slate-400 font-mono block">{edu.year || edu.dates}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Verified Professional Certifications */}
+                {Array.isArray(displayEmployee.certifications) && displayEmployee.certifications.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+                    <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                      <CheckCircle2 size={14} className="text-amber-500" />
+                      <span>Professional Certifications</span>
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {displayEmployee.certifications.map((cert, idx) => (
+                        <span key={idx} className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold flex items-center gap-1">
+                          <CheckCircle2 size={11} className="text-amber-600" />
+                          <span>{cert}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Update Availability Controls for Partner */}
                 <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/70 space-y-2">
@@ -1914,6 +2021,78 @@ export const PartnerWorkforce = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* EMBEDDED RESUME DOCUMENT VIEWER MODAL */}
+        {/* ========================================================================= */}
+        {previewResumeModal && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewResumeModal(null)}
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative z-10 w-full max-w-4xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-6 flex flex-col max-h-[92vh]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#004ac6] text-white flex items-center justify-center shadow-xs">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      {previewResumeModal.title || 'Candidate Resume'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-mono">
+                      {previewResumeModal.name}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewResumeModal.url}
+                    download={previewResumeModal.name || 'Resume.pdf'}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all"
+                  >
+                    <Download size={13} />
+                    <span>Download PDF</span>
+                  </a>
+                  <a
+                    href={previewResumeModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Open in Tab</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewResumeModal(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg ml-1"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="w-full h-[640px] bg-slate-900 border-0">
+                <iframe
+                  src={previewResumeModal.url}
+                  title={previewResumeModal.title || 'Resume Document'}
+                  className="w-full h-full bg-white border-0"
+                />
+              </div>
             </motion.div>
           </div>
         )}

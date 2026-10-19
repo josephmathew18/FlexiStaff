@@ -43,6 +43,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
+import { FaLinkedin } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
 
 // ====================================================================
@@ -245,6 +246,7 @@ export const WorkforceManagement = () => {
   // Modals state
   const [selectedTalent, setSelectedTalent] = useState(null);
   const [viewingAppModal, setViewingAppModal] = useState(null);
+  const [previewResumeModal, setPreviewResumeModal] = useState(null);
   const [rejectionModalTalent, setRejectionModalTalent] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('Skill set does not match current project requirements');
 
@@ -1363,14 +1365,32 @@ export const WorkforceManagement = () => {
                     </div>
                   </div>
                   {Boolean(selectedTalent.resumeUrl || selectedTalent.resume) ? (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDocument(selectedTalent.resumeUrl || selectedTalent.resume, `${selectedTalent.name}_Resume`)}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] hover:bg-emerald-100 dark:hover:bg-emerald-900 shrink-0 flex items-center gap-1 transition-colors"
-                    >
-                      <ExternalLink size={11} />
-                      <span>View</span>
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewResumeModal({
+                            url: selectedTalent.resumeUrl || selectedTalent.resume,
+                            title: `${selectedTalent.name} - Resume / CV Document`,
+                            name: selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`,
+                          })
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs flex items-center gap-1 transition-colors"
+                      >
+                        <Eye size={11} />
+                        <span>Preview</span>
+                      </button>
+                      <a
+                        href={selectedTalent.resumeUrl || selectedTalent.resume}
+                        download={selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-colors"
+                        title="Download Resume Document"
+                      >
+                        <Download size={11} />
+                      </a>
+                    </div>
                   ) : (
                     <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
                       Not uploaded
@@ -1489,6 +1509,43 @@ export const WorkforceManagement = () => {
                 ))}
               </div>
             </div>
+
+            {/* Employment History & Projects */}
+            {Array.isArray(selectedTalent.experiences) && selectedTalent.experiences.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Employment History & Projects</h5>
+                <div className="space-y-2">
+                  {selectedTalent.experiences.map((exp, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <span className="font-extrabold text-xs text-slate-900 dark:text-white">{exp.title}</span>
+                        <span className="text-[10px] font-bold text-slate-500">{exp.period}</span>
+                      </div>
+                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400">{exp.company}</p>
+                      {exp.description && <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{exp.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Educational Qualifications */}
+            {Array.isArray(selectedTalent.educations) && selectedTalent.educations.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Education & Academic Qualifications</h5>
+                <div className="space-y-1.5">
+                  {selectedTalent.educations.map((edu, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex justify-between items-center text-xs">
+                      <div>
+                        <p className="font-extrabold text-slate-900 dark:text-white">{edu.degree}</p>
+                        <p className="text-[11px] text-slate-500">{edu.school}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">{edu.year || edu.dates}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* If Pending, Show Admin Accept/Reject Controls */}
             {selectedTalent.approvalStatus === 'Pending Review' && (
@@ -1967,20 +2024,69 @@ export const WorkforceManagement = () => {
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.info(`Opening ${viewingAppModal.resumeFileName} in document viewer...`);
-                      }}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
-                    >
-                      <Download size={13} />
-                      <span>View / Download Resume</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = viewingAppModal.resumeUrl || viewingAppModal.resume;
+                          if (url) {
+                            setPreviewResumeModal({
+                              url,
+                              title: `${viewingAppModal.fullName} - Resume Document`,
+                              name: viewingAppModal.resumeFileName || 'Resume.pdf',
+                            });
+                          } else {
+                            toast.info(`Candidate resume document: ${viewingAppModal.resumeFileName}`);
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                      >
+                        <Eye size={13} />
+                        <span>Preview Resume</span>
+                      </button>
+                      {viewingAppModal.resumeUrl && (
+                        <a
+                          href={viewingAppModal.resumeUrl}
+                          download={viewingAppModal.resumeFileName || `${viewingAppModal.fullName}_Resume.pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 text-slate-800 dark:text-white text-[11px] font-bold flex items-center gap-1"
+                          title="Download PDF"
+                        >
+                          <Download size={13} />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* LinkedIn Document Card */}
+                {/* LinkedIn Profile Link Card */}
+                {viewingAppModal.linkedin && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                        <FaLinkedin size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900 dark:text-white">LinkedIn Profile</p>
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300 font-medium truncate max-w-[280px]">
+                          {viewingAppModal.linkedin}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={viewingAppModal.linkedin.startsWith('http') ? viewingAppModal.linkedin : `https://${viewingAppModal.linkedin}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 rounded-lg bg-[#0a66c2] hover:bg-[#084e96] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open LinkedIn</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* LinkedIn PDF Document Card */}
                 {viewingAppModal.linkedInPdfName && (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200">
                     <div className="flex items-center gap-3">
@@ -1994,16 +2100,36 @@ export const WorkforceManagement = () => {
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.info(`Opening ${viewingAppModal.linkedInPdfName} in document viewer...`);
-                      }}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#0a66c2] hover:bg-[#084e96] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
-                    >
-                      <Download size={13} />
-                      <span>View LinkedIn PDF</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {viewingAppModal.linkedInPdfUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewResumeModal({
+                              url: viewingAppModal.linkedInPdfUrl,
+                              title: `${viewingAppModal.fullName} - LinkedIn Profile PDF`,
+                              name: viewingAppModal.linkedInPdfName || 'LinkedIn_Profile.pdf',
+                            });
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg bg-[#0a66c2] hover:bg-[#084e96] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                        >
+                          <Eye size={13} />
+                          <span>Preview</span>
+                        </button>
+                      )}
+                      {viewingAppModal.linkedInPdfUrl && (
+                        <a
+                          href={viewingAppModal.linkedInPdfUrl}
+                          download={viewingAppModal.linkedInPdfName || 'LinkedIn_Profile.pdf'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 text-slate-800 dark:text-white text-[11px] font-bold flex items-center gap-1"
+                          title="Download LinkedIn PDF"
+                        >
+                          <Download size={13} />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -2153,6 +2279,54 @@ export const WorkforceManagement = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: EMBEDDED RESUME DOCUMENT VIEWER */}
+      {/* ========================================================================= */}
+      <Modal
+        isOpen={Boolean(previewResumeModal)}
+        onClose={() => setPreviewResumeModal(null)}
+        title={previewResumeModal?.title || 'Resume Document Preview'}
+        subtitle={previewResumeModal?.name}
+        maxWidth="max-w-4xl"
+      >
+        {previewResumeModal && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/10">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                Official candidate resume uploaded in system
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewResumeModal.url}
+                  download={previewResumeModal.name || 'Resume.pdf'}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                >
+                  <Download size={13} />
+                  <span>Download PDF</span>
+                </a>
+                <a
+                  href={previewResumeModal.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-800 dark:text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <ExternalLink size={13} />
+                  <span>Open in Tab</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="w-full h-[640px] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-lg">
+              <iframe
+                src={previewResumeModal.url}
+                title={previewResumeModal.title}
+                className="w-full h-full bg-white border-0"
+              />
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

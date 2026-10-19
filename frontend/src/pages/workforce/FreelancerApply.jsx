@@ -239,7 +239,11 @@ export const FreelancerApply = () => {
   const [isLinkedInModalOpen, setIsLinkedInModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [linkedInPdfFile, setLinkedInPdfFile] = useState(null);
+  const [linkedInPdfDataUrl, setLinkedInPdfDataUrl] = useState('');
+  const [linkedInUrl, setLinkedInUrl] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
+  const [resumeDataUrl, setResumeDataUrl] = useState('');
+  const [certifications, setCertifications] = useState([]);
   const [isDraggingResume, setIsDraggingResume] = useState(false);
 
   const linkedInFileInputRef = useRef(null);
@@ -453,8 +457,12 @@ export const FreelancerApply = () => {
           workPreferences,
           openToContractToHire,
           importMethod: importMethod || 'Fill out manually',
+          linkedin: linkedInUrl || (personalDetails.linkedin || ''),
           linkedInPdfName: linkedInDocName,
+          linkedInPdfUrl: linkedInPdfDataUrl,
           resumeFileName: resumeDocName,
+          resumeUrl: resumeDataUrl,
+          certifications,
         });
 
         setLoading(false);
@@ -1288,10 +1296,25 @@ export const FreelancerApply = () => {
                   </div>
                 </div>
 
+                {/* LinkedIn Profile URL Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">LinkedIn Profile URL</label>
+                  <div className="relative">
+                    <FaLinkedin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#0a66c2]" size={16} />
+                    <input
+                      type="url"
+                      placeholder="https://www.linkedin.com/in/your-profile"
+                      value={linkedInUrl}
+                      onChange={(e) => setLinkedInUrl(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-300 bg-slate-50 pl-10 pr-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#6A54F4] focus:bg-white"
+                    />
+                  </div>
+                </div>
+
                 {/* Step 2 */}
                 <div className="space-y-3 pt-2">
                   <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                    Step 2: come back here to upload it.
+                    Step 2: or upload your saved LinkedIn profile PDF.
                   </p>
 
                   <input
@@ -1299,7 +1322,13 @@ export const FreelancerApply = () => {
                     ref={linkedInFileInputRef}
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
-                        setLinkedInPdfFile(e.target.files[0]);
+                        const file = e.target.files[0];
+                        setLinkedInPdfFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (loadEvt) => {
+                          setLinkedInPdfDataUrl(loadEvt.target.result);
+                        };
+                        reader.readAsDataURL(file);
                       }
                     }}
                     accept=".pdf"
@@ -1317,7 +1346,10 @@ export const FreelancerApply = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setLinkedInPdfFile(null)}
+                        onClick={() => {
+                          setLinkedInPdfFile(null);
+                          setLinkedInPdfDataUrl('');
+                        }}
                         className="text-xs text-rose-600 hover:underline font-semibold"
                       >
                         Change
@@ -1339,15 +1371,15 @@ export const FreelancerApply = () => {
                 <div className="flex items-center justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    disabled={!linkedInPdfFile}
+                    disabled={!linkedInPdfFile && !linkedInUrl}
                     onClick={() => {
                       setImportMethod('Import from LinkedIn');
-                      toast.success('LinkedIn PDF uploaded successfully!');
+                      toast.success('LinkedIn details attached successfully!');
                       setIsLinkedInModalOpen(false);
-                      setCurrentStep(6);
+                      setCurrentStep(2);
                     }}
                     className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
-                      linkedInPdfFile
+                      linkedInPdfFile || linkedInUrl
                         ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md cursor-pointer'
                         : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
@@ -1395,7 +1427,14 @@ export const FreelancerApply = () => {
                   ref={resumeFileInputRef}
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setResumeFile(e.target.files[0]);
+                      const file = e.target.files[0];
+                      setResumeFile(file);
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        setResumeDataUrl(loadEvt.target.result);
+                        toast.success(`Resume attached: ${file.name}`);
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                   accept=".pdf,.doc,.docx,.txt,.rtf"
@@ -1412,7 +1451,14 @@ export const FreelancerApply = () => {
                     e.preventDefault();
                     setIsDraggingResume(false);
                     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      setResumeFile(e.dataTransfer.files[0]);
+                      const file = e.dataTransfer.files[0];
+                      setResumeFile(file);
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        setResumeDataUrl(loadEvt.target.result);
+                        toast.success(`Resume attached: ${file.name}`);
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                   onClick={() => {
@@ -1477,9 +1523,8 @@ export const FreelancerApply = () => {
                     disabled={!resumeFile}
                     onClick={() => {
                       setImportMethod('Upload your resume');
-                      toast.success('Resume attached successfully!');
                       setIsResumeModalOpen(false);
-                      setCurrentStep(6);
+                      setCurrentStep(2);
                     }}
                     className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
                       resumeFile

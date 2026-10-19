@@ -60,6 +60,24 @@ public class SupportTicketController {
         return ResponseEntity.ok(ApiResponse.success("Support ticket status updated successfully", updated));
     }
 
+    @DeleteMapping("/tickets/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteTicket(@PathVariable Long id) {
+        supportTicketService.deleteTicket(id);
+        return ResponseEntity.ok(ApiResponse.success("Support ticket #" + id + " deleted successfully", null));
+    }
+
+    @DeleteMapping("/tickets")
+    public ResponseEntity<ApiResponse<Void>> deleteAllTickets() {
+        supportTicketService.deleteAllTickets();
+        return ResponseEntity.ok(ApiResponse.success("All support tickets deleted successfully", null));
+    }
+
+    @PostMapping("/tickets/clear-status")
+    public ResponseEntity<ApiResponse<List<SupportTicketDto>>> clearAllTicketStatus() {
+        List<SupportTicketDto> cleared = supportTicketService.clearAllTicketStatus();
+        return ResponseEntity.ok(ApiResponse.success("All ticket statuses reset successfully", cleared));
+    }
+
     private User getCurrentUser() {
         return SecurityUtils.getCurrentUserId()
                 .flatMap(userRepository::findById)
