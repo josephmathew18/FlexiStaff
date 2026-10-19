@@ -42,12 +42,25 @@ public class WorkforceService {
             throw new BadRequestException("Cannot assign workforce to a rejected or cancelled project.");
         }
 
-        // Resolve professional User (request.getProfessionalId() could be User ID or Freelancer ID)
-        User professional = userRepository.findById(request.getProfessionalId()).orElse(null);
-        if (professional == null) {
-            com.flexistaff.backend.entity.Freelancer fl = freelancerRepository.findById(request.getProfessionalId()).orElse(null);
-            if (fl != null && fl.getUser() != null) {
-                professional = fl.getUser();
+        // Resolve professional User (request.getProfessionalId() could be Freelancer ID or User ID)
+        User professional = null;
+        com.flexistaff.backend.entity.Freelancer fl = freelancerRepository.findById(request.getProfessionalId()).orElse(null);
+        if (fl != null && fl.getUser() != null) {
+            professional = fl.getUser();
+        } else {
+            User u = userRepository.findById(request.getProfessionalId()).orElse(null);
+            if (u != null) {
+                if (u.getRole() == com.flexistaff.backend.entity.enums.Role.ROLE_ADMIN ||
+                    u.getRole() == com.flexistaff.backend.entity.enums.Role.ROLE_MANAGER) {
+                    com.flexistaff.backend.entity.Freelancer fallbackFl = freelancerRepository.findById(request.getProfessionalId()).orElse(null);
+                    if (fallbackFl != null && fallbackFl.getUser() != null) {
+                        professional = fallbackFl.getUser();
+                    } else {
+                        throw new BadRequestException("Administrative staff cannot be assigned as project workforce specialists.");
+                    }
+                } else {
+                    professional = u;
+                }
             }
         }
         if (professional == null) {

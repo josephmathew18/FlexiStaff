@@ -225,15 +225,26 @@ export const ProjectDetails = () => {
 
     const addAlloc = (a) => {
       if (!a) return;
-      const aName = (a.professionalName || a.name || '').toLowerCase();
-      const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
-      if (aName.includes('sharon') || aEmail.includes('sharon')) return;
+      const aName = (a.professionalName || a.name || '').toLowerCase().trim();
+      const aEmail = (a.email || a.professionalEmail || '').toLowerCase().trim();
+      const aProfId = String(a.professionalId || a.id || '').trim();
 
-      const key = `${a.id || a.allocationId || ''}_${a.professionalId || a.id || ''}_${a.professionalName || a.name || ''}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push(a);
+      // Block admin and unwanted sample names
+      if (
+        aName === 'system administrator' ||
+        aEmail === 'admin@flexistaff.com' ||
+        aName.includes('sharon') ||
+        aEmail.includes('sharon') ||
+        (aProfId === '4' && aName.includes('admin'))
+      ) {
+        return;
       }
+
+      // Deduplicate by candidate identity (email or professionalId or name)
+      const candKey = aEmail || aProfId || aName;
+      if (!candKey || seen.has(candKey)) return;
+      seen.add(candKey);
+      list.push(a);
     };
 
     // 1. Allocations directly attached to project entity from PostgreSQL

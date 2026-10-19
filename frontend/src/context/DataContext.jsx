@@ -202,6 +202,9 @@ export const mapBackendProjectToFrontend = (p) => {
     assignedResources = p.allocations
       .filter((a) => {
         if (!a) return false;
+        const aName = (a.professionalName || a.name || '').toLowerCase().trim();
+        const aEmail = (a.professionalEmail || a.email || '').toLowerCase().trim();
+        if (aName === 'system administrator' || aEmail === 'admin@flexistaff.com') return false;
         const st = String(a.status || '').toLowerCase().trim();
         return !st.includes('declined') && !st.includes('reject') && !st.includes('cancel');
       })
@@ -228,7 +231,11 @@ export const mapBackendProjectToFrontend = (p) => {
         phone: a.phone || '',
       }));
   } else if (Array.isArray(p.assignedResources) && p.assignedResources.length > 0) {
-    assignedResources = [...p.assignedResources];
+    assignedResources = [...p.assignedResources].filter((r) => {
+      const rName = (r.professionalName || r.name || '').toLowerCase().trim();
+      const rEmail = (r.professionalEmail || r.email || '').toLowerCase().trim();
+      return rName !== 'system administrator' && rEmail !== 'admin@flexistaff.com';
+    });
   }
 
   // Also include staged proposals for this project from flexistaff_manager_assignments
@@ -245,6 +252,9 @@ export const mapBackendProjectToFrontend = (p) => {
 
         savedAsgs.forEach((asg) => {
           if (!asg) return;
+          const asgName = (asg.professionalName || asg.name || '').toLowerCase().trim();
+          const asgEmail = (asg.professionalEmail || asg.email || '').toLowerCase().trim();
+          if (asgName === 'system administrator' || asgEmail === 'admin@flexistaff.com') return;
           const aProjId = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
           const aProjName = (asg.projectName || '').toLowerCase().trim();
           const isSameProj = (pNormId && aProjId === pNormId) || (pTitle && aProjName === pTitle);
@@ -476,8 +486,8 @@ export const DataProvider = ({ children }) => {
         const wName = (w.name || w.pseudonym || '').toLowerCase();
         const fId = String(w.freelancerId || '').toLowerCase();
         const idStr = String(w.id || '').toLowerCase();
-        // Remove demonstration mock sample Prince Abraham
-        if (wName.includes('prince') || wName.includes('abraham') || fId.includes('00003') || idStr.includes('00003')) {
+        // Remove legacy mock sample
+        if (fId.includes('00003') || idStr.includes('00003')) {
           return false;
         }
         return true;
@@ -728,7 +738,11 @@ export const DataProvider = ({ children }) => {
             if (!a) return false;
             const aEmail = (a.email || a.professionalEmail || '').toLowerCase();
             const aName = (a.name || a.professionalName || '').toLowerCase();
-            return !aEmail.includes('sharon') && !aName.includes('sharon');
+            const aProfId = String(a.professionalId || a.id || '');
+            if (aEmail.includes('sharon') || aName.includes('sharon')) return false;
+            if (aName === 'system administrator' || aEmail === 'admin@flexistaff.com' || (aProfId === '4' && aName.includes('admin'))) return false;
+            if (aProfId.includes('00003')) return false;
+            return true;
           });
           localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updatedAsg));
           setManagerAssignments(updatedAsg);
@@ -938,12 +952,15 @@ export const DataProvider = ({ children }) => {
           // Otherwise merge backend with local
           const combined = [...currentList];
           mapped.forEach((bItem) => {
+            const bName = String(bItem.professionalName || '').toLowerCase().trim();
+            const bEmail = String(bItem.professionalEmail || '').toLowerCase().trim();
+            if (bName === 'system administrator' || bEmail === 'admin@flexistaff.com') return;
             const bProj = String(bItem.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
             const bProf = String(bItem.professionalId || bItem.professionalName || '').toLowerCase().trim();
             const idx = combined.findIndex((lItem) => {
               const lProj = String(lItem.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
               const lProf = String(lItem.professionalId || lItem.professionalName || '').toLowerCase().trim();
-              return lProj === bProj && lProf === bProf;
+              return lProj === bProj && (lProf === bProf || (bEmail && String(lItem.email || lItem.professionalEmail || '').toLowerCase() === bEmail));
             });
             if (idx >= 0) {
               combined[idx] = { ...combined[idx], ...bItem };
@@ -4350,9 +4367,10 @@ export const DataProvider = ({ children }) => {
 
     const newAssignments = uniqueCandidatesToSubmit.map((cand) => {
       const pComp = cand.source === 'Partner Company' ? (cand.partnerName || cand.partnerCompany || cand.partner || 'Partner Company') : null;
+      const targetProfId = cand.userId || cand.id;
       return {
-        id: `asg-req-${Date.now().toString().slice(-4)}-${cand.id || Math.random().toString().slice(-2)}`,
-        professionalId: cand.id,
+        id: `asg-req-${Date.now().toString().slice(-4)}-${targetProfId || Math.random().toString().slice(-2)}`,
+        professionalId: targetProfId,
         professionalName: cand.name || cand.pseudonym,
         avatar: cand.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
         role: cand.role || cand.assignedRole || 'Software Engineer',
@@ -4403,30 +4421,33 @@ export const DataProvider = ({ children }) => {
       const updatedProjects = prevProjects.map((p) => {
         if (normProjId(p.id) === targetNormId) {
           const currentAssigned = p.assignedResources || [];
-          const newResources = uniqueCandidatesToSubmit.map((cand) => ({
-            id: cand.id,
-            professionalId: cand.id,
-            name: cand.name || cand.pseudonym,
-            professionalName: cand.name || cand.pseudonym,
-            role: cand.role || cand.assignedRole || 'Software Specialist',
-            roleInProject: cand.role || cand.assignedRole || 'Software Specialist',
-            skills: cand.skills || [],
-            hourlyRate: cand.hourlyRate || '$95/hr',
-            workload: cand.workload || '40h/wk',
-            experience: cand.experience || '3+ years',
-            avatar: cand.avatar || '',
-            status: 'Pending Assignment Approval',
-            partnerName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : 'Independent Freelancer',
-            partnerCompany: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : null,
-            partnerCompanyName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : null,
-            workforceType: cand.source === 'Partner Company' ? 'Partner Company' : 'Independent Freelancer',
-            projectId: p.id,
-            projectName: p.title || p.name,
-            clientId: resolvedClientId,
-            client: resolvedClientCompany,
-            managerId: resolvedManagerId,
-            manager: resolvedManagerName,
-          }));
+          const newResources = uniqueCandidatesToSubmit.map((cand) => {
+            const targetProfId = cand.userId || cand.id;
+            return {
+              id: targetProfId,
+              professionalId: targetProfId,
+              name: cand.name || cand.pseudonym,
+              professionalName: cand.name || cand.pseudonym,
+              role: cand.role || cand.assignedRole || 'Software Specialist',
+              roleInProject: cand.role || cand.assignedRole || 'Software Specialist',
+              skills: cand.skills || [],
+              hourlyRate: cand.hourlyRate || '$95/hr',
+              workload: cand.workload || '40h/wk',
+              experience: cand.experience || '3+ years',
+              avatar: cand.avatar || '',
+              status: 'Pending Assignment Approval',
+              partnerName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : 'Independent Freelancer',
+              partnerCompany: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : null,
+              partnerCompanyName: cand.source === 'Partner Company' ? (cand.partnerName || cand.partner || 'Partner Company') : null,
+              workforceType: cand.source === 'Partner Company' ? 'Partner Company' : 'Independent Freelancer',
+              projectId: p.id,
+              projectName: p.title || p.name,
+              clientId: resolvedClientId,
+              client: resolvedClientCompany,
+              managerId: resolvedManagerId,
+              manager: resolvedManagerName,
+            };
+          });
           const existingResIds = new Set(currentAssigned.map((r) => String(r.id || r.professionalId || '').toLowerCase().trim()));
           const filteredNewRes = newResources.filter((r) => !existingResIds.has(String(r.id || '').toLowerCase().trim()));
           const mergedResources = [...currentAssigned, ...filteredNewRes];
@@ -4448,7 +4469,7 @@ export const DataProvider = ({ children }) => {
     uniqueCandidatesToSubmit.forEach(async (cand) => {
       try {
         const numProj = parseInt(String(prj.id).replace(/\D/g, ''), 10);
-        const numProf = parseInt(String(cand.id || cand.professionalId || cand.numericId).replace(/\D/g, ''), 10);
+        const numProf = parseInt(String(cand.userId || cand.id || cand.professionalId || cand.numericId).replace(/\D/g, ''), 10);
         const numMgr = parseInt(String(resolvedManagerId || '').replace(/\D/g, ''), 10);
         const billableRate = parseFloat(String(cand.hourlyRate || '95').replace(/[^0-9.]/g, '')) || 95.0;
         if (!isNaN(numProj) && !isNaN(numProf) && api?.workforce?.assign) {

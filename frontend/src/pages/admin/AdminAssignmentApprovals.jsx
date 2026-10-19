@@ -451,11 +451,18 @@ Generated on: ${new Date().toLocaleDateString()}
     return (managerAssignments || [])
       .filter((asg) => {
         if (!asg) return false;
-        const name = String(asg.professionalName || asg.name || '').toLowerCase();
-        const fId = String(asg.freelancerId || asg.professionalId || '').toLowerCase();
-        const id = String(asg.id || '').toLowerCase();
-        // Remove demonstration mock sample Prince Abraham
-        if (name.includes('prince') || name.includes('abraham') || fId.includes('00003') || id.includes('prince')) {
+        const name = String(asg.professionalName || asg.name || '').toLowerCase().trim();
+        const email = String(asg.email || asg.professionalEmail || '').toLowerCase().trim();
+        const fId = String(asg.freelancerId || asg.professionalId || '').toLowerCase().trim();
+        const id = String(asg.id || '').toLowerCase().trim();
+
+        // Never show System Administrator as candidate
+        if (name === 'system administrator' || email === 'admin@flexistaff.com' || (fId === '4' && name.includes('admin'))) {
+          return false;
+        }
+
+        // Only remove legacy static mock sample ID 00003
+        if (fId.includes('00003') || id.includes('00003')) {
           return false;
         }
         return true;

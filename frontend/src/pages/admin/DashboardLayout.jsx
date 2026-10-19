@@ -372,10 +372,17 @@ const InlineSidebar = ({
   ).length;
   const pendingAssignmentsCount = (managerAssignments || []).filter((a) => {
     if (!a) return false;
-    const name = String(a.professionalName || a.name || '').toLowerCase();
-    const fId = String(a.freelancerId || a.professionalId || '').toLowerCase();
-    const aId = String(a.id || '').toLowerCase();
-    if (name.includes('prince') || name.includes('abraham') || fId.includes('00003') || aId.includes('prince')) {
+    const name = String(a.professionalName || a.name || '').toLowerCase().trim();
+    const email = String(a.professionalEmail || a.email || '').toLowerCase().trim();
+    const fId = String(a.freelancerId || a.professionalId || '').toLowerCase().trim();
+    const aId = String(a.id || '').toLowerCase().trim();
+
+    // Block admin
+    if (name === 'system administrator' || email === 'admin@flexistaff.com' || (fId === '4' && name.includes('admin'))) {
+      return false;
+    }
+    // Block mock sample
+    if (fId.includes('00003') || aId.includes('00003')) {
       return false;
     }
     const st = String(a.status || '').toLowerCase().trim();
