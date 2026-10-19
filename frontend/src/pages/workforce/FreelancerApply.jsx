@@ -1376,7 +1376,7 @@ export const FreelancerApply = () => {
                       setImportMethod('Import from LinkedIn');
                       toast.success('LinkedIn details attached successfully!');
                       setIsLinkedInModalOpen(false);
-                      setCurrentStep(2);
+                      setCurrentStep(6);
                     }}
                     className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
                       linkedInPdfFile || linkedInUrl
@@ -1524,7 +1524,7 @@ export const FreelancerApply = () => {
                     onClick={() => {
                       setImportMethod('Upload your resume');
                       setIsResumeModalOpen(false);
-                      setCurrentStep(2);
+                      setCurrentStep(6);
                     }}
                     className={`px-7 py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all ${
                       resumeFile
