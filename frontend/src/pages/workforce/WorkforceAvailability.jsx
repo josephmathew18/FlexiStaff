@@ -6,20 +6,32 @@ import { toast } from 'react-toastify';
 
 export const WorkforceAvailability = () => {
   const { workforceUserProfile, updateWorkforceUserProfile, updateProfessionalAvailability } = useData() || {};
+  const [isUpdating, setIsUpdating] = React.useState(false);
 
-  const handleAvailabilityChange = (newStatus) => {
-    updateWorkforceUserProfile({ availability: newStatus });
-    if (updateProfessionalAvailability) {
-      updateProfessionalAvailability(workforceUserProfile?.id || 'prof-apex-01', newStatus);
+  const handleAvailabilityChange = async (newStatus) => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      const targetId = workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId;
+      if (updateProfessionalAvailability) {
+        await updateProfessionalAvailability(targetId || workforceUserProfile, newStatus);
+      } else if (updateWorkforceUserProfile) {
+        await updateWorkforceUserProfile({ availability: newStatus, availabilityStatus: newStatus });
+      }
+      toast.success(`Availability mode updated to: ${newStatus}`);
+    } catch (err) {
+      console.error('Failed to update availability:', err);
+      toast.error('Failed to update availability status on server. Please try again.');
+    } finally {
+      setIsUpdating(false);
     }
-    toast.success(`Availability mode updated to: ${newStatus}`);
   };
 
-  const currentAvailability = workforceUserProfile?.availability || 'Assigned';
+  const currentAvailability = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability || 'Available';
 
   const isAvailable = currentAvailability === 'Available' || currentAvailability === 'Immediate';
-  const isAssigned = currentAvailability === 'Assigned' || currentAvailability === 'Currently Assigned';
-  const isUnavailable = currentAvailability === 'Unavailable' || currentAvailability === 'Temporarily Unavailable';
+  const isAssigned = currentAvailability === 'Currently Assigned' || currentAvailability === 'Assigned' || currentAvailability === 'Working';
+  const isUnavailable = currentAvailability === 'Temporarily Unavailable' || currentAvailability === 'Unavailable' || currentAvailability === 'On Leave';
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 p-2 sm:p-4 font-sans antialiased text-[#191b23]">
@@ -47,7 +59,7 @@ export const WorkforceAvailability = () => {
             {workforceUserProfile?.name || 'Workforce Specialist'}
           </h2>
           <p className="text-xs sm:text-sm font-medium text-slate-500">
-            {workforceUserProfile?.role || 'Frontend React Developer'}
+            {workforceUserProfile?.title || workforceUserProfile?.role || 'Frontend React Developer'}
           </p>
 
           <div className="pt-1">
@@ -111,7 +123,7 @@ export const WorkforceAvailability = () => {
           {/* Card 2: Currently Assigned */}
           <button
             type="button"
-            onClick={() => handleAvailabilityChange('Assigned')}
+            onClick={() => handleAvailabilityChange('Currently Assigned')}
             className={`relative p-6 sm:p-7 rounded-3xl text-left transition-all duration-200 flex flex-col justify-between min-h-[220px] ${
               isAssigned
                 ? 'bg-white border-2 border-[#2563eb] shadow-lg shadow-blue-500/10'
@@ -136,7 +148,7 @@ export const WorkforceAvailability = () => {
               </h4>
 
               <p className="text-xs text-slate-500 leading-relaxed mt-2 font-normal">
-                Currently assigned and currently assigned, working in your current role.
+                Currently assigned and working on client or partner project deliveries.
               </p>
             </div>
 
@@ -149,7 +161,7 @@ export const WorkforceAvailability = () => {
           {/* Card 3: Temporarily Unavailable */}
           <button
             type="button"
-            onClick={() => handleAvailabilityChange('Unavailable')}
+            onClick={() => handleAvailabilityChange('Temporarily Unavailable')}
             className={`relative p-6 sm:p-7 rounded-3xl text-left transition-all duration-200 flex flex-col justify-between min-h-[220px] ${
               isUnavailable
                 ? 'bg-white border-2 border-[#2563eb] shadow-lg shadow-blue-500/10'

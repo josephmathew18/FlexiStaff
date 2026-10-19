@@ -29,85 +29,197 @@ export const ClientWorkforce = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [selectedContractor, setSelectedContractor] = useState(null);
 
-  // Client projects list
+  // Client projects list with comprehensive matching (ID, email, company)
   const clientProjects = useMemo(() => {
-    const companyName = (clientProfile?.company || '').toLowerCase();
-    const clientId = clientProfile?.id;
-    return projects.filter(
-      (p) =>
-        p &&
-        ((companyName && (p.client || '').toLowerCase() === companyName) ||
-          p.clientId === clientId)
-    );
+    let authClientId = clientProfile?.id;
+    let authEmail = clientProfile?.email;
+    try {
+      const savedUserStr = localStorage.getItem('flexistaff_user');
+      if (savedUserStr) {
+        const u = JSON.parse(savedUserStr);
+        if (u) {
+          if (u.id) authClientId = u.id;
+          if (u.email) authEmail = u.email;
+        }
+      }
+    } catch {}
+
+    const companyName = (clientProfile?.company || clientProfile?.companyName || '').toLowerCase().trim();
+    const clientName = (clientProfile?.name || clientProfile?.contactPerson || '').toLowerCase().trim();
+    const normAuthEmail = String(authEmail || '').toLowerCase().trim();
+
+    return (projects || []).filter((p) => {
+      if (!p) return false;
+      const pClientIdStr = String(p.clientId || '').toLowerCase().trim();
+      const pClientIdNum = Number(String(p.clientId || '').replace(/\D/g, ''));
+
+      const authClientIdStr = String(authClientId || '').toLowerCase().trim();
+      const authClientIdNum = Number(String(authClientId || '').replace(/\D/g, ''));
+
+      const profileIdStr = String(clientProfile?.id || '').toLowerCase().trim();
+      const profileIdNum = Number(String(clientProfile?.id || '').replace(/\D/g, ''));
+
+      const isIdMatch = Boolean(
+        (authClientIdStr && pClientIdStr === authClientIdStr) ||
+        (authClientIdNum && pClientIdNum && authClientIdNum === pClientIdNum) ||
+        (profileIdStr && pClientIdStr === profileIdStr) ||
+        (profileIdNum && pClientIdNum && profileIdNum === profileIdNum)
+      );
+
+      const pEmail = String(p.clientEmail || p.email || '').toLowerCase().trim();
+      const isEmailMatch = Boolean(
+        normAuthEmail && pEmail && (pEmail === normAuthEmail || pEmail.includes(normAuthEmail) || normAuthEmail.includes(pEmail))
+      );
+
+      const pCompany = String(p.client || p.clientCompanyName || p.companyName || p.clientName || '').toLowerCase().trim();
+      const isCompanyMatch = Boolean(
+        (companyName && pCompany && (pCompany === companyName || pCompany.includes(companyName) || companyName.includes(pCompany))) ||
+        (clientName && pCompany && (pCompany === clientName || pCompany.includes(clientName) || clientName.includes(pCompany)))
+      );
+
+      return isIdMatch || isEmailMatch || isCompanyMatch;
+    });
   }, [projects, clientProfile]);
 
-  const clientProjectIds = useMemo(() => new Set(clientProjects.map((p) => p.id)), [clientProjects]);
-  const clientProjectNames = useMemo(
-    () => new Set(clientProjects.map((p) => (p.title || p.name || '').toLowerCase())),
-    [clientProjects]
-  );
+  const clientProjectIds = useMemo(() => {
+    const s = new Set();
+    clientProjects.forEach((p) => {
+      if (p.id !== undefined && p.id !== null) {
+        s.add(String(p.id).toLowerCase().trim());
+        const num = String(p.id).replace(/\D/g, '');
+        if (num) s.add(num);
+      }
+    });
+    return s;
+  }, [clientProjects]);
+
+  const clientProjectNames = useMemo(() => {
+    const s = new Set();
+    clientProjects.forEach((p) => {
+      const name = (p.title || p.name || '').toLowerCase().trim();
+      if (name) s.add(name);
+    });
+    return s;
+  }, [clientProjects]);
 
   // Consolidate deployed workforce roster strictly for the logged-in client's projects
   const deployedWorkforce = useMemo(() => {
-    // Base roster of active contractors across projects
-    const baseRoster = [];
+    const rosterMap = new Map();
 
-    // Filter base roster strictly to contractors doing projects for THIS client
-    const clientBaseRoster = baseRoster.filter((m) => {
-      const pNameLower = (m.projectName || '').toLowerCase();
-      return (
-        clientProjectIds.has(m.projectId) ||
-        clientProjectNames.has(pNameLower) ||
-        clientProjects.some(
-          (p) =>
-            p.id === m.projectId ||
-            (p.title || p.name || '').toLowerCase() === pNameLower
-        )
-      );
+    const makeKey = (projId, name, profId) => {
+      const p = String(projId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const id = profId ? String(profId).trim().toLowerCase() : '';
+      const n = (name || '').toLowerCase().trim();
+      return `${p}__${id || n}`;
+    };
+
+    // 1. From client projects' assignedResources
+    clientProjects.forEach((p) => {
+      (p.assignedResources || []).forEach((res) => {
+        if (!res) return;
+        const st = String(res.status || '').toLowerCase().trim();
+        if (st.includes('declined') || st.includes('reject') || st.includes('cancel')) return;
+
+        const isWorking =
+          st === 'active' || st === 'working' || st === 'accepted' || st === 'in progress' || st === 'assigned' || st === 'approved';
+
+        const pComp = res.partnerCompanyName || res.partnerCompany || res.partnerName || null;
+        const wfType = res.workforceType || (pComp || res.partnerCompanyId ? 'Partner Company' : 'Independent Freelancer');
+
+        const key = makeKey(p.id, res.name || res.professionalName, res.id || res.professionalId);
+        rosterMap.set(key, {
+          id: `res-${res.id || res.professionalId || Math.random()}`,
+          professionalId: res.professionalId || res.id,
+          name: res.name || res.professionalName || 'Specialist Engineer',
+          role: res.role || res.roleInProject || 'Software Specialist',
+          projectId: p.id,
+          projectName: p.title || p.name || 'Client Project Pod',
+          manager: p.manager || p.managerName || 'Assigned Manager',
+          avatar: res.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+          skills: Array.isArray(res.skills) ? res.skills : (res.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+          experience: res.experience || '3+ years',
+          hourlyRate: res.hourlyRate || '$95/hr',
+          weeklyHours: res.weeklyHours || res.hoursPerWeek || 40,
+          status: isWorking ? 'Active' : 'Staged',
+          rawStatus: res.status || (isWorking ? 'Active' : 'Staged'),
+          joinedDate: res.joinedDate || res.assignedDate || p.startDate || new Date().toISOString().split('T')[0],
+          rating: res.rating || 5.0,
+          performance: isWorking ? 'Active Assigned Pod Member' : 'Staged for Squad Onboarding',
+          workforceType: wfType,
+          partnerCompany: pComp,
+          phone: res.phone || '',
+          email: res.email || res.professionalEmail || '',
+        });
+      });
     });
 
-    // Merge active manager assignments for this client's projects
-    const assignedFromManagerRaw = (managerAssignments || [])
-      .filter((a) => {
-        if (!a) return false;
-        const isWorkingState =
-          a.status === 'Working' || a.status === 'Accepted' || a.status === 'In Progress' || a.status === 'Assigned';
-        const isClientProj =
-          clientProjectIds.has(a.projectId) ||
-          clientProjectNames.has((a.projectName || '').toLowerCase()) ||
-          (clientProfile?.company && (a.client || '').toLowerCase() === clientProfile.company.toLowerCase());
-        return isWorkingState && isClientProj;
-      });
+    // 2. From managerAssignments
+    (managerAssignments || []).forEach((a) => {
+      if (!a) return;
+      const st = String(a.status || '').toLowerCase().trim();
+      if (st.includes('declined') || st.includes('reject') || st.includes('cancel')) return;
 
-    const uniqueAssignedManager = [];
-    const seenAsgKeys = new Set();
-    assignedFromManagerRaw.forEach((a, idx) => {
-      const normProj = (a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-      const normName = (a.professionalName || '').toLowerCase().trim();
-      const key = `${normProj}_${normName}`;
-      if (!seenAsgKeys.has(key)) {
-        seenAsgKeys.add(key);
-        uniqueAssignedManager.push({
-          id: `asg-${a.id || idx}`,
-          name: a.professionalName || 'Specialist Candidate',
-          role: a.role || 'Software Engineer',
+      const normAProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const numAProj = String(a.projectId || '').replace(/\D/g, '');
+      const aProjTitle = (a.projectName || '').toLowerCase().trim();
+      const aClient = (a.client || a.clientCompanyName || '').toLowerCase().trim();
+
+      const isForClientProj =
+        clientProjectIds.has(normAProj) ||
+        (numAProj && clientProjectIds.has(numAProj)) ||
+        clientProjectNames.has(aProjTitle) ||
+        clientProjects.some((p) => {
+          const normPId = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const numPId = String(p.id || '').replace(/\D/g, '');
+          const pTitle = (p.title || p.name || '').toLowerCase().trim();
+          const pComp = (p.client || p.clientCompanyName || '').toLowerCase().trim();
+
+          const idMatch = (normAProj && normPId && normAProj === normPId) || (numAProj && numPId && numAProj === numPId);
+          const titleMatch = aProjTitle && pTitle && (aProjTitle === pTitle || aProjTitle.includes(pTitle) || pTitle.includes(aProjTitle));
+          const clientMatch = aClient && pComp && (aClient === pComp || aClient.includes(pComp) || pComp.includes(aClient));
+
+          return idMatch || titleMatch || clientMatch;
+        });
+
+      if (!isForClientProj) return;
+
+      const isWorking =
+        st === 'active' || st === 'working' || st === 'accepted' || st === 'in progress' || st === 'assigned' || st === 'approved';
+
+      const key = makeKey(a.projectId, a.professionalName || a.name, a.professionalId || a.id);
+      const existing = rosterMap.get(key);
+
+      const pComp = a.partnerCompanyName || a.partnerCompany || a.partnerName || null;
+      const wfType = a.workforceType || (pComp || a.partnerCompanyId || a.source === 'Partner Company' ? 'Partner Company' : 'Independent Freelancer');
+
+      if (!existing || (!existing.status === 'Active' && isWorking)) {
+        rosterMap.set(key, {
+          id: `asg-${a.id || Math.random()}`,
+          professionalId: a.professionalId || a.id,
+          name: a.professionalName || a.name || 'Specialist Candidate',
+          role: a.role || a.roleInProject || 'Software Engineer',
           projectId: a.projectId,
           projectName: a.projectName || 'Client Project Pod',
           manager: a.manager || 'Assigned Manager',
           avatar: a.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-          skills: a.skills || ['React.js', 'JavaScript'],
+          skills: Array.isArray(a.skills) ? a.skills : (a.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
           experience: a.experience || '3+ years',
           hourlyRate: a.hourlyRate || '$95/hr',
-          weeklyHours: 40,
-          status: 'Active',
+          weeklyHours: a.workload || a.weeklyHours || 40,
+          status: isWorking ? 'Active' : 'Staged',
+          rawStatus: a.status || (isWorking ? 'Active' : 'Staged'),
           joinedDate: a.assignedDate || new Date().toISOString().split('T')[0],
           rating: a.rating || 5.0,
-          performance: 'Active Assigned Pod Member',
+          performance: isWorking ? 'Active Assigned Pod Member' : 'Staged for Squad Onboarding',
+          workforceType: wfType,
+          partnerCompany: pComp,
+          phone: a.phone || '',
+          email: a.email || a.professionalEmail || '',
         });
       }
     });
 
-    return [...clientBaseRoster, ...uniqueAssignedManager];
+    return Array.from(rosterMap.values());
   }, [managerAssignments, clientProjects, clientProjectIds, clientProjectNames]);
 
   // Filter roster by user search/filters
@@ -302,6 +414,11 @@ export const ClientWorkforce = () => {
                   <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
                     {member.projectName}
                   </p>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                      {member.workforceType === 'Partner Company' ? (member.partnerCompany || 'Partner Company') : 'Independent Freelancer'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -399,8 +516,12 @@ export const ClientWorkforce = () => {
                   <span className="font-bold text-slate-900">{selectedContractor.experience}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold block">Performance Note</span>
-                  <span className="font-bold text-emerald-700">{selectedContractor.performance}</span>
+                  <span className="text-slate-400 font-semibold block">Workforce Source</span>
+                  <span className="font-bold text-slate-900">
+                    {selectedContractor.workforceType === 'Partner Company'
+                      ? selectedContractor.partnerCompany || 'Partner Company'
+                      : 'Independent Freelancer'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-semibold block">Billing Rate</span>
@@ -410,12 +531,20 @@ export const ClientWorkforce = () => {
                   <span className="text-slate-400 font-semibold block">Deployed Since</span>
                   <span className="font-bold text-slate-900">{selectedContractor.joinedDate}</span>
                 </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Supervising Manager</span>
+                  <span className="font-bold text-slate-900">{selectedContractor.manager || 'Assigned Manager'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block">Deployment Status</span>
+                  <span className="font-bold text-emerald-700">{selectedContractor.status} ({selectedContractor.rawStatus || 'Assigned'})</span>
+                </div>
               </div>
 
               <div>
                 <span className="text-slate-400 font-bold block mb-1.5">Core Technical Stack & Skills</span>
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedContractor.skills.map((s, idx) => (
+                  {(selectedContractor.skills || []).map((s, idx) => (
                     <span key={idx} className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
                       {s}
                     </span>

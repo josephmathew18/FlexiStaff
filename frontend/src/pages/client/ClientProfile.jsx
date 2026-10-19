@@ -15,38 +15,40 @@ import {
   Upload,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 
 export const ClientProfile = () => {
   const { clientProfile, updateClientProfile } = useData();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: clientProfile?.contactPerson || clientProfile?.name || '',
-    company: clientProfile?.company || clientProfile?.companyName || '',
-    email: clientProfile?.email || '',
-    phone: clientProfile?.phone || '',
-    address: clientProfile?.address || clientProfile?.location || '',
+    name: clientProfile?.contactPerson || clientProfile?.name || user?.name || user?.fullName || '',
+    company: clientProfile?.company || clientProfile?.companyName || user?.companyName || user?.company || '',
+    email: clientProfile?.email || user?.email || '',
+    phone: clientProfile?.phone || user?.phone || '',
+    address: clientProfile?.address || clientProfile?.location || user?.location || user?.address || '',
     city: clientProfile?.city || 'Bengaluru',
     country: clientProfile?.country || 'India',
-    avatar: clientProfile?.avatar || '',
+    avatar: clientProfile?.avatar || user?.avatar || '',
   });
 
   React.useEffect(() => {
-    if (clientProfile) {
-      setFormData({
-        name: clientProfile.contactPerson || clientProfile.name || '',
-        company: clientProfile.company || clientProfile.companyName || '',
-        email: clientProfile.email || '',
-        phone: clientProfile.phone || '',
-        address: clientProfile.address || clientProfile.location || '',
-        city: clientProfile.city || 'Bengaluru',
-        country: clientProfile.country || 'India',
-        avatar: clientProfile.avatar || '',
-      });
+    if (clientProfile || user) {
+      setFormData((prev) => ({
+        name: clientProfile?.contactPerson || clientProfile?.name || user?.name || user?.fullName || prev.name || '',
+        company: clientProfile?.company || clientProfile?.companyName || user?.companyName || user?.company || prev.company || '',
+        email: clientProfile?.email || user?.email || prev.email || '',
+        phone: clientProfile?.phone || user?.phone || prev.phone || '',
+        address: clientProfile?.address || clientProfile?.location || user?.location || user?.address || prev.address || '',
+        city: clientProfile?.city || prev.city || 'Bengaluru',
+        country: clientProfile?.country || prev.country || 'India',
+        avatar: clientProfile?.avatar || user?.avatar || prev.avatar || '',
+      }));
     }
-  }, [clientProfile]);
+  }, [clientProfile, user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',

@@ -204,6 +204,11 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(freelancerData),
       }),
+    updateAvailability: (id, availabilityStatus) =>
+      request(`/freelancers/${id}/availability`, {
+        method: 'PUT',
+        body: JSON.stringify({ availabilityStatus, availability: availabilityStatus }),
+      }),
     delete: (id) =>
       request(`/freelancers/${id}`, {
         method: 'DELETE',
@@ -240,6 +245,22 @@ export const api = {
     delete: (id) =>
       request(`/managers/${id}`, {
         method: 'DELETE',
+      }),
+  },
+
+  // Support & Feedback Tickets API endpoints
+  support: {
+    getAll: () => request('/support/tickets'),
+    getMy: (email) => request(`/support/tickets/my${email ? `?email=${encodeURIComponent(email)}` : ''}`),
+    create: (ticketData) =>
+      request('/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify(ticketData),
+      }),
+    updateStatus: (id, status, adminResponse) =>
+      request(`/support/tickets/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, adminResponse }),
       }),
   },
 };

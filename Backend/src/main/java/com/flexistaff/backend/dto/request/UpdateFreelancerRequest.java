@@ -30,6 +30,20 @@ public class UpdateFreelancerRequest {
     private BigDecimal hourlyRate;
 
     private String availabilityStatus;
+    private String availability;
     private String status;
+    private String approvalStatus;
+    private String assignmentStatus;
     private Long partnerCompanyId;
+
+    // Staff Badge Credentials (Mandatory for partner company employee verification)
+    private String staffBadgeId;
+    private String staffBadgeUrl;
+    private String staffBadgeName;
+
+    // Professional Profiles & Documents (Optional - can be added by workforce)
+    private String linkedin;
+    private String resumeUrl;
+    private String resumeName;
+    private String github;
 }

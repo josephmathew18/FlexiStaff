@@ -55,11 +55,15 @@ public class FreelancerService {
         boolean initialActive = isPartnerEmployee;
         String initialStatus = isPartnerEmployee ? "Active" : "Pending Review";
 
+        String rawPassword = request.getPassword() != null && !request.getPassword().isBlank()
+                ? request.getPassword().trim()
+                : "Workforce@123";
+
         // 1. Create and save central User entity (PostgreSQL generates unique auto-increment ID)
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(email)
-                .password(passwordEncoder.encode(request.getPassword()))
+                .password(passwordEncoder.encode(rawPassword))
                 .phone(request.getPhone())
                 .role(Role.ROLE_PROFESSIONAL)
                 .active(initialActive)
@@ -90,6 +94,13 @@ public class FreelancerService {
                 .availabilityStatus(request.getAvailabilityStatus() != null ? request.getAvailabilityStatus() : "Available")
                 .partnerCompanyId(request.getPartnerCompanyId())
                 .status(initialStatus)
+                .staffBadgeId(request.getStaffBadgeId())
+                .staffBadgeUrl(request.getStaffBadgeUrl())
+                .staffBadgeName(request.getStaffBadgeName())
+                .linkedin(request.getLinkedin())
+                .resumeUrl(request.getResumeUrl())
+                .resumeName(request.getResumeName())
+                .github(request.getGithub())
                 .build();
 
         Freelancer savedFreelancer = freelancerRepository.save(freelancer);
@@ -103,6 +114,13 @@ public class FreelancerService {
                 .experienceYears(freelancer.getExperienceYears())
                 .hourlyRate(freelancer.getHourlyRate())
                 .availabilityStatus(freelancer.getAvailabilityStatus())
+                .staffBadgeId(freelancer.getStaffBadgeId())
+                .staffBadgeUrl(freelancer.getStaffBadgeUrl())
+                .staffBadgeName(freelancer.getStaffBadgeName())
+                .linkedin(freelancer.getLinkedin())
+                .resumeUrl(freelancer.getResumeUrl())
+                .resumeName(freelancer.getResumeName())
+                .github(freelancer.getGithub())
                 .build();
         professionalProfileRepository.save(profile);
 
@@ -303,16 +321,33 @@ public class FreelancerService {
             if (request.getBio() != null) freelancer.setBio(request.getBio());
             if (request.getExperienceYears() != null) freelancer.setExperienceYears(request.getExperienceYears());
             if (request.getHourlyRate() != null) freelancer.setHourlyRate(request.getHourlyRate());
-            if (request.getAvailabilityStatus() != null) freelancer.setAvailabilityStatus(request.getAvailabilityStatus());
-            if (request.getStatus() != null) {
-                freelancer.setStatus(request.getStatus());
-                boolean makeActive = "Approved".equalsIgnoreCase(request.getStatus()) || "Active".equalsIgnoreCase(request.getStatus());
+            String cleanAvail = request.getAvailabilityStatus() != null && !request.getAvailabilityStatus().isBlank()
+                    ? request.getAvailabilityStatus().trim()
+                    : (request.getAvailability() != null && !request.getAvailability().isBlank() ? request.getAvailability().trim() : null);
+            if (cleanAvail != null) {
+                if ("Immediate".equalsIgnoreCase(cleanAvail)) cleanAvail = "Available";
+                freelancer.setAvailabilityStatus(cleanAvail);
+            }
+
+            String cleanStatus = request.getApprovalStatus() != null && !request.getApprovalStatus().isBlank()
+                    ? request.getApprovalStatus().trim()
+                    : (request.getStatus() != null && !request.getStatus().isBlank() ? request.getStatus().trim() : null);
+            if (cleanStatus != null) {
+                freelancer.setStatus(cleanStatus);
+                boolean makeActive = "Approved".equalsIgnoreCase(cleanStatus) || "Active".equalsIgnoreCase(cleanStatus);
                 if (user != null) {
                     user.setActive(makeActive);
                     user = userRepository.save(user);
                 }
             }
             if (request.getPartnerCompanyId() != null) freelancer.setPartnerCompanyId(request.getPartnerCompanyId());
+            if (request.getStaffBadgeId() != null) freelancer.setStaffBadgeId(request.getStaffBadgeId());
+            if (request.getStaffBadgeUrl() != null) freelancer.setStaffBadgeUrl(request.getStaffBadgeUrl());
+            if (request.getStaffBadgeName() != null) freelancer.setStaffBadgeName(request.getStaffBadgeName());
+            if (request.getLinkedin() != null) freelancer.setLinkedin(request.getLinkedin());
+            if (request.getResumeUrl() != null) freelancer.setResumeUrl(request.getResumeUrl());
+            if (request.getResumeName() != null) freelancer.setResumeName(request.getResumeName());
+            if (request.getGithub() != null) freelancer.setGithub(request.getGithub());
 
             freelancer = freelancerRepository.save(freelancer);
         }
@@ -337,7 +372,20 @@ public class FreelancerService {
                 if (request.getBio() != null) prof.setBio(request.getBio());
                 if (request.getExperienceYears() != null) prof.setExperienceYears(request.getExperienceYears());
                 if (request.getHourlyRate() != null) prof.setHourlyRate(request.getHourlyRate());
-                if (request.getAvailabilityStatus() != null) prof.setAvailabilityStatus(request.getAvailabilityStatus());
+                String cleanAvail = request.getAvailabilityStatus() != null && !request.getAvailabilityStatus().isBlank()
+                        ? request.getAvailabilityStatus().trim()
+                        : (request.getAvailability() != null && !request.getAvailability().isBlank() ? request.getAvailability().trim() : null);
+                if (cleanAvail != null) {
+                    if ("Immediate".equalsIgnoreCase(cleanAvail)) cleanAvail = "Available";
+                    prof.setAvailabilityStatus(cleanAvail);
+                }
+                if (request.getStaffBadgeId() != null) prof.setStaffBadgeId(request.getStaffBadgeId());
+                if (request.getStaffBadgeUrl() != null) prof.setStaffBadgeUrl(request.getStaffBadgeUrl());
+                if (request.getStaffBadgeName() != null) prof.setStaffBadgeName(request.getStaffBadgeName());
+                if (request.getLinkedin() != null) prof.setLinkedin(request.getLinkedin());
+                if (request.getResumeUrl() != null) prof.setResumeUrl(request.getResumeUrl());
+                if (request.getResumeName() != null) prof.setResumeName(request.getResumeName());
+                if (request.getGithub() != null) prof.setGithub(request.getGithub());
                 professionalProfileRepository.save(prof);
             }
         }
@@ -471,6 +519,13 @@ public class FreelancerService {
                 .approvalStatus(approvalStatus)
                 .verificationStatus(verificationStatus)
                 .accountStatus(accountStatus)
+                .staffBadgeId(freelancer.getStaffBadgeId())
+                .staffBadgeUrl(freelancer.getStaffBadgeUrl())
+                .staffBadgeName(freelancer.getStaffBadgeName())
+                .linkedin(freelancer.getLinkedin())
+                .resumeUrl(freelancer.getResumeUrl())
+                .resumeName(freelancer.getResumeName())
+                .github(freelancer.getGithub())
                 .createdAt(freelancer.getCreatedAt())
                 .build();
 
@@ -511,6 +566,13 @@ public class FreelancerService {
                 .approvalStatus("Approved")
                 .verificationStatus("Approved")
                 .accountStatus("Active")
+                .staffBadgeId(prof != null ? prof.getStaffBadgeId() : null)
+                .staffBadgeUrl(prof != null ? prof.getStaffBadgeUrl() : null)
+                .staffBadgeName(prof != null ? prof.getStaffBadgeName() : null)
+                .linkedin(prof != null ? prof.getLinkedin() : null)
+                .resumeUrl(prof != null ? prof.getResumeUrl() : null)
+                .resumeName(prof != null ? prof.getResumeName() : null)
+                .github(prof != null ? prof.getGithub() : null)
                 .createdAt(user.getCreatedAt())
                 .build();
 
@@ -558,17 +620,79 @@ public class FreelancerService {
                 dto.setCurrentProject(projTitle);
                 dto.setCurrentProjectClient(clientName);
                 dto.setCurrentProjectRole(activeAlloc.getRoleInProject() != null ? activeAlloc.getRoleInProject() : dto.getTitle());
-                dto.setCurrentAssignmentStatus(activeAlloc.getStatus() != null ? activeAlloc.getStatus().name() : "ACTIVE");
+                String allocStatus = activeAlloc.getStatus() != null ? activeAlloc.getStatus().name() : "ACTIVE";
+                dto.setCurrentAssignmentStatus(allocStatus);
+                dto.setAssignmentStatus("Active");
                 dto.setCurrentProjectStatus(p.getStatus() != null ? p.getStatus().name() : "IN_PROGRESS");
-                dto.setAvailabilityStatus("Working");
+                if (dto.getAvailabilityStatus() == null || dto.getAvailabilityStatus().isBlank()) {
+                    dto.setAvailabilityStatus("Currently Assigned");
+                }
             } else {
                 dto.setIsCurrentlyWorking(false);
-                if (dto.getCurrentProject() == null) {
-                    dto.setCurrentProject("None");
+                dto.setCurrentProjectId(null);
+                dto.setCurrentProjectName(null);
+                dto.setCurrentProject("None");
+                dto.setCurrentProjectClient(null);
+                dto.setCurrentProjectRole(null);
+                dto.setCurrentAssignmentStatus("None");
+                dto.setAssignmentStatus("None");
+                dto.setCurrentProjectStatus("None");
+                if (dto.getAvailabilityStatus() == null || dto.getAvailabilityStatus().isBlank()) {
+                    dto.setAvailabilityStatus("Available");
                 }
             }
         } catch (Exception ex) {
             // Silently fallback if allocation lookup fails
         }
+    }
+
+    @Transactional
+    public FreelancerDto updateAvailability(Long id, String availabilityStatus) {
+        if (availabilityStatus == null || availabilityStatus.isBlank()) {
+            throw new BadRequestException("Availability status cannot be empty");
+        }
+        String cleanAvail = availabilityStatus.trim();
+        if ("Immediate".equalsIgnoreCase(cleanAvail)) cleanAvail = "Available";
+
+        Freelancer freelancer = freelancerRepository.findById(id)
+                .or(() -> freelancerRepository.findByUserId(id))
+                .orElse(null);
+
+        User user = null;
+        if (freelancer != null) {
+            user = freelancer.getUser();
+            if (user == null && freelancer.getEmail() != null) {
+                user = userRepository.findByEmailIgnoreCase(freelancer.getEmail().trim()).orElse(null);
+            }
+        } else {
+            user = userRepository.findById(id).orElse(null);
+            if (user != null) {
+                final Long uId = user.getId();
+                freelancer = freelancerRepository.findByUserId(uId).orElse(null);
+            }
+        }
+
+        if (freelancer == null && user == null) {
+            throw new ResourceNotFoundException("Freelancer/User", "id", id);
+        }
+
+        if (freelancer != null) {
+            freelancer.setAvailabilityStatus(cleanAvail);
+            freelancer = freelancerRepository.save(freelancer);
+        }
+
+        if (user != null) {
+            ProfessionalProfile prof = user.getProfessionalProfile();
+            if (prof == null) {
+                prof = professionalProfileRepository.findByUserId(user.getId()).orElse(null);
+            }
+            if (prof != null) {
+                prof.setAvailabilityStatus(cleanAvail);
+                professionalProfileRepository.save(prof);
+            }
+        }
+
+        log.info("Persisted availability status '{}' for professional ID {}", cleanAvail, id);
+        return freelancer != null ? mapToDto(freelancer) : mapUserToDto(user);
     }
 }

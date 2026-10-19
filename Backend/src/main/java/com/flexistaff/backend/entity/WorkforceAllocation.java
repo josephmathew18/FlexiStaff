@@ -23,6 +23,10 @@ public class WorkforceAllocation extends BaseEntity {
     @JoinColumn(name = "professional_id", nullable = false)
     private User professional;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private User manager;
+
     @Column(name = "role_in_project")
     private String roleInProject; // e.g. "Senior AI Architect", "Backend Lead"
 

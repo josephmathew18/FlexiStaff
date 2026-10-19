@@ -17,8 +17,6 @@ public class FreelancerRegistrationRequest {
     @Email(message = "Invalid email format")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
     private String phone;
@@ -29,4 +27,15 @@ public class FreelancerRegistrationRequest {
     private BigDecimal hourlyRate;
     private String availabilityStatus;
     private Long partnerCompanyId;
+
+    // Staff Badge Credentials (Mandatory for partner company employee verification)
+    private String staffBadgeId;
+    private String staffBadgeUrl;
+    private String staffBadgeName;
+
+    // Professional Profiles & Documents (Optional - can be added by workforce)
+    private String linkedin;
+    private String resumeUrl;
+    private String resumeName;
+    private String github;
 }

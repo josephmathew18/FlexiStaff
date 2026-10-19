@@ -21,6 +21,7 @@ public class UserDto {
     private Role role;
     private Boolean active;
     private String avatarUrl;
+    private String profilePic;
     private LocalDateTime createdAt;
 
     private ProfessionalDto professionalProfile;

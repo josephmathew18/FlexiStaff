@@ -75,6 +75,7 @@ public class ProjectService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .requiredSkills(request.getRequiredSkills())
+                .workforceRequired(request.getWorkforceRequired() != null ? request.getWorkforceRequired() : 2)
                 .client(client)
                 .manager(manager)
                 .budget(request.getBudget())
@@ -161,6 +162,7 @@ public class ProjectService {
 
         if (request.getTitle() != null) project.setTitle(request.getTitle());
         if (request.getDescription() != null) project.setDescription(request.getDescription());
+        if (request.getWorkforceRequired() != null) project.setWorkforceRequired(request.getWorkforceRequired());
         if (request.getBudget() != null) project.setBudget(request.getBudget());
         if (request.getStatus() != null) {
             project.setStatus(request.getStatus());
@@ -253,6 +255,7 @@ public class ProjectService {
                 .title(project.getTitle())
                 .description(project.getDescription())
                 .requiredSkills(project.getRequiredSkills())
+                .workforceRequired(project.getWorkforceRequired() != null ? project.getWorkforceRequired() : 2)
                 .clientId(primaryUserId)
                 .clientName(contactName)
                 .clientCompanyName(companyName)
@@ -405,10 +408,31 @@ public class ProjectService {
             workloadStr = alloc.getAllocatedHoursPerWeek() + "h/wk";
         }
 
+        User mgrUser = alloc.getManager() != null ? alloc.getManager() :
+                (alloc.getProject() != null ? alloc.getProject().getManager() : null);
+        Long mgrId = mgrUser != null ? mgrUser.getId() : null;
+        String mgrName = mgrUser != null ? mgrUser.getFullName() : null;
+
+        User clientUser = alloc.getProject() != null ? alloc.getProject().getClient() : null;
+        Long clientId = clientUser != null ? clientUser.getId() : null;
+        String clientName = clientUser != null ? clientUser.getFullName() : null;
+        String clientCompanyName = null;
+        if (clientId != null) {
+            com.flexistaff.backend.entity.Client cProfile = clientRepository.findByUserId(clientId).orElse(null);
+            if (cProfile != null) {
+                clientCompanyName = cProfile.getCompanyName();
+            }
+        }
+
         return WorkforceAllocationDto.builder()
                 .id(alloc.getId())
                 .projectId(alloc.getProject() != null ? alloc.getProject().getId() : null)
                 .projectTitle(alloc.getProject() != null ? alloc.getProject().getTitle() : null)
+                .clientId(clientId)
+                .clientName(clientName)
+                .clientCompanyName(clientCompanyName)
+                .managerId(mgrId)
+                .managerName(mgrName)
                 .professionalId(profId)
                 .professionalName(profName)
                 .professionalEmail(profEmail)

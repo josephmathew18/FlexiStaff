@@ -19,20 +19,22 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import UserAvatar from '../../components/common/UserAvatar';
 
 export const PartnerProfile = () => {
   const { partnerProfile, updatePartnerProfile } = useData();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('company'); // 'company' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: partnerProfile?.name || 'Partner Organization',
-    email: partnerProfile?.email || '',
-    contactPerson: partnerProfile?.contactPerson || '',
-    phone: partnerProfile?.phone || '',
+    name: partnerProfile?.name || user?.companyName || user?.company || 'Partner Organization',
+    email: partnerProfile?.email || user?.email || '',
+    contactPerson: partnerProfile?.contactPerson || user?.contactPerson || user?.name || user?.fullName || '',
+    phone: partnerProfile?.phone || user?.phone || '',
     tier: partnerProfile?.tier || 'Tier-1 Strategic Partner',
-    location: partnerProfile?.location || partnerProfile?.city || 'Bengaluru, India',
+    location: partnerProfile?.location || partnerProfile?.city || user?.location || user?.address || 'Bengaluru, India',
     specialties: Array.isArray(partnerProfile?.specialties)
       ? partnerProfile.specialties.join(', ')
       : partnerProfile?.specialties || partnerProfile?.domain || 'Software Engineering & IT Staffing',
@@ -40,30 +42,31 @@ export const PartnerProfile = () => {
     description:
       partnerProfile?.description ||
       'Registered IT Vendor & Talent Partner Organization on FlexiStaff.',
-    logoUrl: partnerProfile?.logoUrl || partnerProfile?.logo || partnerProfile?.avatar || '',
+    logoUrl: partnerProfile?.logoUrl || partnerProfile?.logo || partnerProfile?.avatar || user?.avatar || '',
   });
 
   // Keep form synchronized when context state updates
   useEffect(() => {
-    if (partnerProfile) {
-      setFormData({
-        name: partnerProfile.name || 'Partner Organization',
-        email: partnerProfile.email || '',
-        contactPerson: partnerProfile.contactPerson || '',
-        phone: partnerProfile.phone || '',
-        tier: partnerProfile.tier || 'Tier-1 Strategic Partner',
-        location: partnerProfile.location || partnerProfile.city || 'Bengaluru, India',
-        specialties: Array.isArray(partnerProfile.specialties)
+    if (partnerProfile || user) {
+      setFormData((prev) => ({
+        name: partnerProfile?.name || user?.companyName || user?.company || prev.name || 'Partner Organization',
+        email: partnerProfile?.email || user?.email || prev.email || '',
+        contactPerson: partnerProfile?.contactPerson || user?.contactPerson || user?.name || user?.fullName || prev.contactPerson || '',
+        phone: partnerProfile?.phone || user?.phone || prev.phone || '',
+        tier: partnerProfile?.tier || prev.tier || 'Tier-1 Strategic Partner',
+        location: partnerProfile?.location || partnerProfile?.city || user?.location || user?.address || prev.location || 'Bengaluru, India',
+        specialties: Array.isArray(partnerProfile?.specialties)
           ? partnerProfile.specialties.join(', ')
-          : partnerProfile.specialties || partnerProfile.domain || 'Software Engineering & IT Staffing',
-        website: partnerProfile.website || '',
+          : partnerProfile?.specialties || partnerProfile?.domain || prev.specialties || 'Software Engineering & IT Staffing',
+        website: partnerProfile?.website || prev.website || '',
         description:
-          partnerProfile.description ||
+          partnerProfile?.description ||
+          prev.description ||
           'Registered IT Vendor & Talent Partner Organization on FlexiStaff.',
-        logoUrl: partnerProfile.logoUrl || partnerProfile.logo || partnerProfile.avatar || '',
-      });
+        logoUrl: partnerProfile?.logoUrl || partnerProfile?.logo || partnerProfile?.avatar || user?.avatar || prev.logoUrl || '',
+      }));
     }
-  }, [partnerProfile]);
+  }, [partnerProfile, user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',

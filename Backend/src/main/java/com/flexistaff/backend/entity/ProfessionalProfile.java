@@ -36,4 +36,25 @@ public class ProfessionalProfile extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "partner_company_id")
     private PartnerCompany partnerCompany;
+
+    @Column(name = "staff_badge_id", length = 100)
+    private String staffBadgeId;
+
+    @Column(name = "staff_badge_url", columnDefinition = "TEXT")
+    private String staffBadgeUrl;
+
+    @Column(name = "staff_badge_name")
+    private String staffBadgeName;
+
+    @Column(name = "linkedin", length = 500)
+    private String linkedin;
+
+    @Column(name = "resume_url", columnDefinition = "TEXT")
+    private String resumeUrl;
+
+    @Column(name = "resume_name")
+    private String resumeName;
+
+    @Column(name = "github", length = 500)
+    private String github;
 }

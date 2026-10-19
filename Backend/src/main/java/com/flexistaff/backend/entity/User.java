@@ -35,8 +35,16 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private Boolean active = true;
 
-    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    @Column(name = "profile_pic", columnDefinition = "TEXT")
     private String avatarUrl;
+
+    public String getProfilePic() {
+        return avatarUrl;
+    }
+
+    public void setProfilePic(String profilePic) {
+        this.avatarUrl = profilePic;
+    }
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ProfessionalProfile professionalProfile;

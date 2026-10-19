@@ -18,22 +18,38 @@ import {
   Upload,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { compressImage } from '../../utils/imageCompressor';
 import UserAvatar from '../../components/common/UserAvatar';
 
 export const AdminProfile = () => {
   const { adminProfile, updateAdminProfile } = useData();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security' | 'notifications'
   const [formData, setFormData] = useState({
-    name: adminProfile?.name || 'System Administrator',
-    email: adminProfile?.email || 'admin@flexistaff.com',
-    phone: adminProfile?.phone || '+91 98765 43210',
+    name: adminProfile?.name || user?.name || user?.fullName || 'System Administrator',
+    email: adminProfile?.email || user?.email || 'admin@flexistaff.com',
+    phone: adminProfile?.phone || user?.phone || '+91 98765 43210',
     companyName: adminProfile?.companyName || 'FlexiStaff Global Technologies Inc.',
     jobTitle: adminProfile?.jobTitle || 'Super Administrator',
-    avatar: adminProfile?.avatar || '',
+    avatar: adminProfile?.avatar || user?.avatar || '',
   });
+
+  React.useEffect(() => {
+    if (adminProfile || user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: adminProfile?.name || user?.name || user?.fullName || prev.name || 'System Administrator',
+        email: adminProfile?.email || user?.email || prev.email || 'admin@flexistaff.com',
+        phone: adminProfile?.phone || user?.phone || prev.phone || '+91 98765 43210',
+        companyName: adminProfile?.companyName || prev.companyName || 'FlexiStaff Global Technologies Inc.',
+        jobTitle: adminProfile?.jobTitle || prev.jobTitle || 'Super Administrator',
+        avatar: adminProfile?.avatar || user?.avatar || prev.avatar || '',
+      }));
+    }
+  }, [adminProfile, user]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',

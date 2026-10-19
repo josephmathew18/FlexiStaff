@@ -42,7 +42,19 @@ public class FreelancerDto {
     private String currentProjectClient;
     private String currentProjectRole;
     private String currentAssignmentStatus;
+    private String assignmentStatus;
     private String currentProjectStatus;
     private Boolean isCurrentlyWorking;
     private LocalDateTime createdAt;
+
+    // Staff Badge Credentials (Mandatory for partner company employee verification)
+    private String staffBadgeId;
+    private String staffBadgeUrl;
+    private String staffBadgeName;
+
+    // Professional Profiles & Documents (Optional - can be added by workforce)
+    private String linkedin;
+    private String resumeUrl;
+    private String resumeName;
+    private String github;
 }

@@ -15,4 +15,8 @@ public interface WorkforceAllocationRepository extends JpaRepository<WorkforceAl
     List<WorkforceAllocation> findByProfessionalId(Long professionalId);
 
     List<WorkforceAllocation> findByProfessionalIdAndStatus(Long professionalId, AllocationStatus status);
+
+    java.util.Optional<WorkforceAllocation> findByProjectIdAndProfessionalId(Long projectId, Long professionalId);
+
+    List<WorkforceAllocation> findByManagerId(Long managerId);
 }

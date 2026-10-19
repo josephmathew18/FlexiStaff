@@ -16,16 +16,25 @@ import {
   X,
   Send,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const AdminSupportTickets = () => {
-  const { supportTickets = [], updateSupportTicketStatus } = useData() || {};
+  const {
+    supportTickets = [],
+    loadingTickets,
+    refreshSupportTickets,
+    updateSupportTicketStatus,
+  } = useData() || {};
 
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'Client' | 'Manager' | 'Partner' | 'Workforce'
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'Open' | 'Pending Admin Review' | 'Resolved'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'Open' | 'Pending Admin Review' | 'In Progress' | 'Resolved'
   const [searchQuery, setSearchQuery] = useState('');
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   // Filtered support tickets
   const filteredTickets = useMemo(() => {
@@ -44,20 +53,31 @@ export const AdminSupportTickets = () => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         matchesSearch =
-          t.subject.toLowerCase().includes(q) ||
-          t.senderName.toLowerCase().includes(q) ||
-          t.message.toLowerCase().includes(q) ||
-          t.category.toLowerCase().includes(q);
+          (t.subject && t.subject.toLowerCase().includes(q)) ||
+          (t.senderName && t.senderName.toLowerCase().includes(q)) ||
+          (t.senderEmail && t.senderEmail.toLowerCase().includes(q)) ||
+          (t.message && t.message.toLowerCase().includes(q)) ||
+          (t.category && t.category.toLowerCase().includes(q));
       }
 
       return matchesRole && matchesStatus && matchesSearch;
     });
   }, [supportTickets, roleFilter, statusFilter, searchQuery]);
 
-  const handleUpdateStatus = (ticketId, newStatus, senderName) => {
-    if (updateSupportTicketStatus) {
-      updateSupportTicketStatus(ticketId, newStatus);
-      toast.success(`Support ticket for ${senderName} updated to "${newStatus}"!`);
+  const handleUpdateStatus = async (ticketId, newStatus, senderName) => {
+    setUpdatingId(ticketId);
+    const draftText = replyDrafts[ticketId] || null;
+
+    try {
+      if (updateSupportTicketStatus) {
+        await updateSupportTicketStatus(ticketId, newStatus, draftText);
+        toast.success(`Support ticket for ${senderName} updated to "${newStatus}"!`);
+      }
+      setReplyingTo(null);
+    } catch (err) {
+      toast.error('Failed to update status. Please try again.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -101,8 +121,19 @@ export const AdminSupportTickets = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Review full-detail support reports, SLA feedback, and technical inquiries submitted across all 4 portal roles.
+            Review full-detail support reports, SLA feedback, and technical inquiries saved in PostgreSQL across all 4 portal roles.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => refreshSupportTickets && refreshSupportTickets()}
+            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-white/10 flex items-center gap-1.5 transition-all shadow-xs"
+          >
+            <RefreshCw size={14} className={loadingTickets ? 'animate-spin text-blue-600' : ''} />
+            <span>Sync Database ({supportTickets.length})</span>
+          </button>
         </div>
       </div>
 
@@ -159,6 +190,7 @@ export const AdminSupportTickets = () => {
         <div className="space-y-4">
           {filteredTickets.map((ticket) => {
             const isResolved = ticket.status === 'Resolved';
+            const isReplying = replyingTo === ticket.id;
 
             return (
               <div
@@ -189,6 +221,8 @@ export const AdminSupportTickets = () => {
                       className={`px-3 py-1 rounded-full text-xs font-bold border ${
                         isResolved
                           ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50'
+                          : ticket.status === 'In Progress'
+                          ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50'
                           : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/50'
                       }`}
                     >
@@ -223,21 +257,93 @@ export const AdminSupportTickets = () => {
                   </div>
                 </div>
 
+                {/* Official Admin Response Display */}
+                {ticket.adminResponse && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
+                      <MessageSquare size={12} />
+                      <span>Administrator Official Reply</span>
+                    </span>
+                    <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                      {ticket.adminResponse}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline Admin Reply Box */}
+                {isReplying && (
+                  <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 space-y-2">
+                    <label className="text-[11px] font-bold text-slate-800 dark:text-white block">
+                      Type Response to {ticket.senderName}:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={replyDrafts[ticket.id] || ''}
+                      onChange={(e) =>
+                        setReplyDrafts((prev) => ({ ...prev, [ticket.id]: e.target.value }))
+                      }
+                      placeholder="Enter official resolution notes or feedback response..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-xs outline-none focus:border-[#004ac6] bg-white dark:bg-[#1c1a36] text-slate-800 dark:text-white"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(ticket.id, 'In Progress', ticket.senderName)}
+                        className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs"
+                      >
+                        Send & Mark In Progress
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStatus(ticket.id, 'Resolved', ticket.senderName)}
+                        className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs"
+                      >
+                        Send & Mark Resolved
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Admin Status Actions */}
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-white/10">
+                  {!isReplying && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyingTo(ticket.id);
+                        if (!replyDrafts[ticket.id] && ticket.adminResponse) {
+                          setReplyDrafts((prev) => ({ ...prev, [ticket.id]: ticket.adminResponse }));
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-white/10 flex items-center gap-1 transition-all"
+                    >
+                      <MessageSquare size={13} />
+                      <span>{ticket.adminResponse ? 'Edit Response' : 'Reply to Ticket'}</span>
+                    </button>
+                  )}
+
                   {!isResolved ? (
                     <>
                       <button
                         type="button"
+                        disabled={updatingId === ticket.id}
                         onClick={() => handleUpdateStatus(ticket.id, 'In Progress', ticket.senderName)}
-                        className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 text-xs font-bold transition-all"
+                        className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 text-xs font-bold transition-all disabled:opacity-50"
                       >
                         Mark In Progress
                       </button>
                       <button
                         type="button"
+                        disabled={updatingId === ticket.id}
                         onClick={() => handleUpdateStatus(ticket.id, 'Resolved', ticket.senderName)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1 disabled:opacity-50"
                       >
                         <Check size={14} />
                         <span>Mark Resolved</span>
@@ -246,8 +352,9 @@ export const AdminSupportTickets = () => {
                   ) : (
                     <button
                       type="button"
+                      disabled={updatingId === ticket.id}
                       onClick={() => handleUpdateStatus(ticket.id, 'Pending Admin Review', ticket.senderName)}
-                      className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                      className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all disabled:opacity-50"
                     >
                       Reopen Ticket
                     </button>

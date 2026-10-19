@@ -34,7 +34,7 @@ export const ClientSupport = () => {
 
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.subject.trim()) {
@@ -48,19 +48,22 @@ export const ClientSupport = () => {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       if (submitSupportTicket) {
-        submitSupportTicket({
+        await submitSupportTicket({
           senderRole: 'Client',
-          senderName: clientProfile?.company ? `${clientProfile.company} (${clientProfile.contactPerson || ''})` : (clientProfile?.contactPerson || ''),
+          senderName: clientProfile?.company ? `${clientProfile.company} (${clientProfile.contactPerson || ''})` : (clientProfile?.contactPerson || 'Enterprise Client'),
           senderEmail: clientProfile?.email || 'client@flexistaff.com',
           ...formData,
         });
       }
-      setLoading(false);
       setFormData({ subject: '', category: 'Project Execution', priority: 'Normal', message: '' });
-      toast.success('Help & Support ticket submitted to Admin with full details!');
-    }, 500);
+      toast.success('Help & Support ticket submitted to Admin and saved to database!');
+    } catch (err) {
+      toast.error('Failed to submit ticket. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -205,12 +208,29 @@ export const ClientSupport = () => {
                   <div key={t.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="text-xs font-extrabold text-slate-900 leading-snug">{t.subject}</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 border ${
+                          t.status === 'Resolved'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : t.status === 'In Progress'
+                            ? 'bg-blue-100 text-blue-800 border-blue-200'
+                            : 'bg-amber-100 text-amber-800 border-amber-200'
+                        }`}
+                      >
                         {t.status}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">{t.message}</p>
+                    <p className="text-[11px] text-slate-600 line-clamp-3 leading-relaxed">{t.message}</p>
+
+                    {t.adminResponse && (
+                      <div className="p-2 rounded-xl bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-900 mt-1 space-y-0.5">
+                        <span className="font-extrabold block text-[10px] text-emerald-700 uppercase tracking-wider">
+                          Admin Response:
+                        </span>
+                        <p className="leading-snug">{t.adminResponse}</p>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/60">
                       <span>Category: {t.category}</span>

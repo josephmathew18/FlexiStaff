@@ -18,6 +18,7 @@ public class CreateProjectRequest {
     private String description;
 
     private String requiredSkills;
+    private Integer workforceRequired;
 
     @NotNull(message = "Client ID is required")
     private Long clientId;

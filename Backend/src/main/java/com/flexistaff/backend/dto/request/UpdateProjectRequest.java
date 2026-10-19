@@ -12,6 +12,7 @@ public class UpdateProjectRequest {
 
     private String title;
     private String description;
+    private Integer workforceRequired;
     private Long managerId;
 
     @PositiveOrZero(message = "Budget cannot be negative")

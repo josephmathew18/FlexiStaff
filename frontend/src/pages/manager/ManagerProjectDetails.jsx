@@ -158,44 +158,6 @@ export const ManagerProjectDetails = () => {
               {activeProject.description}
             </p>
           </div>
-
-          {/* Progress & Headcount Widget */}
-          <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <div className="text-center px-2">
-              <span className="text-[10px] font-bold uppercase text-slate-400">Total Required</span>
-              <div className="flex items-center justify-center gap-1.5 mt-0.5">
-                <button
-                  type="button"
-                  title="Decrease required workforce"
-                  disabled={isCompletedProject}
-                  onClick={() => updateProjectHeadcount?.(activeProject.id, Math.max(1, totalRequired - 1))}
-                  className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  -
-                </button>
-                <p className="text-2xl font-black text-slate-900 min-w-[28px]">{totalRequired}</p>
-                <button
-                  type="button"
-                  title="Increase required workforce"
-                  disabled={isCompletedProject}
-                  onClick={() => updateProjectHeadcount?.(activeProject.id, totalRequired + 1)}
-                  className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold flex items-center justify-center text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-center px-2">
-              <span className="text-[10px] font-bold uppercase text-blue-600">Assigned</span>
-              <p className="text-2xl font-black text-blue-600">{totalAssigned}</p>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-center px-2">
-              <span className="text-[10px] font-bold uppercase text-amber-600">Remaining</span>
-              <p className="text-2xl font-black text-amber-600">{totalRemaining}</p>
-            </div>
-          </div>
         </div>
 
         {/* Project Meta Details (Section 5) */}

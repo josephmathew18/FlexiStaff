@@ -176,7 +176,7 @@ export const ManagerWorkforce = () => {
                         ))}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-semibold">{emp.experience || '3+ Years'}</td>
+                    <td className="py-3.5 px-4 text-slate-600 font-semibold">{emp.experience || 'N/A'}</td>
                     <td className="py-3.5 px-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                         isAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -257,14 +257,18 @@ export const ManagerWorkforce = () => {
                   Verified Skill Badges
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {(selectedProfessional.skills || ['React.js', 'JavaScript', 'HTML5', 'CSS3', 'Bootstrap']).map((skill, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/70 text-xs font-bold"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {(selectedProfessional.skills || []).length > 0 ? (
+                    selectedProfessional.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/70 text-xs font-bold"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">No skills specified</span>
+                  )}
                 </div>
               </div>
 
@@ -272,15 +276,15 @@ export const ManagerWorkforce = () => {
               <div className="grid grid-cols-2 gap-3.5 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
                 <div>
                   <span className="text-slate-400 font-medium">Experience</span>
-                  <p className="font-bold text-slate-900 mt-0.5">{selectedProfessional.experience || '3+ Years'}</p>
+                  <p className="font-bold text-slate-900 mt-0.5">{selectedProfessional.experience || 'Not Specified'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium">Qualification</span>
-                  <p className="font-bold text-slate-900 mt-0.5">{selectedProfessional.qualification || 'B.S. in Computer Science'}</p>
+                  <p className="font-bold text-slate-900 mt-0.5">{selectedProfessional.qualification || 'Not Specified'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium">Availability</span>
-                  <p className="font-bold text-emerald-700 mt-0.5">{selectedProfessional.availability}</p>
+                  <p className="font-bold text-emerald-700 mt-0.5">{selectedProfessional.availability || 'Available'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium">Current Status</span>
@@ -293,16 +297,20 @@ export const ManagerWorkforce = () => {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
                   Previous Project Experience
                 </span>
-                <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-xl border border-slate-100 bg-white">
-                    <p className="font-bold text-slate-900">E-Commerce & Payment Integration Sprint</p>
-                    <p className="text-slate-500 text-[11px] mt-0.5">Implemented checkout SDK components and dynamic product filtering.</p>
+                {Array.isArray(selectedProfessional.experiences) && selectedProfessional.experiences.length > 0 ? (
+                  <div className="space-y-2 text-xs">
+                    {selectedProfessional.experiences.map((exp, idx) => (
+                      <div key={idx} className="p-3 rounded-xl border border-slate-100 bg-white">
+                        <p className="font-bold text-slate-900">{exp.title} {exp.company ? `— ${exp.company}` : ''}</p>
+                        {exp.description && <p className="text-slate-500 text-[11px] mt-0.5">{exp.description}</p>}
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-3 rounded-xl border border-slate-100 bg-white">
-                    <p className="font-bold text-slate-900">FinTech Analytics Portal</p>
-                    <p className="text-slate-500 text-[11px] mt-0.5">Built real-time visualization dashboards with sub-second chart response times.</p>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    No prior project experience recorded.
+                  </p>
+                )}
               </div>
 
               {/* Availability Notice */}

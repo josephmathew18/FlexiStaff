@@ -27,6 +27,9 @@ public class Project extends BaseEntity {
     @Column(name = "required_skills")
     private String requiredSkills;
 
+    @Column(name = "workforce_required")
+    private Integer workforceRequired;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private User client;

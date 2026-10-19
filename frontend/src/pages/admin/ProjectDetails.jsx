@@ -440,32 +440,7 @@ export const ProjectDetails = () => {
         </Link>
       </div>
 
-      {/* Pending Approval Banner */}
-      {isPendingApproval && (
-        <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/30 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 font-bold">
-              <Clock size={20} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-amber-950 dark:text-amber-200">
-                Client Project Request Pending Admin Approval
-              </h3>
-              <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 max-w-2xl leading-relaxed">
-                This project request was submitted by <strong>{project.client}</strong> and requires Admin approval. Upon approval, an HR Manager will be assigned to match Partner and Freelance workforce talent.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsApproveModalOpen(true)}
-            className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2.5 text-xs font-bold text-slate-900 shadow-md active:scale-95 transition-all shrink-0 flex items-center gap-1.5"
-          >
-            <CheckCircle2 size={15} />
-            <span>Approve & Assign HR Manager</span>
-          </button>
-        </div>
-      )}
+
 
       {/* Project Overview Card */}
       <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 sm:p-8 shadow-xs">

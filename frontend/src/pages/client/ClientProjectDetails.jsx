@@ -22,7 +22,7 @@ import { StatusBadge, ProjectProgress } from '../../components/workflow';
 export const ClientProjectDetails = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects = [], toggleMilestone } = useData() || {};
+  const { projects = [], managerAssignments = [], toggleMilestone } = useData() || {};
 
   const decodedId = decodeURIComponent(projectId || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
@@ -39,6 +39,94 @@ export const ClientProjectDetails = () => {
 
     return isDirectMatch || isNumMatch;
   });
+
+  const assignedSquad = React.useMemo(() => {
+    if (!project) return [];
+    const rosterMap = new Map();
+
+    const makeKey = (name, profId) => {
+      const id = profId ? String(profId).trim().toLowerCase() : '';
+      const n = (name || '').toLowerCase().trim();
+      return `${id || n}`;
+    };
+
+    // 1. From project.assignedResources
+    (project.assignedResources || []).forEach((r) => {
+      if (!r) return;
+      const st = String(r.status || '').toLowerCase();
+      if (st.includes('declined') || st.includes('reject') || st.includes('cancel')) return;
+
+      const isWorking =
+        st === 'active' || st === 'working' || st === 'accepted' || st === 'in progress' || st === 'assigned' || st === 'approved';
+
+      const pComp = r.partnerCompanyName || r.partnerCompany || r.partnerName || null;
+      const wfType = r.workforceType || (pComp || r.partnerCompanyId ? 'Partner Company' : 'Independent Freelancer');
+
+      const key = makeKey(r.name || r.professionalName, r.id || r.professionalId);
+      rosterMap.set(key, {
+        id: r.id || r.professionalId,
+        professionalId: r.professionalId || r.id,
+        name: r.name || r.professionalName || 'Specialist Engineer',
+        role: r.role || r.roleInProject || 'Software Specialist',
+        avatar: r.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+        skills: Array.isArray(r.skills) ? r.skills : (r.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+        hourlyRate: r.hourlyRate || '$95/hr',
+        weeklyHours: r.weeklyHours || r.hoursPerWeek || 40,
+        status: isWorking ? 'Active' : 'Staged',
+        rawStatus: r.status,
+        workforceType: wfType,
+        partnerCompany: pComp,
+        experience: r.experience || '3+ years',
+      });
+    });
+
+    // 2. From managerAssignments matching this project
+    const pNormId = String(project.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const pNumId = String(project.id || '').replace(/\D/g, '');
+    const pTitle = String(project.title || project.name || '').toLowerCase().trim();
+
+    (managerAssignments || []).forEach((a) => {
+      if (!a) return;
+      const st = String(a.status || '').toLowerCase();
+      if (st.includes('declined') || st.includes('reject') || st.includes('cancel')) return;
+
+      const aProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const aNum = String(a.projectId || '').replace(/\D/g, '');
+      const aTitle = String(a.projectName || '').toLowerCase().trim();
+
+      const isSame = (pNormId && aProj === pNormId) || (pNumId && aNum === pNumId) || (pTitle && aTitle === pTitle);
+      if (isSame) {
+        const isWorking =
+          st === 'active' || st === 'working' || st === 'accepted' || st === 'in progress' || st === 'assigned' || st === 'approved';
+
+        const pComp = a.partnerCompanyName || a.partnerCompany || a.partnerName || null;
+        const wfType = a.workforceType || (pComp || a.partnerCompanyId || a.source === 'Partner Company' ? 'Partner Company' : 'Independent Freelancer');
+
+        const key = makeKey(a.professionalName || a.name, a.professionalId || a.id);
+        const existing = rosterMap.get(key);
+
+        if (!existing || (!existing.status === 'Active' && isWorking)) {
+          rosterMap.set(key, {
+            id: a.professionalId || a.id,
+            professionalId: a.professionalId || a.id,
+            name: a.professionalName || a.name || 'Specialist Candidate',
+            role: a.role || a.roleInProject || 'Software Engineer',
+            avatar: a.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+            skills: Array.isArray(a.skills) ? a.skills : (a.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
+            hourlyRate: a.hourlyRate || '$95/hr',
+            weeklyHours: a.workload || a.weeklyHours || 40,
+            status: isWorking ? 'Active' : 'Staged',
+            rawStatus: a.status,
+            workforceType: wfType,
+            partnerCompany: pComp,
+            experience: a.experience || '3+ years',
+          });
+        }
+      }
+    });
+
+    return Array.from(rosterMap.values());
+  }, [project, managerAssignments]);
 
   if (!project) {
     return (
@@ -59,6 +147,8 @@ export const ClientProjectDetails = () => {
   const isInProgress = project.status === 'In Progress' || project.stage === 'In Progress';
   const isRejected = project.status === 'Rejected' || project.stage === 'Rejected';
   const isCompleted = project.status === 'Completed' || project.stage === 'Completed';
+
+  const squadCount = Math.min(5, assignedSquad.length || project.workforceAssigned || 0);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 pb-16">
@@ -89,9 +179,9 @@ export const ClientProjectDetails = () => {
 
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs text-right">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Workforce Limit</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Workforce Squad</span>
               <p className="text-sm font-extrabold text-slate-900">
-                {project.workforceAssigned || 0} / {project.workforceRequired || 5} Assigned
+                {squadCount} / 5 Assigned
               </p>
             </div>
           </div>
@@ -262,6 +352,94 @@ export const ClientProjectDetails = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Assigned Engineering Squad Section */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Users size={18} className="text-[#004ac6]" />
+            <h3 className="font-extrabold text-slate-900 text-sm">
+              Assigned Engineering Squad
+            </h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-[#004ac6] border border-blue-200">
+              {assignedSquad.length} / 5 Specialists
+            </span>
+          </div>
+          <Link
+            to="/client/workforce"
+            className="text-xs font-bold text-[#004ac6] hover:underline flex items-center gap-1"
+          >
+            <span>View All Workforce</span>
+          </Link>
+        </div>
+
+        {assignedSquad.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 space-y-2 border border-dashed border-slate-200 rounded-2xl">
+            <Users size={32} className="mx-auto text-slate-300" />
+            <p className="text-xs font-bold text-slate-700">No specialists deployed yet</p>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              Your assigned manager is currently evaluating verified partner professionals and freelancers for this project pod.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {assignedSquad.map((member, idx) => (
+              <div
+                key={member.id || idx}
+                className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-xs transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start gap-3 mb-3">
+                    <img
+                      src={member.avatar}
+                      alt={member.name}
+                      className="w-12 h-12 rounded-xl object-cover ring-2 ring-blue-100 shadow-2xs shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="font-extrabold text-slate-900 text-xs truncate">{member.name}</h4>
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                            member.status === 'Active'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          }`}
+                        >
+                          {member.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 font-bold truncate mt-0.5">{member.role}</p>
+                      <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {member.workforceType === 'Partner Company'
+                          ? member.partnerCompany || 'Partner Company'
+                          : 'Independent Freelancer'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {member.skills.slice(0, 3).map((s, sIdx) => (
+                      <span key={sIdx} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
+                        {s}
+                      </span>
+                    ))}
+                    {member.skills.length > 3 && (
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white text-slate-400 border border-slate-200">
+                        +{member.skills.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[10px] text-slate-500">
+                  <span className="font-bold text-slate-900">{member.hourlyRate}</span>
+                  <span>{member.weeklyHours}h / week</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

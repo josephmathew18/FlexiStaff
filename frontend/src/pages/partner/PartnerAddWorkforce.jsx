@@ -29,7 +29,9 @@ import {
   EyeOff,
   Building2,
   Trash2,
+  FileText,
 } from 'lucide-react';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -80,9 +82,15 @@ export const PartnerAddWorkforce = () => {
     availability: 'Available',
     weeklyHours: '',
     bio: '',
+    companyId: '',
+    staffBadgeName: '',
+    staffBadgeFile: null,
+    staffBadgeUrl: '',
     github: '',
     linkedin: '',
     portfolio: '',
+    resumeName: '',
+    resumeFile: null,
     certifications: '',
     isBackgroundChecked: true,
     isNdaSigned: true,
@@ -151,6 +159,16 @@ export const PartnerAddWorkforce = () => {
       return;
     }
 
+    if (!formData.companyId?.trim()) {
+      toast.error('Staff Badge ID number is mandatory for partner employee verification.');
+      return;
+    }
+
+    if (!formData.staffBadgeName && !formData.staffBadgeUrl) {
+      toast.error('Staff Badge document (Image or PDF) is mandatory for partner employee verification.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -170,25 +188,36 @@ export const PartnerAddWorkforce = () => {
       const payload = {
         name: formData.name.trim(),
         pseudonym: formData.name.trim(),
-        email: formData.email.trim() || `${formData.name.trim().toLowerCase().replace(/\s+/g, '.')}@apexdigital.com`,
+        email: formData.email.trim(),
         password: formData.password.trim() || 'Workforce@123',
         tempPassword: formData.password.trim() || 'Workforce@123',
-        phone: formData.phone.trim() || '+91 98765 43210',
+        phone: formData.phone.trim(),
         location: formData.location,
         role: formData.title.trim(),
         title: formData.title.trim(),
         roleCategory: formData.roleCategory,
         experience: formData.experience,
         experienceLevel: formData.experienceLevel,
-        hourlyRate: `$${formData.hourlyRate.replace('$', '')}/hr`,
+        hourlyRate: formData.hourlyRate ? `$${formData.hourlyRate.replace('$', '')}/hr` : '',
         preferredWorkType: formData.preferredWorkType,
         availability: formData.availability,
         skills: skills,
-        bio: formData.bio.trim() || `Enterprise ${formData.title} with proven proficiency in ${skills.slice(0, 3).join(', ')}.`,
+        bio: formData.bio.trim(),
         avatar: formData.avatar || '',
         certifications: formData.certifications ? [formData.certifications] : [],
+        companyId: formData.companyId.trim() || formData.staffBadgeName || undefined,
+        employeeId: formData.companyId.trim() || formData.staffBadgeName || undefined,
+        staffBadgeId: formData.companyId.trim() || formData.staffBadgeName || undefined,
+        staffBadgeName: formData.staffBadgeName || '',
+        staffBadgeUrl: formData.staffBadgeUrl || '',
+        badgeDocumentUrl: formData.staffBadgeUrl || '',
+        staffBadgeFile: formData.staffBadgeFile || undefined,
+        resumeName: formData.resumeName || '',
+        resumeFile: formData.resumeFile || undefined,
+        resumeUrl: formData.resumeUrl || '',
         github: formData.github.trim(),
         linkedin: formData.linkedin.trim(),
+        portfolioUrl: formData.linkedin.trim(),
         portfolio: formData.portfolio.trim(),
         partner: resolvedCompany,
         partnerCompany: resolvedCompany,
@@ -427,7 +456,7 @@ export const PartnerAddWorkforce = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                    placeholder="jessica.sterling@apexdigital.com"
+                    placeholder="employee@company.com"
                     className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
                   />
                 </div>
@@ -464,6 +493,165 @@ export const PartnerAddWorkforce = () => {
                     placeholder="Bengaluru, India (IST / UTC+5:30)"
                     className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
                   />
+                </div>
+              </div>
+
+              {/* Staff Badge ID Number - Mandatory */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Staff Badge Id Number <span className="text-rose-500">* (Mandatory)</span>
+                </label>
+                <div className="relative">
+                  <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-600" />
+                  <input
+                    type="text"
+                    required
+                    value={formData.companyId}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, companyId: e.target.value }))}
+                    placeholder="e.g. INFY-8841"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-mono font-bold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+                  />
+                </div>
+              </div>
+
+              {/* Staff Badge Document Upload - Mandatory */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Staff Badge Document (Image / PDF) <span className="text-rose-500">* (Mandatory)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-[#1c1a36] cursor-pointer hover:border-[#004ac6] transition-colors">
+                    <Building2 size={16} className="text-[#004ac6] shrink-0" />
+                    <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                      {formData.staffBadgeName || 'Upload Staff Badge Document *'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.pdf,.svg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (loadEvt) => {
+                            const result = loadEvt.target?.result;
+                            setFormData((prev) => ({
+                              ...prev,
+                              staffBadgeFile: file,
+                              staffBadgeName: file.name,
+                              staffBadgeUrl: result,
+                              companyId: prev.companyId || file.name.split('.')[0].toUpperCase(),
+                            }));
+                            toast.success(`Attached Staff Badge ID: ${file.name}`);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {formData.staffBadgeName && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          staffBadgeFile: null,
+                          staffBadgeName: '',
+                          staffBadgeUrl: '',
+                        }))
+                      }
+                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      title="Remove Staff Badge Document"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+                {formData.staffBadgeUrl && formData.staffBadgeFile?.type?.startsWith('image/') && (
+                  <div className="mt-2 flex items-center gap-2 p-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1c1a36] w-fit">
+                    <img src={formData.staffBadgeUrl} alt="Staff Badge Preview" className="h-10 w-16 object-cover rounded-lg" />
+                    <span className="text-[11px] font-mono text-slate-500 pr-2 truncate max-w-[150px]">{formData.staffBadgeName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* LinkedIn Profile - Optional */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  LinkedIn Profile URL <span className="text-slate-400 font-normal">(Optional - can be added by workforce)</span>
+                </label>
+                <div className="relative">
+                  <FaLinkedin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" />
+                  <input
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, linkedin: e.target.value }))}
+                    placeholder="https://linkedin.com/in/username"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+                  />
+                </div>
+              </div>
+
+              {/* GitHub / Portfolio - Optional */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  GitHub / Code Portfolio URL <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <FaGithub size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="url"
+                    value={formData.github}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, github: e.target.value }))}
+                    placeholder="https://github.com/username"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#004ac6]"
+                  />
+                </div>
+              </div>
+
+              {/* Resume / CV Document Upload - Optional */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Resume / CV Document (PDF / DOCX) <span className="text-slate-400 font-normal">(Optional - can be added by workforce)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/20 bg-slate-50 dark:bg-[#1c1a36] cursor-pointer hover:border-[#004ac6] transition-colors">
+                    <FileText size={16} className="text-[#004ac6]" />
+                    <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                      {formData.resumeName || 'Upload Resume / CV Document (Optional)'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (loadEvt) => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              resumeFile: file,
+                              resumeName: file.name,
+                              resumeUrl: loadEvt.target?.result || '',
+                            }));
+                            toast.success(`Attached resume: ${file.name}`);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  {formData.resumeName && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, resumeFile: null, resumeName: '', resumeUrl: '' }))}
+                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      title="Remove document"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -851,7 +1039,9 @@ export const PartnerAddWorkforce = () => {
                   <CheckCircle2 size={12} />
                   <span>Background & NDA Signed</span>
                 </span>
-                <span className="font-mono font-bold text-slate-500 dark:text-slate-400">ID: EMP-APEX-NEW</span>
+                <span className="font-mono font-bold text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
+                  {formData.staffBadgeName ? `Badge: ${formData.staffBadgeName}` : 'Staff Badge ID'}
+                </span>
               </div>
             </div>
           </div>

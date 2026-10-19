@@ -18,6 +18,11 @@ public class WorkforceAllocationDto {
     private Long id;
     private Long projectId;
     private String projectTitle;
+    private Long clientId;
+    private String clientName;
+    private String clientCompanyName;
+    private Long managerId;
+    private String managerName;
     private Long professionalId;
     private String professionalName;
     private String professionalEmail;

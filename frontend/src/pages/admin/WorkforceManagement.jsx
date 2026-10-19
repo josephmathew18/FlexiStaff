@@ -48,17 +48,20 @@ import UserAvatar from '../../components/common/UserAvatar';
 // ====================================================================
 // INLINE REUSABLE UI: StatusBadge
 // ====================================================================
-const StatusBadge = ({ status = 'Available', size = 'sm', className = '' }) => {
-  const normalized = (status || '').toLowerCase();
+const StatusBadge = ({ status = 'Available', size = 'sm', className = '', title = '' }) => {
+  const normalized = (status || '').toLowerCase().trim();
   let colorClasses = 'bg-slate-100 text-[#565e74] border-[#c3c6d7]';
   let dotColor = 'bg-slate-400';
 
   if (['available', 'active', 'approved', 'verified'].includes(normalized)) {
     colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     dotColor = 'bg-emerald-500';
-  } else if (['assigned', 'busy', 'in progress'].includes(normalized)) {
+  } else if (['assigned', 'busy', 'in progress', 'currently assigned'].includes(normalized)) {
     colorClasses = 'bg-blue-50 text-blue-700 border-blue-200';
     dotColor = 'bg-blue-500';
+  } else if (['temporarily unavailable', 'unavailable', 'on leave'].includes(normalized)) {
+    colorClasses = 'bg-amber-50 text-amber-800 border-amber-300';
+    dotColor = 'bg-amber-500';
   } else if (['pending', 'pending review', 'under review', 'onboarding'].includes(normalized)) {
     colorClasses = 'bg-amber-50 text-amber-700 border-amber-200';
     dotColor = 'bg-amber-500';
@@ -70,7 +73,7 @@ const StatusBadge = ({ status = 'Available', size = 'sm', className = '' }) => {
   const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs';
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border font-semibold ${sizeClasses} ${colorClasses} ${className}`}>
+    <span title={title || status} className={`inline-flex items-center gap-1.5 rounded-full border font-semibold ${sizeClasses} ${colorClasses} ${className}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
       <span>{status}</span>
     </span>
@@ -211,7 +214,26 @@ export const WorkforceManagement = () => {
     freelancerApplications = [],
     approveFreelancerApplication,
     rejectFreelancerApplication,
+    refreshWorkforce,
   } = useData();
+
+  // Auto-refresh when workforce availability changes anywhere in the app
+  React.useEffect(() => {
+    if (refreshWorkforce) {
+      refreshWorkforce();
+    }
+    const handleAvailabilitySync = () => {
+      if (refreshWorkforce) {
+        refreshWorkforce();
+      }
+    };
+    window.addEventListener('workforce_availability_changed', handleAvailabilitySync);
+    window.addEventListener('storage', handleAvailabilitySync);
+    return () => {
+      window.removeEventListener('workforce_availability_changed', handleAvailabilitySync);
+      window.removeEventListener('storage', handleAvailabilitySync);
+    };
+  }, []);
 
   // Navigation Filter Tabs
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'active' | 'pending' | 'rejected'
@@ -256,7 +278,31 @@ export const WorkforceManagement = () => {
       availability: talent.availability || talent.status || 'Available',
       bio: talent.bio || '',
       avatar: talent.avatar || '',
+      staffBadgeId: talent.staffBadgeId || talent.employeeId || talent.companyId || '',
+      staffBadgeUrl: talent.staffBadgeUrl || talent.badgeDocumentUrl || '',
+      staffBadgeName: talent.staffBadgeName || talent.badgeDocumentName || '',
+      linkedin: talent.linkedin || '',
+      resumeUrl: talent.resumeUrl || talent.resume || '',
+      resumeName: talent.resumeName || '',
+      github: talent.github || '',
     });
+  };
+
+  const handleOpenDocument = (url, fallbackName = 'Document') => {
+    if (!url) return;
+    try {
+      const win = window.open();
+      if (win) {
+        win.document.write(
+          `<iframe src="${url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+        );
+        win.document.title = fallbackName;
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleSaveEditTalent = (e) => {
@@ -276,9 +322,20 @@ export const WorkforceManagement = () => {
       phone: editTalentForm.phone,
       location: editTalentForm.location,
       availability: editTalentForm.availability,
-      status: editTalentForm.availability,
+      availabilityStatus: editTalentForm.availability,
+      status: editingTalent.status || editingTalent.approvalStatus || 'Approved',
+      approvalStatus: editingTalent.approvalStatus || editingTalent.status || 'Approved',
       bio: editTalentForm.bio,
       avatar: editTalentForm.avatar,
+      staffBadgeId: editTalentForm.staffBadgeId,
+      staffBadgeUrl: editTalentForm.staffBadgeUrl,
+      staffBadgeName: editTalentForm.staffBadgeName,
+      badgeDocumentUrl: editTalentForm.staffBadgeUrl,
+      badgeDocumentName: editTalentForm.staffBadgeName,
+      linkedin: editTalentForm.linkedin,
+      resumeUrl: editTalentForm.resumeUrl,
+      resumeName: editTalentForm.resumeName,
+      github: editTalentForm.github,
     };
     if (updateWorkforceMember) {
       updateWorkforceMember(editingTalent.id, updatedData);
@@ -395,6 +452,22 @@ export const WorkforceManagement = () => {
           w.accountStatus === 'Active' ||
           w.status === 'Active' ||
           w.status === 'Approved'
+      ).length,
+    [cleanWorkforceRoster]
+  );
+  const availableTalentCount = useMemo(
+    () =>
+      cleanWorkforceRoster.filter(
+        (w) =>
+          (w.approvalStatus === 'Approved' ||
+            w.verificationStatus === 'Approved' ||
+            w.accountStatus === 'Active' ||
+            w.status === 'Active' ||
+            w.status === 'Approved') &&
+          (w.availabilityStatus === 'Available' ||
+            w.availability === 'Available' ||
+            w.availabilityStatus === 'Immediate' ||
+            w.availability === 'Immediate')
       ).length,
     [cleanWorkforceRoster]
   );
@@ -547,9 +620,11 @@ export const WorkforceManagement = () => {
               <Sparkles size={16} />
             </div>
           </div>
+          <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900 dark:text-white">
-              {cleanWorkforceRoster.filter((w) => (w.availability === 'Available' || w.availabilityStatus === 'Available' || w.workingStatus === 'Available') && (w.status === 'Active' || w.status === 'Approved' || w.approvalStatus === 'Approved' || w.accountStatus === 'Active')).length}
+              {availableTalentCount}
             </span>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#14132b] p-4 shadow-xs">
@@ -921,7 +996,7 @@ export const WorkforceManagement = () => {
                 }`}
               >
                 <div>
-                  {/* Top Bar: Source & Approval Status */}
+                  {/* Top Bar: Source & Dual Status Badges (Availability & Approval) */}
                   <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-white/10">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold">
                       {Boolean(talent.partnerCompanyId || talent.source === 'Partner Company' || talent.professionalType === 'PARTNER_EMPLOYEE' || getPartnerCompanyName(talent, partners, clients)) ? (
@@ -936,7 +1011,13 @@ export const WorkforceManagement = () => {
                         </span>
                       )}
                     </div>
-                    <StatusBadge status={talent.approvalStatus || talent.status} />
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <StatusBadge
+                        status={talent.availabilityStatus || talent.availability || 'Available'}
+                        size="sm"
+                        title="Live Availability Status"
+                      />
+                    </div>
                   </div>
 
                   {/* Candidate Identity */}
@@ -958,12 +1039,17 @@ export const WorkforceManagement = () => {
                     </div>
                   </div>
 
-                  {/* Currently Working / Availability Banner */}
-                  {(talent.isCurrentlyWorking || talent.currentProjectName || talent.currentProject) ? (
+                  {/* Assignment & Project Status Banner */}
+                  {Boolean(talent.isCurrentlyWorking && talent.currentProject && talent.currentProject !== 'None' && talent.currentProject !== 'none') ? (
                     <div className="mt-3 p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 space-y-0.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#004ac6] dark:text-blue-400">
-                        <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                        <span>Currently Working</span>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5 font-bold text-[#004ac6] dark:text-blue-400">
+                          <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                          <span>Currently Working</span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">
+                          {talent.assignmentStatus || 'Assigned'}
+                        </span>
                       </div>
                       <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
                         {talent.currentProjectName || talent.currentProject}
@@ -975,9 +1061,15 @@ export const WorkforceManagement = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="mt-3 p-2 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span>Available</span>
+                    <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Assignment Status:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">None</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Current Project:</span>
+                        <span className="font-semibold text-slate-500 dark:text-slate-400 italic">None</span>
+                      </div>
                     </div>
                   )}
 
@@ -1040,14 +1132,6 @@ export const WorkforceManagement = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleStartEditTalent(talent)}
-                        className="p-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-white/10 transition-colors"
-                        title="Edit employee profile"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => handleDeleteWorkforceMember(talent)}
                         className="p-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-white/10 transition-colors"
                         title="Delete candidate"
@@ -1107,15 +1191,17 @@ export const WorkforceManagement = () => {
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{talent.hourlyRate}</td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{talent.experience}</td>
                       <td className="py-3 px-4">
-                        <StatusBadge status={talent.approvalStatus || talent.status} />
-                        <div className="mt-1">
-                          {(talent.isCurrentlyWorking || talent.currentProjectName || talent.currentProject) ? (
-                            <div className="text-[11px] font-bold text-blue-700 dark:text-blue-400">
-                              Currently Working: {talent.currentProjectName || talent.currentProject}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <StatusBadge status={talent.availabilityStatus || talent.availability || 'Available'} size="sm" title="Live Availability" />
+                        </div>
+                        <div className="mt-1.5 text-[11px]">
+                          {Boolean(talent.isCurrentlyWorking && talent.currentProject && talent.currentProject !== 'None' && talent.currentProject !== 'none') ? (
+                            <div className="font-bold text-blue-700 dark:text-blue-400">
+                              Working: {talent.currentProjectName || talent.currentProject}
                               {talent.currentProjectClient ? ` (${talent.currentProjectClient})` : ''}
                             </div>
                           ) : (
-                            <span className="text-[10px] text-slate-400 font-medium">Available</span>
+                            <div className="text-slate-400 font-medium">Assignment: <span className="font-semibold text-slate-600 dark:text-slate-300">None</span></div>
                           )}
                         </div>
                       </td>
@@ -1187,8 +1273,8 @@ export const WorkforceManagement = () => {
               <div>
                 <h4 className="text-base font-bold text-slate-900">{selectedTalent.name}</h4>
                 <p className="text-xs font-semibold text-blue-600">{selectedTalent.title}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <StatusBadge status={selectedTalent.approvalStatus || selectedTalent.status} />
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                  <StatusBadge status={selectedTalent.availabilityStatus || selectedTalent.availability || 'Available'} size="sm" title="Live Availability Status" />
                   <span className="text-xs font-bold text-slate-800">{selectedTalent.hourlyRate}</span>
                 </div>
               </div>
@@ -1202,25 +1288,169 @@ export const WorkforceManagement = () => {
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Experience</span>
-                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.experience}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Company Staff Badge ID</span>
+                <p className="font-bold text-slate-800 mt-0.5">
+                  {selectedTalent.staffBadgeId || selectedTalent.employeeId || selectedTalent.companyId || (
+                    <span className="text-slate-400 font-normal italic">Not assigned</span>
+                  )}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
-                <p className="font-bold text-slate-800 mt-0.5 truncate">{selectedTalent.email}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Experience</span>
+                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.experience || 'Not specified'}</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Location</span>
-                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.location}</p>
+                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.location || 'Remote'}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
+                <p className="font-bold text-slate-800 mt-0.5 truncate">{selectedTalent.email || 'Not provided'}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Phone Number</span>
+                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.phone || <span className="text-slate-400 font-normal italic">Not provided</span>}</p>
+              </div>
+            </div>
+
+            {/* Verification Documents & Digital Credentials (Strictly real data - No demo samples) */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Credentials & Verification Documents
+              </h5>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* 1. Staff ID Badge Proof */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div className="truncate">
+                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Staff ID Badge</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {selectedTalent.staffBadgeName || selectedTalent.badgeDocumentName || (selectedTalent.staffBadgeUrl ? 'Badge Document' : 'Not uploaded')}
+                      </p>
+                    </div>
+                  </div>
+                  {Boolean(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl, `${selectedTalent.name}_Staff_Badge`)}
+                      className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] hover:bg-blue-100 dark:hover:bg-blue-900 shrink-0 flex items-center gap-1 transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      <span>View</span>
+                    </button>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                      Not uploaded
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. Resume / Curriculum Vitae */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <FileText size={16} />
+                    </div>
+                    <div className="truncate">
+                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Resume / CV</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {selectedTalent.resumeName || (selectedTalent.resumeUrl || selectedTalent.resume ? 'Resume Attached' : 'Not uploaded')}
+                      </p>
+                    </div>
+                  </div>
+                  {Boolean(selectedTalent.resumeUrl || selectedTalent.resume) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(selectedTalent.resumeUrl || selectedTalent.resume, `${selectedTalent.name}_Resume`)}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] hover:bg-emerald-100 dark:hover:bg-emerald-900 shrink-0 flex items-center gap-1 transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      <span>View</span>
+                    </button>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                      Not uploaded
+                    </span>
+                  )}
+                </div>
+
+                {/* 3. LinkedIn Profile */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] flex items-center justify-center font-bold text-xs shrink-0">
+                      in
+                    </div>
+                    <div className="truncate">
+                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">LinkedIn Profile</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {selectedTalent.linkedin ? selectedTalent.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '@') : 'Not provided'}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTalent.linkedin ? (
+                    <a
+                      href={selectedTalent.linkedin.startsWith('http') ? selectedTalent.linkedin : `https://${selectedTalent.linkedin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] font-bold text-[10px] hover:bg-[#0a66c2]/20 shrink-0 flex items-center gap-1 transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      <span>Open</span>
+                    </a>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                      Not provided
+                    </span>
+                  )}
+                </div>
+
+                {/* 4. GitHub / Portfolio */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0">
+                      <Code2 size={16} />
+                    </div>
+                    <div className="truncate">
+                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">GitHub Profile</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {selectedTalent.github ? selectedTalent.github.replace(/^https?:\/\/(www\.)?github\.com\//i, '@') : 'Not provided'}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedTalent.github ? (
+                    <a
+                      href={selectedTalent.github.startsWith('http') ? selectedTalent.github : `https://${selectedTalent.github}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-bold text-[10px] hover:bg-slate-200 dark:hover:bg-white/20 shrink-0 flex items-center gap-1 transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      <span>Open</span>
+                    </a>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                      Not provided
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Currently Working Active Assignment Card */}
-            {(selectedTalent.isCurrentlyWorking || selectedTalent.currentProjectName || selectedTalent.currentProject) ? (
+            {Boolean(selectedTalent.isCurrentlyWorking && selectedTalent.currentProject && selectedTalent.currentProject !== 'None' && selectedTalent.currentProject !== 'none') ? (
               <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/40 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                  <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                  <span>Currently Working</span>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                    <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                    <span>Currently Working</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">
+                    {selectedTalent.assignmentStatus || 'Assigned'}
+                  </span>
                 </div>
                 <p className="text-sm font-black text-slate-900 dark:text-white">
                   {selectedTalent.currentProjectName || selectedTalent.currentProject}
@@ -1237,9 +1467,15 @@ export const WorkforceManagement = () => {
                 )}
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span>No Active Assignment (Available for projects)</span>
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Assignment Status:</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">None</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Current Project:</span>
+                  <span className="font-semibold text-slate-500 dark:text-slate-400 italic">None</span>
+                </div>
               </div>
             )}
 
@@ -1281,18 +1517,6 @@ export const WorkforceManagement = () => {
             {/* Modal Footer / Actions */}
             <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = selectedTalent;
-                    setSelectedTalent(null);
-                    handleStartEditTalent(t);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors"
-                >
-                  <Pencil size={14} />
-                  <span>Edit Profile</span>
-                </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteWorkforceMember(selectedTalent)}
@@ -1450,6 +1674,118 @@ export const WorkforceManagement = () => {
                   { value: 'Inactive', label: 'Inactive' },
                 ]}
               />
+              <FormInput
+                label="Company Staff Badge ID"
+                name="staffBadgeId"
+                value={editTalentForm.staffBadgeId || ''}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, staffBadgeId: e.target.value }))}
+                placeholder="e.g. EMP-1049"
+              />
+              <FormInput
+                label="LinkedIn Profile URL"
+                name="linkedin"
+                value={editTalentForm.linkedin || ''}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, linkedin: e.target.value }))}
+                placeholder="https://linkedin.com/in/username"
+              />
+              <FormInput
+                label="GitHub Profile URL"
+                name="github"
+                value={editTalentForm.github || ''}
+                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, github: e.target.value }))}
+                placeholder="https://github.com/username"
+              />
+            </div>
+
+            {/* Document Uploads: Staff Badge & Resume */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Staff ID Badge Proof
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all">
+                    <Download size={13} className="rotate-180" />
+                    <span>{editTalentForm.staffBadgeUrl ? 'Change File' : 'Upload Badge'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            setEditTalentForm((prev) => ({
+                              ...prev,
+                              staffBadgeUrl: evt.target.result,
+                              staffBadgeName: file.name,
+                            }));
+                            toast.info(`Staff badge "${file.name}" attached.`);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  {editTalentForm.staffBadgeUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditTalentForm((prev) => ({ ...prev, staffBadgeUrl: '', staffBadgeName: '' }))}
+                      className="text-xs text-rose-500 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {editTalentForm.staffBadgeName && (
+                  <p className="text-[11px] text-slate-500 truncate">{editTalentForm.staffBadgeName}</p>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Resume / Curriculum Vitae
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all">
+                    <Download size={13} className="rotate-180" />
+                    <span>{editTalentForm.resumeUrl ? 'Change File' : 'Upload Resume'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            setEditTalentForm((prev) => ({
+                              ...prev,
+                              resumeUrl: evt.target.result,
+                              resumeName: file.name,
+                            }));
+                            toast.info(`Resume "${file.name}" attached.`);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  {editTalentForm.resumeUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditTalentForm((prev) => ({ ...prev, resumeUrl: '', resumeName: '' }))}
+                      className="text-xs text-rose-500 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {editTalentForm.resumeName && (
+                  <p className="text-[11px] text-slate-500 truncate">{editTalentForm.resumeName}</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -1618,7 +1954,7 @@ export const WorkforceManagement = () => {
                 </div>
 
                 {/* Resume Document Card */}
-                {(viewingAppModal.resumeFileName || viewingAppModal.importMethod === 'Upload your resume') && (
+                {viewingAppModal.resumeFileName && (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-[#7c3aed] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
@@ -1627,15 +1963,14 @@ export const WorkforceManagement = () => {
                       <div>
                         <p className="text-xs font-extrabold text-slate-900 dark:text-white">Candidate Resume Document</p>
                         <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
-                          {viewingAppModal.resumeFileName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_Resume.pdf`}
+                          {viewingAppModal.resumeFileName}
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        const fileName = viewingAppModal.resumeFileName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_Resume.pdf`;
-                        toast.info(`Opening ${fileName} in document viewer...`);
+                        toast.info(`Opening ${viewingAppModal.resumeFileName} in document viewer...`);
                       }}
                       className="px-3.5 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
                     >
@@ -1646,7 +1981,7 @@ export const WorkforceManagement = () => {
                 )}
 
                 {/* LinkedIn Document Card */}
-                {(viewingAppModal.linkedInPdfName || viewingAppModal.importMethod === 'Import from LinkedIn') && (
+                {viewingAppModal.linkedInPdfName && (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-[#0a66c2] text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
@@ -1655,20 +1990,19 @@ export const WorkforceManagement = () => {
                       <div>
                         <p className="text-xs font-extrabold text-slate-900 dark:text-white">LinkedIn PDF Profile Export</p>
                         <p className="text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-                          {viewingAppModal.linkedInPdfName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_LinkedIn_Profile.pdf`}
+                          {viewingAppModal.linkedInPdfName}
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
-                        const fileName = viewingAppModal.linkedInPdfName || `${(viewingAppModal.fullName || 'Candidate').replace(/\s+/g, '_')}_LinkedIn_Profile.pdf`;
-                        toast.info(`Opening ${fileName} in document viewer...`);
+                        toast.info(`Opening ${viewingAppModal.linkedInPdfName} in document viewer...`);
                       }}
                       className="px-3.5 py-1.5 rounded-lg bg-[#0a66c2] hover:bg-[#084e96] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
                     >
                       <Download size={13} />
-                      <span>View / Download LinkedIn PDF</span>
+                      <span>View LinkedIn PDF</span>
                     </button>
                   </div>
                 )}

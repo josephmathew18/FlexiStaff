@@ -17,6 +17,8 @@ public class AssignWorkforceRequest {
     @NotNull(message = "Professional User ID is required")
     private Long professionalId;
 
+    private Long managerId;
+
     private String roleInProject;
 
     @Min(value = 1, message = "Allocated hours must be at least 1")
@@ -25,4 +27,6 @@ public class AssignWorkforceRequest {
 
     @PositiveOrZero(message = "Billable rate cannot be negative")
     private BigDecimal billableRate;
+
+    private com.flexistaff.backend.entity.enums.AllocationStatus status;
 }

@@ -27,7 +27,16 @@ import {
   Award,
   ExternalLink,
   FileText,
+  Download,
+  GraduationCap,
+  Globe,
+  Printer,
+  FileCheck,
+  Building,
+  UserCheck,
+  CheckCircle,
 } from 'lucide-react';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -51,6 +60,8 @@ export const AdminAssignmentApprovals = () => {
   // Modal States
   const [selectedAsg, setSelectedAsg] = useState(null);
   const [selectedCandidateDetails, setSelectedCandidateDetails] = useState(null);
+  const [candidateModalTab, setCandidateModalTab] = useState('overview'); // 'overview' | 'credentials' | 'experience' | 'resume'
+  const [isResumeViewerOpen, setIsResumeViewerOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -150,25 +161,202 @@ export const AdminAssignmentApprovals = () => {
 
     const resolvedPartnerName = getPartnerCompanyName(masterCandidate || asg, partners, clients);
 
+    // Differentiate whether candidate is an Employee of a Partner Company or an Independent Freelancer
+    const isEmployee =
+      asg.roleType === 'Professional' ||
+      masterCandidate?.roleType === 'Professional' ||
+      asg.source === 'Partner Company' ||
+      masterCandidate?.source === 'Partner Company' ||
+      masterCandidate?.professionalType === 'PARTNER_EMPLOYEE' ||
+      Boolean(
+        asg.partnerCompanyId ||
+        masterCandidate?.partnerCompanyId ||
+        (resolvedPartnerName &&
+          resolvedPartnerName !== 'Independent Freelancer Pool' &&
+          resolvedPartnerName !== 'Independent Freelancer' &&
+          resolvedPartnerName !== 'Freelancer Application')
+      );
+
+    const candName = asg.professionalName || masterCandidate?.name || masterCandidate?.pseudonym || 'Professional';
+
+    // Resolved Company Name & Tier
+    const companyName = resolvedPartnerName || asg.partnerName || masterCandidate?.partnerCompany || (isEmployee ? '' : 'Independent Freelancer');
+
+    // Staff Badge ID / Official Company Employee ID
+    const companyId =
+      asg.staffBadgeName ||
+      asg.staffBadgeId ||
+      asg.companyId ||
+      asg.employeeId ||
+      masterCandidate?.staffBadgeName ||
+      masterCandidate?.staffBadgeId ||
+      masterCandidate?.companyId ||
+      masterCandidate?.employeeId ||
+      '';
+
+    const staffBadgeUrl =
+      asg.staffBadgeUrl ||
+      masterCandidate?.staffBadgeUrl ||
+      '';
+
+    // Freelancer Talent ID
+    const freelancerId =
+      asg.freelancerId ||
+      masterCandidate?.freelancerId ||
+      '';
+
+    // LinkedIn Profile URL (only authentic if explicitly provided)
+    const linkedin =
+      masterCandidate?.linkedin ||
+      asg.linkedin ||
+      '';
+
+    // GitHub & Portfolio Profiles
+    const github =
+      masterCandidate?.github ||
+      asg.github ||
+      '';
+
+    const portfolio =
+      masterCandidate?.portfolio ||
+      asg.portfolio ||
+      '';
+
+    // Resume / CV Details
+    const resumeName =
+      masterCandidate?.resumeFileName ||
+      masterCandidate?.resumeName ||
+      asg.resumeName ||
+      '';
+
+    const resumeUrl =
+      masterCandidate?.resumeUrl ||
+      masterCandidate?.resume ||
+      asg.resumeUrl ||
+      '';
+
+    // Corporate Department & Verification Flags
+    const department = masterCandidate?.department || masterCandidate?.roleCategory || '';
+    const employmentType = isEmployee ? 'Partner Company Employee' : 'Independent Contractor';
+    const isBackgroundChecked = Boolean(masterCandidate?.isBackgroundChecked || asg.isBackgroundChecked);
+    const isNdaSigned = Boolean(masterCandidate?.isNdaSigned || asg.isNdaSigned);
+
+    // Authentic Work Experiences (Empty if none provided)
+    const experiences =
+      Array.isArray(masterCandidate?.experiences) && masterCandidate.experiences.length > 0
+        ? masterCandidate.experiences
+        : [];
+
+    // Authentic Education History (Empty if none provided)
+    const educations =
+      Array.isArray(masterCandidate?.educations) && masterCandidate.educations.length > 0
+        ? masterCandidate.educations
+        : [];
+
+    // Authentic Professional Certifications (Empty if none provided)
+    const certifications =
+      Array.isArray(masterCandidate?.certifications) && masterCandidate.certifications.length > 0
+        ? masterCandidate.certifications
+        : [];
+
     return {
       ...asg,
-      professionalName: asg.professionalName || masterCandidate?.name || masterCandidate?.pseudonym || 'Specialist Candidate',
-      avatar: asg.avatar || masterCandidate?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      email: asg.email || masterCandidate?.email || 'candidate@flexistaff.ai',
-      phone: asg.phone || masterCandidate?.phone || '+91 98765 43210',
-      location: asg.location || masterCandidate?.location || 'Bengaluru, India',
-      bio: masterCandidate?.bio || masterCandidate?.summary || asg.notes || 'Experienced software engineer specialized in enterprise cloud and web platforms.',
-      experience: asg.experience || masterCandidate?.experience || '3+ Years',
-      hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '$95/hr',
-      rating: masterCandidate?.rating || 4.9,
+      professionalName: candName,
+      avatar: asg.avatar || masterCandidate?.avatar || '',
+      email: asg.email || asg.professionalEmail || masterCandidate?.email || '',
+      phone: asg.phone || masterCandidate?.phone || '',
+      location: asg.location || masterCandidate?.location || '',
+      bio: masterCandidate?.bio || masterCandidate?.summary || asg.notes || '',
+      experience: asg.experience || masterCandidate?.experience || '',
+      hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '',
+      rating: masterCandidate?.rating || asg.rating || null,
       skills: skillsArr,
-      partnerName: resolvedPartnerName || asg.partnerName || masterCandidate?.partnerName || masterCandidate?.partnerCompany || (asg.source === 'Partner Company' ? 'Partner Organization' : 'Independent Freelancer Pool'),
-      roleType: asg.roleType || masterCandidate?.roleType || (asg.source === 'Partner Company' ? 'Professional' : 'Freelancer'),
+      partnerName: companyName,
+      roleType: asg.roleType || masterCandidate?.roleType || (isEmployee ? 'Professional' : 'Freelancer'),
       client: clientDisplay,
       clientCompanyName: clientOrg,
       clientName: clientContact,
       manager: asg.manager || projectObj?.manager || '',
+      // Authentic Employee & Freelancer Verification Dossier
+      isEmployee,
+      companyId,
+      staffBadgeUrl,
+      freelancerId,
+      companyName,
+      companyTier: masterCandidate?.tier || asg.tier || '',
+      department,
+      employmentType,
+      linkedin,
+      github,
+      portfolio,
+      resumeName,
+      resumeUrl,
+      isBackgroundChecked,
+      isNdaSigned,
+      experiences,
+      educations,
+      certifications,
     };
+  };
+
+  const handleDownloadResume = (cand) => {
+    if (!cand) return;
+    const fileName = (cand.resumeName || `${(cand.professionalName || 'Candidate').replace(/\s+/g, '_')}_CV.txt`).replace(/\.pdf$/i, '.txt');
+    
+    const content = `================================================================================
+FLEXISTAFF TALENT VERIFICATION REPORT & RESUME
+================================================================================
+NAME: ${cand.professionalName}
+DESIGNATION / ROLE: ${cand.role || 'Software Specialist'}
+ROLE CLASSIFICATION: ${cand.isEmployee ? `Enterprise Partner Employee (${cand.partnerName || 'Partner'})` : 'Independent Freelancer'}
+${cand.isEmployee ? (cand.companyId ? `COMPANY EMPLOYEE ID: ${cand.companyId}` : '') : (cand.freelancerId ? `FREELANCER TALENT ID: ${cand.freelancerId}` : '')}
+
+CONTACT & CREDENTIALS:
+- Email Contact: ${cand.email || 'Not Provided'}
+- Direct Phone: ${cand.phone || 'Not Provided'}
+- Primary Location: ${cand.location || 'Not Specified'}
+${cand.linkedin ? `- LinkedIn Profile: ${cand.linkedin}\n` : ''}${cand.github ? `- GitHub: ${cand.github}\n` : ''}${cand.portfolio ? `- Portfolio: ${cand.portfolio}\n` : ''}- Background Check: ${cand.isBackgroundChecked ? 'Verified (Clear)' : 'Pending'}
+- Enterprise NDA: ${cand.isNdaSigned ? 'Signed & Active' : 'Pending'}
+${cand.isEmployee ? `- Affiliated Partner Company: ${cand.companyName}` : '- Status: Independent Contractor'}
+
+PROFESSIONAL SUMMARY & BIO:
+${cand.bio || 'No professional summary provided.'}
+
+VERIFIED TECHNICAL COMPETENCIES & TECH STACK:
+${(cand.skills || []).length > 0 ? (cand.skills || []).join(', ') : 'None specified'}
+
+WORK EXPERIENCE & CAREER TIMELINE:
+${(cand.experiences || []).length > 0 ? (cand.experiences || []).map((exp, idx) => `
+${idx + 1}. ${exp.title} | ${exp.company || ''}
+   Period: ${exp.period || ''} | Location: ${exp.location || ''}
+   Scope: ${exp.description || ''}
+   ${(exp.achievements || []).map(a => `* ${a}`).join('\n   ')}
+`).join('\n') : 'No past work experience recorded.'}
+
+ACADEMIC QUALIFICATIONS:
+${(cand.educations || []).length > 0 ? (cand.educations || []).map((edu) => `* ${edu.degree} - ${edu.school} (${edu.dates || ''})`).join('\n') : 'No academic qualifications recorded.'}
+
+PROFESSIONAL CERTIFICATIONS:
+${(cand.certifications || []).length > 0 ? (cand.certifications || []).map((cert) => `* ${cert}`).join('\n') : 'No certifications recorded.'}
+
+================================================================================
+Generated on: ${new Date().toLocaleDateString()}
+`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded verification dossier for ${cand.professionalName}`);
+  };
+
+  const handlePrintResume = () => {
+    window.print();
   };
 
   const enrichedAssignmentsList = useMemo(() => {
@@ -410,26 +598,44 @@ export const AdminAssignmentApprovals = () => {
                     <tr
                       key={asg.id}
                       className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => setSelectedCandidateDetails(asg)}
+                      onClick={() => {
+                        setSelectedCandidateDetails(asg);
+                        setCandidateModalTab('overview');
+                      }}
                     >
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={asg.avatar}
-                            alt={asg.professionalName}
-                            className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
-                          />
+                          {asg.avatar ? (
+                            <img
+                              src={asg.avatar}
+                              alt={asg.professionalName}
+                              className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-white/10"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 ring-1 ring-slate-200 dark:ring-white/10 flex items-center justify-center font-bold text-xs text-[#004ac6] dark:text-blue-300">
+                              {(asg.professionalName || 'P').charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div>
                             <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                               <span>{asg.professionalName}</span>
-                              <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
-                                <Star size={11} className="fill-amber-400" />
-                                {asg.rating || 4.9}
+                              {asg.rating && (
+                                <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                                  <Star size={11} className="fill-amber-400" />
+                                  {asg.rating}
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {(asg.isEmployee ? asg.companyId : asg.freelancerId) && (
+                                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
+                                  {asg.isEmployee ? asg.companyId : asg.freelancerId}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                {asg.partnerName || (asg.isEmployee ? 'Partner Employee' : 'Independent')}{asg.experience ? ` • ${asg.experience}` : ''}
                               </span>
-                            </p>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                              {asg.partnerName || 'Independent'} • {asg.experience || '3+ years'}
-                            </p>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -456,19 +662,34 @@ export const AdminAssignmentApprovals = () => {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <p className="font-bold text-slate-900 dark:text-white">{asg.hourlyRate || '$95/hr'}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Workload: {asg.workload || 40}h/wk</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{asg.hourlyRate || '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Workload: {asg.workload ? `${asg.workload}h/wk` : '-'}</p>
                       </td>
 
                       <td className="py-3.5 px-4">{getStatusBadge(asg.status)}</td>
 
                       <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          {asg.linkedin && (
+                            <a
+                              href={asg.linkedin}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg text-[#0077b5] hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors"
+                              title="View LinkedIn Profile"
+                            >
+                              <FaLinkedin size={15} />
+                            </a>
+                          )}
+
                           <button
                             type="button"
-                            onClick={() => setSelectedCandidateDetails(asg)}
+                            onClick={() => {
+                              setSelectedCandidateDetails(asg);
+                              setCandidateModalTab('overview');
+                            }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-bold transition-all"
-                            title="View Employee Details"
+                            title="View Full Credentials & Authorization Dossier"
                           >
                             <Eye size={14} />
                             <span>Details</span>
@@ -508,185 +729,827 @@ export const AdminAssignmentApprovals = () => {
         </div>
       </div>
 
-      {/* Candidate / Employee Details Modal */}
+      {/* Candidate / Employee Full Credentials & Verification Modal */}
       <AnimatePresence>
         {selectedCandidateDetails && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedCandidateDetails(null)}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+              className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative z-10 w-full max-w-2xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-8"
+              className="relative z-10 w-full max-w-4xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-6"
             >
-              {/* Modal Header */}
-              <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/10 p-6 bg-slate-50/70 dark:bg-[#1c1a36]/50">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={selectedCandidateDetails.avatar}
-                    alt={selectedCandidateDetails.professionalName}
-                    className="w-14 h-14 rounded-2xl object-cover ring-2 ring-[#004ac6]/20 shadow-md"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                        {selectedCandidateDetails.professionalName}
-                      </h3>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800/40">
-                        {selectedCandidateDetails.roleType || 'Professional'}
-                      </span>
+              {/* Modal Top Header with Rich Badges */}
+              <div className="border-b border-slate-100 dark:border-white/10 p-5 sm:p-6 bg-slate-50/80 dark:bg-[#1c1a36]/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-4">
+                    {selectedCandidateDetails.avatar ? (
+                      <img
+                        src={selectedCandidateDetails.avatar}
+                        alt={selectedCandidateDetails.professionalName}
+                        className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#004ac6]/20 shadow-md shrink-0"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/40 text-[#004ac6] dark:text-blue-300 ring-2 ring-[#004ac6]/20 shadow-md shrink-0 flex items-center justify-center font-extrabold text-xl">
+                        {(selectedCandidateDetails.professionalName || 'P').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                          {selectedCandidateDetails.professionalName}
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 text-[11px] font-extrabold border border-blue-200 dark:border-blue-800/40">
+                          {selectedCandidateDetails.isEmployee ? 'Partner Employee' : 'Independent Freelancer'}
+                        </span>
+                        {/* Company ID or Freelancer ID Pill */}
+                        {(selectedCandidateDetails.isEmployee ? selectedCandidateDetails.companyId : selectedCandidateDetails.freelancerId) && (
+                          <span className="font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 flex items-center gap-1">
+                            {selectedCandidateDetails.isEmployee ? <Building2 size={11} /> : <UserCheck size={11} />}
+                            <span>{selectedCandidateDetails.isEmployee ? `ID: ${selectedCandidateDetails.companyId}` : `ID: ${selectedCandidateDetails.freelancerId}`}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs font-bold text-[#004ac6] dark:text-blue-400 mt-1">
+                        {selectedCandidateDetails.role}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        {selectedCandidateDetails.rating && (
+                          <>
+                            <span className="flex items-center gap-1 text-amber-500 font-bold">
+                              <Star size={12} className="fill-amber-400" />
+                              {selectedCandidateDetails.rating}
+                            </span>
+                            <span>•</span>
+                          </>
+                        )}
+                        {selectedCandidateDetails.experience && (
+                          <>
+                            <span>{selectedCandidateDetails.experience} Experience</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          {selectedCandidateDetails.partnerName || (selectedCandidateDetails.isEmployee ? 'Partner Organization' : 'Independent Freelancer')}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-xs font-bold text-[#004ac6] dark:text-blue-400 mt-0.5">
-                      {selectedCandidateDetails.role}
+                  </div>
+
+                  {/* Top Header Actions & Close */}
+                  <div className="flex items-center gap-2 self-end sm:self-start">
+                    {/* LinkedIn External Link */}
+                    {selectedCandidateDetails.linkedin && (
+                      <a
+                        href={selectedCandidateDetails.linkedin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0077b5]/10 hover:bg-[#0077b5]/20 text-[#0077b5] dark:text-blue-400 border border-[#0077b5]/20 text-xs font-bold transition-all shadow-2xs"
+                        title="Open LinkedIn in new tab"
+                      >
+                        <FaLinkedin size={14} />
+                        <span>LinkedIn</span>
+                        <ExternalLink size={11} className="opacity-70" />
+                      </a>
+                    )}
+
+                    {/* GitHub Link */}
+                    {selectedCandidateDetails.github && (
+                      <a
+                        href={selectedCandidateDetails.github}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 text-xs font-bold transition-all shadow-2xs"
+                        title="Open GitHub"
+                      >
+                        <FaGithub size={14} />
+                        <span>GitHub</span>
+                      </a>
+                    )}
+
+                    {/* View Fullscreen Resume Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsResumeViewerOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                      title="Inspect full CV / Resume document"
+                    >
+                      <FileText size={14} />
+                      <span>View Full Resume</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCandidateDetails(null)}
+                      className="rounded-xl p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors ml-1"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Credentials Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-slate-200/60 dark:border-white/5 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      {selectedCandidateDetails.isEmployee ? 'Affiliated Company' : 'Talent Classification'}
+                    </span>
+                    <p className="font-extrabold text-slate-900 dark:text-white truncate mt-0.5">
+                      {selectedCandidateDetails.isEmployee ? (selectedCandidateDetails.companyName || 'Partner Organization') : 'Independent Contractor'}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-1">
-                      <span className="flex items-center gap-1 text-amber-500 font-bold">
-                        <Star size={12} className="fill-amber-400" />
-                        {selectedCandidateDetails.rating || 4.9}
-                      </span>
-                      <span>•</span>
-                      <span>{selectedCandidateDetails.experience} Experience</span>
-                      <span>•</span>
-                      <span>{selectedCandidateDetails.partnerName}</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      {selectedCandidateDetails.isEmployee ? 'Staff Badge Id' : 'Freelancer Registration'}
+                    </span>
+                    <p className="font-mono font-extrabold text-[#004ac6] dark:text-blue-300 truncate mt-0.5">
+                      {selectedCandidateDetails.isEmployee ? (selectedCandidateDetails.companyId || 'Not Specified') : (selectedCandidateDetails.freelancerId || 'Not Specified')}
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Background Check</span>
+                    <p className={`font-extrabold flex items-center gap-1 mt-0.5 ${selectedCandidateDetails.isBackgroundChecked ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                      <ShieldCheck size={13} />
+                      <span>{selectedCandidateDetails.isBackgroundChecked ? 'Verified (Clear)' : 'Pending'}</span>
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Enterprise NDA</span>
+                    <p className={`font-extrabold flex items-center gap-1 mt-0.5 ${selectedCandidateDetails.isNdaSigned ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
+                      <FileCheck size={13} />
+                      <span>{selectedCandidateDetails.isNdaSigned ? 'Signed & Active' : 'Pending'}</span>
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCandidateDetails(null)}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X size={18} />
-                </button>
+
+                {/* Sub-Tabs Navigation */}
+                <div className="flex items-center gap-1 mt-4 border-b border-slate-200 dark:border-white/10 -mb-5 sm:-mb-6 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setCandidateModalTab('overview')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                      candidateModalTab === 'overview'
+                        ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <FolderKanban size={14} />
+                    <span>Assignment & Proposal</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCandidateModalTab('credentials')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                      candidateModalTab === 'credentials'
+                        ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <ShieldCheck size={14} />
+                    <span>{selectedCandidateDetails.isEmployee ? 'Company ID & Clearances' : 'Freelancer Verification'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCandidateModalTab('experience')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                      candidateModalTab === 'experience'
+                        ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Briefcase size={14} />
+                    <span>Work History & Projects</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCandidateModalTab('resume')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                      candidateModalTab === 'resume'
+                        ? 'border-[#004ac6] text-[#004ac6] dark:text-blue-400 dark:border-blue-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <FileText size={14} />
+                    <span>Resume / CV Preview</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto text-xs text-slate-700 dark:text-slate-300">
-                {/* Contact & Professional Metadata Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Email Contact</span>
-                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                      <Mail size={13} className="text-[#004ac6] shrink-0" />
-                      <span className="truncate">{selectedCandidateDetails.email}</span>
-                    </p>
-                  </div>
+              {/* Modal Body: Active Tab Content */}
+              <div className="p-6 max-h-[62vh] overflow-y-auto text-xs text-slate-700 dark:text-slate-300 space-y-6">
+                {/* ============================================================== */}
+                {/* TAB 1: ASSIGNMENT & PROPOSAL OVERVIEW                          */}
+                {/* ============================================================== */}
+                {candidateModalTab === 'overview' && (
+                  <div className="space-y-5">
+                    {/* Contact Channels Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Direct Work Email</span>
+                        <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                          <Mail size={13} className="text-[#004ac6] shrink-0" />
+                          <span className="truncate">{selectedCandidateDetails.email || 'Not Provided'}</span>
+                        </p>
+                      </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Phone Number</span>
-                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Phone size={13} className="text-emerald-600 shrink-0" />
-                      <span>{selectedCandidateDetails.phone}</span>
-                    </p>
-                  </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Contact Phone</span>
+                        <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Phone size={13} className="text-emerald-600 shrink-0" />
+                          <span>{selectedCandidateDetails.phone || 'Not Provided'}</span>
+                        </p>
+                      </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Location</span>
-                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <MapPin size={13} className="text-rose-500 shrink-0" />
-                      <span>{selectedCandidateDetails.location}</span>
-                    </p>
-                  </div>
-                </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Location Base</span>
+                        <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <MapPin size={13} className="text-rose-500 shrink-0" />
+                          <span>{selectedCandidateDetails.location || 'Not Specified'}</span>
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Target Project Assignment Engagement Card */}
-                <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-900/40 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
-                      Target Project Assignment Proposal
-                    </span>
-                    {getStatusBadge(selectedCandidateDetails.status)}
-                  </div>
+                    {/* Target Project Engagement Proposal Card */}
+                    <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                          <FolderKanban size={13} />
+                          <span>Target Project Assignment Proposal</span>
+                        </span>
+                        {getStatusBadge(selectedCandidateDetails.status)}
+                      </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Project Title</span>
+                          <p className="font-extrabold text-slate-900 dark:text-white text-sm">
+                            {selectedCandidateDetails.projectName}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Client Organization</span>
+                          <p className="font-extrabold text-slate-900 dark:text-white text-sm">
+                            {selectedCandidateDetails.client}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2.5 border-t border-indigo-100 dark:border-indigo-900/40">
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Billing Rate</span>
+                          <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
+                            {selectedCandidateDetails.hourlyRate || 'Negotiable'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Weekly Commitment</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-sm">
+                            {selectedCandidateDetails.workload ? `${selectedCandidateDetails.workload} Hours/week` : 'Flexible'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Assigned HR Manager</span>
+                          <span className="font-bold text-slate-900 dark:text-white text-sm">
+                            {selectedCandidateDetails.manager || 'Assigned HR Manager'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {selectedCandidateDetails.notes && (
+                        <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-indigo-100 dark:border-indigo-900/30">
+                          <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Manager Allocation Note</span>
+                          <p className="italic text-slate-700 dark:text-slate-300 font-sans">
+                            "{selectedCandidateDetails.notes}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Verified Technical Skills & Stack */}
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers size={13} className="text-[#004ac6]" />
+                        <span>Verified Technical Skills & Stack</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(selectedCandidateDetails.skills || []).length > 0 ? (
+                          (selectedCandidateDetails.skills || []).map((skill, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1c1a36] text-xs font-semibold text-[#004ac6] dark:text-blue-300 border border-slate-200 dark:border-white/10"
+                            >
+                              {skill}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No skills specified</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Candidate Profile Summary */}
+                    <div className="space-y-1.5">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                        Candidate Profile Summary
+                      </h4>
+                      {selectedCandidateDetails.bio ? (
+                        <p className="leading-relaxed text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#1c1a36] p-3.5 rounded-2xl border border-slate-100 dark:border-white/5">
+                          {selectedCandidateDetails.bio}
+                        </p>
+                      ) : (
+                        <p className="italic text-xs text-slate-400 bg-slate-50 dark:bg-[#1c1a36] p-3.5 rounded-2xl border border-slate-100 dark:border-white/5">
+                          No candidate profile summary provided.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ============================================================== */}
+                {/* TAB 2: COMPANY ID & CORPORATE / FREELANCER VERIFICATION        */}
+                {/* ============================================================== */}
+                {candidateModalTab === 'credentials' && (
+                  <div className="space-y-5">
+                    {/* Primary Verification Identity Card */}
+                    <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 dark:from-[#1c1a36] dark:to-[#14132b] border border-slate-200 dark:border-white/10 space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-[#004ac6] dark:text-blue-400 flex items-center justify-center font-bold">
+                            {selectedCandidateDetails.isEmployee ? <Building2 size={16} /> : <UserCheck size={16} />}
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                              {selectedCandidateDetails.isEmployee ? 'Official Partner Company Authorization Card' : 'Freelancer Verification Dossier'}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {selectedCandidateDetails.isEmployee
+                                ? `Authorized employee working under ${selectedCandidateDetails.companyName}`
+                                : 'Verified independent talent contractor registered on FlexiStaff'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold text-[11px] border border-emerald-200 dark:border-emerald-800/40">
+                          <CheckCircle size={12} />
+                          <span>Authorized for Project Deployment</span>
+                        </span>
+                      </div>
+
+                      {/* Detail Metrics */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {selectedCandidateDetails.isEmployee ? (
+                          <>
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Staff Badge Id</span>
+                              <div className="flex items-center justify-between mt-0.5">
+                                <p className="font-mono font-extrabold text-sm text-[#004ac6] dark:text-blue-300 truncate max-w-[180px]">
+                                  {selectedCandidateDetails.companyId || 'Not Specified'}
+                                </p>
+                                {selectedCandidateDetails.staffBadgeUrl && (
+                                  <a
+                                    href={selectedCandidateDetails.staffBadgeUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 shrink-0"
+                                  >
+                                    <Eye size={12} />
+                                    <span>View Badge</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Partner Organization</span>
+                              <p className="font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
+                                {selectedCandidateDetails.companyName || 'Partner Organization'}
+                              </p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Department / Practice Area</span>
+                              <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                                {selectedCandidateDetails.department || 'Not Specified'}
+                              </p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Employment Model</span>
+                              <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                                {selectedCandidateDetails.employmentType || 'Partner Company Employee'}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Freelancer Talent ID</span>
+                              <p className="font-mono font-extrabold text-sm text-[#004ac6] dark:text-blue-300 mt-0.5">
+                                {selectedCandidateDetails.freelancerId || 'Not Specified'}
+                              </p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Contractor Status</span>
+                              <p className="font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">
+                                Verified Independent Specialist
+                              </p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Verified Portfolio</span>
+                              <p className="font-bold text-[#004ac6] dark:text-blue-400 mt-0.5 truncate">
+                                {selectedCandidateDetails.portfolio ? (
+                                  <a href={selectedCandidateDetails.portfolio} target="_blank" rel="noreferrer" className="hover:underline">
+                                    {selectedCandidateDetails.portfolio}
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-400 italic font-normal">Not Provided</span>
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10">
+                              <span className="text-[10px] font-bold uppercase text-slate-400 block">Independent Contract Model</span>
+                              <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                                {selectedCandidateDetails.employmentType || 'Independent Contractor'}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Compliance & Security Clearances */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <ShieldCheck size={14} className="text-emerald-600" />
+                        <span>Corporate Compliance & Background Verification</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200/80 dark:border-white/5">
+                          <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white block">Identity & Criminal Background Check</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {selectedCandidateDetails.isEmployee
+                                ? `Verified and certified by ${selectedCandidateDetails.companyName} HR compliance team.`
+                                : 'National ID and background verification verified by FlexiStaff vetting team.'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white dark:bg-[#14132b] border border-slate-200/80 dark:border-white/5">
+                          <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white block">Enterprise NDA & IP Protection</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Active non-disclosure and intellectual property assignment agreement executed.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Direct Social & Professional Profiles Bar */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 space-y-3">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white">
+                        Direct Professional Verification Channels
+                      </h4>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        {selectedCandidateDetails.linkedin && (
+                          <a
+                            href={selectedCandidateDetails.linkedin}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0077b5]/10 hover:bg-[#0077b5]/20 text-[#0077b5] border border-[#0077b5]/30 font-bold text-xs transition-colors"
+                          >
+                            <FaLinkedin size={16} />
+                            <span>Verify LinkedIn Profile</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+
+                        {selectedCandidateDetails.github && (
+                          <a
+                            href={selectedCandidateDetails.github}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 font-bold text-xs transition-colors"
+                          >
+                            <FaGithub size={16} />
+                            <span>Verify GitHub Portfolio</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadResume(selectedCandidateDetails)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 font-bold text-xs transition-colors"
+                        >
+                          <Download size={14} />
+                          <span>Download Verification Dossier</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ============================================================== */}
+                {/* TAB 3: DETAILED WORK EXPERIENCE & CAREER TIMELINE              */}
+                {/* ============================================================== */}
+                {candidateModalTab === 'experience' && (
+                  <div className="space-y-6">
                     <div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Project Title</span>
-                      <p className="font-extrabold text-slate-900 dark:text-white text-sm">
-                        {selectedCandidateDetails.projectName}
-                      </p>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Briefcase size={14} className="text-[#004ac6]" />
+                          <span>Verified Work History & Experience Timeline</span>
+                        </h4>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {selectedCandidateDetails.experience ? `Total: ${selectedCandidateDetails.experience}` : ''}
+                        </span>
+                      </div>
+
+                      {(selectedCandidateDetails.experiences || []).length > 0 ? (
+                        <div className="space-y-4">
+                          {selectedCandidateDetails.experiences.map((exp, idx) => (
+                            <div
+                              key={idx}
+                              className="relative pl-6 border-l-2 border-indigo-200 dark:border-indigo-900/60 space-y-1.5"
+                            >
+                              <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-blue-600 ring-4 ring-blue-100 dark:ring-blue-950/60" />
+                              
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <h5 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                                  {exp.title}
+                                </h5>
+                                {exp.period && (
+                                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#1c1a36] text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                    {exp.period}
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="font-bold text-[#004ac6] dark:text-blue-400 text-xs">
+                                {exp.company} {exp.location ? <span className="text-slate-400 font-normal">• {exp.location}</span> : null}
+                              </p>
+
+                              {exp.description && (
+                                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                                  {exp.description}
+                                </p>
+                              )}
+
+                              {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                                  {exp.achievements.map((ach, aIdx) => (
+                                    <li key={aIdx}>{ach}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#1c1a36] text-xs text-slate-400 italic text-center">
+                          No previous work history records uploaded for this candidate.
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Client Organization</span>
-                      <p className="font-extrabold text-slate-900 dark:text-white text-sm">
-                        {selectedCandidateDetails.client}
-                      </p>
+
+                    {/* Academic Education */}
+                    <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 space-y-3">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <GraduationCap size={15} className="text-indigo-600" />
+                        <span>Academic Education</span>
+                      </h4>
+
+                      {(selectedCandidateDetails.educations || []).length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {selectedCandidateDetails.educations.map((edu, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1c1a36] border border-slate-100 dark:border-white/5 space-y-1"
+                            >
+                              <h5 className="font-bold text-slate-900 dark:text-white text-xs">{edu.degree}</h5>
+                              <p className="text-[11px] text-[#004ac6] dark:text-blue-400 font-semibold">{edu.school}</p>
+                              {edu.dates && <span className="text-[10px] text-slate-400 block">{edu.dates}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] text-xs text-slate-400 italic text-center">
+                          No academic qualifications recorded.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Professional Certifications */}
+                    <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 space-y-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Award size={15} className="text-amber-500" />
+                        <span>Professional Certifications</span>
+                      </h4>
+
+                      {(selectedCandidateDetails.certifications || []).length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCandidateDetails.certifications.map((cert, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 text-xs font-bold flex items-center gap-1.5"
+                            >
+                              <Award size={13} className="text-amber-600 dark:text-amber-400" />
+                              <span>{cert}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#1c1a36] text-xs text-slate-400 italic text-center">
+                          No professional certifications recorded.
+                        </div>
+                      )}
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-indigo-100 dark:border-indigo-900/40">
-                    <div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Billing Rate</span>
-                      <span className="font-bold text-slate-900 dark:text-white font-mono">
-                        {selectedCandidateDetails.hourlyRate}
-                      </span>
+                {/* ============================================================== */}
+                {/* TAB 4: CURRICULUM VITAE / RESUME PREVIEW                        */}
+                {/* ============================================================== */}
+                {candidateModalTab === 'resume' && (
+                  <div className="space-y-4">
+                    {/* Resume Header & Actions Card */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-[#1c1a36] dark:to-[#14132b] border border-blue-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                          <FileText size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                            {selectedCandidateDetails.resumeName}
+                          </h4>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {selectedCandidateDetails.resumeUrl ? 'Candidate Document Attachment' : 'Official Candidate Profile Overview'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadResume(selectedCandidateDetails)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#14132b] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/15 text-xs font-bold hover:bg-slate-100 transition-colors shadow-2xs"
+                        >
+                          <Download size={14} />
+                          <span>Download CV</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsResumeViewerOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#004ac6] hover:bg-[#003da6] text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+                        >
+                          <Eye size={14} />
+                          <span>Fullscreen Viewer</span>
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Weekly Commitment</span>
-                      <span className="font-bold text-slate-900 dark:text-white">
-                        {selectedCandidateDetails.workload || 40} Hours/week
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Assigned HR Manager</span>
-                      <span className="font-bold text-slate-900 dark:text-white">
-                        {selectedCandidateDetails.manager}
-                      </span>
+
+                    {/* Inline Document Presentation Card */}
+                    <div className="p-6 rounded-2xl bg-white dark:bg-[#100f24] border border-slate-200 dark:border-white/10 shadow-inner font-sans space-y-5 text-slate-800 dark:text-slate-200">
+                      {/* Document Header */}
+                      <div className="border-b border-slate-200 dark:border-white/10 pb-4 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-2">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                            {selectedCandidateDetails.professionalName}
+                          </h2>
+                          <p className="text-xs font-bold text-[#004ac6] dark:text-blue-400 mt-0.5">
+                            {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Specialist'}
+                          </p>
+                        </div>
+                        <div className="text-right text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                          {selectedCandidateDetails.email && <p>{selectedCandidateDetails.email}</p>}
+                          <p>
+                            {[selectedCandidateDetails.phone, selectedCandidateDetails.location].filter(Boolean).join(' • ')}
+                          </p>
+                          {selectedCandidateDetails.linkedin && (
+                            <p className="text-[#004ac6] dark:text-blue-400 font-semibold">{selectedCandidateDetails.linkedin}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      {selectedCandidateDetails.bio && (
+                        <div>
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                            Professional Summary
+                          </h4>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {selectedCandidateDetails.bio}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Technical Competencies */}
+                      {(selectedCandidateDetails.skills || []).length > 0 && (
+                        <div>
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                            Core Technical Competencies
+                          </h4>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 font-mono">
+                            {selectedCandidateDetails.skills.join(' • ')}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Work History */}
+                      <div>
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-3">
+                          Employment Experience
+                        </h4>
+                        {(selectedCandidateDetails.experiences || []).length > 0 ? (
+                          <div className="space-y-3.5">
+                            {selectedCandidateDetails.experiences.map((exp, idx) => (
+                              <div key={idx} className="space-y-1">
+                                <div className="flex justify-between items-center text-xs font-bold text-slate-900 dark:text-white">
+                                  <span>{exp.title} {exp.company ? `— ${exp.company}` : ''}</span>
+                                  {exp.period && <span className="text-slate-400 font-mono text-[10px]">{exp.period}</span>}
+                                </div>
+                                {exp.description && <p className="text-[11px] text-slate-600 dark:text-slate-300">{exp.description}</p>}
+                                {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                                  <ul className="list-disc list-inside text-[11px] text-slate-500 dark:text-slate-400">
+                                    {exp.achievements.map((a, i) => (
+                                      <li key={i}>{a}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
+                        )}
+                      </div>
+
+                      {/* Education */}
+                      <div>
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-1 mb-2">
+                          Education & Honors
+                        </h4>
+                        {(selectedCandidateDetails.educations || []).length > 0 ? (
+                          <div className="space-y-1">
+                            {selectedCandidateDetails.educations.map((edu, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-800 dark:text-slate-200">{edu.degree} {edu.school ? `— ${edu.school}` : ''}</span>
+                                {edu.dates && <span className="text-slate-400 text-[10px]">{edu.dates}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {selectedCandidateDetails.notes && (
-                    <div className="p-3 rounded-xl bg-white dark:bg-[#14132b] border border-indigo-100 dark:border-indigo-900/30">
-                      <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Manager Allocation Note</span>
-                      <p className="italic text-slate-700 dark:text-slate-300 font-sans">
-                        "{selectedCandidateDetails.notes}"
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Candidate Tech Stack & Skills */}
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                    Verified Technical Skills & Stack
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(selectedCandidateDetails.skills || []).map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1c1a36] text-xs font-semibold text-[#004ac6] dark:text-blue-300 border border-slate-200 dark:border-white/10"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Candidate Bio Summary */}
-                <div className="space-y-1.5">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                    Candidate Profile Summary
-                  </h4>
-                  <p className="leading-relaxed text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#1c1a36] p-3.5 rounded-2xl border border-slate-100 dark:border-white/5">
-                    {selectedCandidateDetails.bio}
-                  </p>
-                </div>
+                )}
               </div>
 
               {/* Modal Footer Actions */}
-              <div className="p-6 border-t border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36]/50 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCandidateDetails(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                >
-                  Close Details
-                </button>
+              <div className="p-5 sm:p-6 border-t border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-[#1c1a36]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCandidateDetails(null)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Close Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsResumeViewerOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    <FileText size={14} className="text-[#004ac6]" />
+                    <span>View Resume Document</span>
+                  </button>
+                </div>
 
                 {isPendingStatus(selectedCandidateDetails.status) && (
                   <div className="flex items-center gap-2">
@@ -707,6 +1570,232 @@ export const AdminAssignmentApprovals = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Fullscreen Dedicated Resume / CV Viewer Modal */}
+      <AnimatePresence>
+        {isResumeViewerOpen && selectedCandidateDetails && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsResumeViewerOpen(false)}
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative z-10 w-full max-w-3xl rounded-3xl bg-white dark:bg-[#14132b] shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden my-6 flex flex-col max-h-[92vh]"
+            >
+              {/* Document Modal Action Bar */}
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-6 py-4 bg-slate-50 dark:bg-[#1c1a36]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                    <FileText size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      {selectedCandidateDetails.professionalName} — Curriculum Vitae
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Official FlexiStaff Verified Talent Credentials
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrintResume}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-white/15 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+                  >
+                    <Printer size={14} />
+                    <span>Print</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadResume(selectedCandidateDetails)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 text-xs font-bold hover:bg-blue-100 transition-colors"
+                  >
+                    <Download size={14} />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsResumeViewerOpen(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable / Formatted Resume Body */}
+              <div className="p-8 overflow-y-auto space-y-6 font-sans text-slate-800 dark:text-slate-200 bg-white dark:bg-[#14132b]">
+                {/* Header */}
+                <div className="border-b-2 border-slate-900 dark:border-white pb-5 flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+                      {selectedCandidateDetails.professionalName}
+                    </h1>
+                    <p className="text-sm font-bold text-[#004ac6] dark:text-blue-400 mt-1">
+                      {selectedCandidateDetails.role} {selectedCandidateDetails.isEmployee ? `• ${selectedCandidateDetails.companyName}` : '• Independent Consultant'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-200">
+                        {selectedCandidateDetails.isEmployee ? `STAFF ID: ${selectedCandidateDetails.companyId}` : `TALENT ID: ${selectedCandidateDetails.freelancerId}`}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle size={13} />
+                        <span>Platform Verified</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                    {selectedCandidateDetails.email && (
+                      <p className="flex items-center sm:justify-end gap-1.5">
+                        <Mail size={12} className="text-[#004ac6]" />
+                        <span>{selectedCandidateDetails.email}</span>
+                      </p>
+                    )}
+                    {selectedCandidateDetails.phone && (
+                      <p className="flex items-center sm:justify-end gap-1.5">
+                        <Phone size={12} className="text-emerald-600" />
+                        <span>{selectedCandidateDetails.phone}</span>
+                      </p>
+                    )}
+                    {selectedCandidateDetails.location && (
+                      <p className="flex items-center sm:justify-end gap-1.5">
+                        <MapPin size={12} className="text-rose-500" />
+                        <span>{selectedCandidateDetails.location}</span>
+                      </p>
+                    )}
+                    {selectedCandidateDetails.linkedin && (
+                      <p className="flex items-center sm:justify-end gap-1.5 font-bold text-[#004ac6] dark:text-blue-400">
+                        <FaLinkedin size={12} />
+                        <a 
+                          href={selectedCandidateDetails.linkedin.startsWith('http') ? selectedCandidateDetails.linkedin : `https://${selectedCandidateDetails.linkedin}`} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="hover:underline"
+                        >
+                          {selectedCandidateDetails.linkedin}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Executive Summary */}
+                {selectedCandidateDetails.bio && (
+                  <div className="space-y-1.5">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                      Executive Summary
+                    </h3>
+                    <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                      {selectedCandidateDetails.bio}
+                    </p>
+                  </div>
+                )}
+
+                {/* Technical Stack */}
+                {(selectedCandidateDetails.skills || []).length > 0 && (
+                  <div className="space-y-1.5">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                      Verified Technical Stack & Competencies
+                    </h3>
+                    <p className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                      {selectedCandidateDetails.skills.join(' • ')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Experience */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                    Work History & Professional Experience
+                  </h3>
+
+                  {(selectedCandidateDetails.experiences || []).length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedCandidateDetails.experiences.map((exp, idx) => (
+                        <div key={idx} className="space-y-1 text-xs">
+                          <div className="flex justify-between items-baseline">
+                            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">
+                              {exp.title} {exp.company ? <>— <span className="text-[#004ac6] dark:text-blue-400">{exp.company}</span></> : null}
+                            </h4>
+                            {exp.period && <span className="font-mono text-[11px] text-slate-500">{exp.period}</span>}
+                          </div>
+                          {exp.description && <p className="text-slate-600 dark:text-slate-300">{exp.description}</p>}
+                          {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-400 pl-1 text-[11px]">
+                              {exp.achievements.map((ach, aIdx) => (
+                                <li key={aIdx}>{ach}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No previous employment history recorded.</p>
+                  )}
+                </div>
+
+                {/* Education */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                    Education & Credentials
+                  </h3>
+                  {(selectedCandidateDetails.educations || []).length > 0 ? (
+                    <div className="space-y-1.5">
+                      {selectedCandidateDetails.educations.map((edu, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{edu.degree} {edu.school ? `— ${edu.school}` : ''}</span>
+                          {edu.dates && <span className="text-slate-400 font-mono text-[11px]">{edu.dates}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No academic qualifications recorded.</p>
+                  )}
+                </div>
+
+                {/* Certifications */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10 pb-1">
+                    Professional Certifications
+                  </h3>
+                  {(selectedCandidateDetails.certifications || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {selectedCandidateDetails.certifications.map((cert, idx) => (
+                        <span key={idx} className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/10 font-bold text-slate-700 dark:text-slate-300">
+                          {cert}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No professional certifications recorded.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom footer */}
+              <div className="px-6 py-3 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1c1a36] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsResumeViewerOpen(false)}
+                  className="px-5 py-2 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white text-xs font-bold transition-all"
+                >
+                  Close Resume Viewer
+                </button>
               </div>
             </motion.div>
           </div>

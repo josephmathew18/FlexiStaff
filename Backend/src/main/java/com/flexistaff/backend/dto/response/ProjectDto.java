@@ -21,6 +21,7 @@ public class ProjectDto {
     private String title;
     private String description;
     private String requiredSkills;
+    private Integer workforceRequired;
 
     private Long clientId;
     private String clientName;

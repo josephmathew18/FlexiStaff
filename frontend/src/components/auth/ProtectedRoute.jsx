@@ -23,7 +23,25 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
       if (target === 'partner company' && currentRole.includes('partner')) return true;
       if (target === 'client' && currentRole.includes('client')) return true;
       if (target === 'manager' && currentRole.includes('manager')) return true;
-      if (target === 'workforce' && (currentRole.includes('workforce') || currentRole.includes('professional') || currentRole.includes('freelancer') || currentRole.includes('talent'))) return true;
+      if (
+        target === 'workforce' &&
+        (currentRole.includes('workforce') ||
+          currentRole.includes('professional') ||
+          currentRole.includes('freelancer') ||
+          currentRole.includes('talent') ||
+          currentRole.includes('developer') ||
+          currentRole.includes('engineer') ||
+          currentRole.includes('designer') ||
+          currentRole.includes('specialist') ||
+          currentRole.includes('consultant') ||
+          currentRole.includes('full stack') ||
+          user?.roleType === 'Freelancer' ||
+          user?.roleType === 'Professional' ||
+          user?.professionalType === 'FREELANCER' ||
+          user?.professionalType === 'PARTNER_EMPLOYEE' ||
+          user?.portalPath?.includes('workforce'))
+      )
+        return true;
       return false;
     });
 
@@ -34,7 +52,17 @@ export const ProtectedRoute = ({ allowedRoles = [], children }) => {
     else if (currentRole.includes('partner')) correctPath = '/partner/dashboard';
     else if (currentRole.includes('client')) correctPath = '/client/dashboard';
     else if (currentRole.includes('manager')) correctPath = '/manager/dashboard';
-    else if (currentRole.includes('workforce') || currentRole.includes('professional') || currentRole.includes('freelancer') || currentRole.includes('talent')) correctPath = '/workforce/dashboard';
+    else if (
+      currentRole.includes('workforce') ||
+      currentRole.includes('professional') ||
+      currentRole.includes('freelancer') ||
+      currentRole.includes('talent') ||
+      currentRole.includes('developer') ||
+      currentRole.includes('engineer') ||
+      user?.roleType === 'Freelancer' ||
+      user?.roleType === 'Professional'
+    )
+      correctPath = '/workforce/dashboard';
 
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">

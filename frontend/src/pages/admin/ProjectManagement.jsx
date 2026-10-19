@@ -174,6 +174,12 @@ const ProjectCard = ({ project, onClick }) => {
     displayStage = 'Completed';
   }
 
+  const skillsList = Array.isArray(requiredSkills)
+    ? requiredSkills
+    : (typeof requiredSkills === 'string' && requiredSkills.trim()
+        ? requiredSkills.split(',').map((s) => s.trim()).filter(Boolean)
+        : []);
+
   return (
     <div onClick={() => onClick?.(project)} className="group flex flex-col justify-between rounded-xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-5 shadow-xs hover:border-[#2563eb]/40 hover:shadow-md transition-all cursor-pointer">
       <div>
@@ -199,9 +205,9 @@ const ProjectCard = ({ project, onClick }) => {
           </div>
         </div>
 
-        {requiredSkills.length > 0 && (
+        {skillsList.length > 0 && (
           <div className="mt-3.5 flex flex-wrap gap-1">
-            {requiredSkills.slice(0, 3).map((s, idx) => (
+            {skillsList.slice(0, 3).map((s, idx) => (
               <span key={idx} className="rounded bg-slate-100 dark:bg-[#1c1a36] px-1.5 py-0.5 text-[10px] text-slate-700 dark:text-slate-300">{s}</span>
             ))}
           </div>
@@ -375,12 +381,17 @@ export const ProjectManagement = () => {
         matchesTab = getProjectStageCategory(prj) === stageTab;
       }
 
-      const matchesSearch =
-        prj.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prj.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prj.client?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prj.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        prj.requiredSkills?.some((s) => s?.toLowerCase().includes(searchQuery.toLowerCase()));
+      const query = (searchQuery || '').toLowerCase().trim();
+      const skillsStr = Array.isArray(prj.requiredSkills)
+        ? prj.requiredSkills.join(' ')
+        : (typeof prj.requiredSkills === 'string' ? prj.requiredSkills : '');
+
+      const matchesSearch = !query ||
+        (prj.title && prj.title.toLowerCase().includes(query)) ||
+        (prj.name && prj.name.toLowerCase().includes(query)) ||
+        (prj.client && prj.client.toLowerCase().includes(query)) ||
+        (String(prj.id ?? '').toLowerCase().includes(query)) ||
+        (skillsStr && skillsStr.toLowerCase().includes(query));
 
       const matchesPriority =
         priorityFilter === 'all' || prj.priority?.toLowerCase() === priorityFilter.toLowerCase();

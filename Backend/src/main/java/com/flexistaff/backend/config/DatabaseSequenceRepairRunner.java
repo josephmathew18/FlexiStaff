@@ -82,7 +82,8 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
             entityManager.createNativeQuery("ALTER TABLE freelancers ALTER COLUMN phone TYPE VARCHAR(50)").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE clients ALTER COLUMN phone TYPE VARCHAR(50)").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE client_profiles ALTER COLUMN contact_phone TYPE VARCHAR(50)").executeUpdate();
-            entityManager.createNativeQuery("ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT").executeUpdate();
+            entityManager.createNativeQuery("DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='avatar_url') THEN ALTER TABLE users RENAME COLUMN avatar_url TO profile_pic; END IF; END $$;").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE users ALTER COLUMN profile_pic TYPE TEXT").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE client_profiles ALTER COLUMN logo_url TYPE TEXT").executeUpdate();
             log.info("Successfully updated users_role_check constraint and column types");
 

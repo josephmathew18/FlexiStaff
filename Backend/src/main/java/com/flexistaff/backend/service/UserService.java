@@ -145,6 +145,7 @@ public class UserService {
                 .role(user.getRole())
                 .active(user.getActive())
                 .avatarUrl(user.getAvatarUrl())
+                .profilePic(user.getProfilePic())
                 .createdAt(user.getCreatedAt())
                 .build();
 

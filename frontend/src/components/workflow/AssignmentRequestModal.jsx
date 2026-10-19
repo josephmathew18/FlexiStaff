@@ -36,14 +36,21 @@ export const AssignmentRequestModal = ({
 
   const totalCount = selectedWorkforce.length;
 
+  const projectRequired = Number(project?.workforceRequired) || (Array.isArray(project?.requirements) && project?.requirements.length > 0 ? project.requirements.reduce((acc, r) => acc + (Number(r.required) || 0), 0) : 1);
+  const alreadyAssignedCount = (project?.assignedResources || []).filter((r) => {
+    const st = String(r?.status || '').toLowerCase();
+    return !st.includes('declined') && !st.includes('reject') && !st.includes('cancel');
+  }).length;
+  const remainingSlots = Math.max(0, projectRequired - alreadyAssignedCount);
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
     if (totalCount === 0) {
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (totalCount > 5) {
-      toast.error('Maximum 5 workforce members can be assigned to a project.');
+    if (totalCount > remainingSlots) {
+      toast.error(`Cannot assign: Exceeds available project slots (${totalCount} staged, but only ${remainingSlots} slot${remainingSlots > 1 ? 's' : ''} remaining for required headcount of ${projectRequired}).`);
       return;
     }
 
@@ -86,6 +93,9 @@ export const AssignmentRequestModal = ({
                 <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">
                   Assignment Request Gate
                 </span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
+                  Slots: {totalCount} of {remainingSlots} Available (Req: {projectRequired})
+                </span>
               </div>
               <h3 className="text-base font-extrabold text-slate-900 mt-1">
                 Create Assignment Request
@@ -108,7 +118,7 @@ export const AssignmentRequestModal = ({
             {/* Squad Summary */}
             <div className="space-y-3">
               <span className="text-xs font-bold text-slate-500 uppercase block">
-                Selected Candidate Squad ({totalCount})
+                Selected Candidate Squad ({totalCount} Candidate{totalCount !== 1 ? 's' : ''})
               </span>
 
               <div className="grid grid-cols-2 gap-3">
@@ -118,7 +128,7 @@ export const AssignmentRequestModal = ({
                   </div>
                   <div>
                     <span className="text-xs font-extrabold text-slate-900 block">
-                      {professionals.length} / 5 Partner Employees
+                      {professionals.length} Partner Employee{professionals.length !== 1 ? 's' : ''}
                     </span>
                     <span className="text-[10px] text-slate-500">Provided by Partner</span>
                   </div>
@@ -130,7 +140,7 @@ export const AssignmentRequestModal = ({
                   </div>
                   <div>
                     <span className="text-xs font-extrabold text-slate-900 block">
-                      {freelancers.length} / 5 Freelancers
+                      {freelancers.length} Freelancer{freelancers.length !== 1 ? 's' : ''}
                     </span>
                     <span className="text-[10px] text-slate-500">Independent talent</span>
                   </div>

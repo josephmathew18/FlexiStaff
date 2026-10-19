@@ -12,6 +12,11 @@ public class UpdateUserProfileRequest {
     private String fullName;
     private String phone;
     private String avatarUrl;
+    private String profilePic;
+
+    public String getAvatarUrl() {
+        return avatarUrl != null ? avatarUrl : profilePic;
+    }
 
     // Professional fields
     private String title;

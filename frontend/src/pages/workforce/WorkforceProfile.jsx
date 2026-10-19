@@ -18,7 +18,15 @@ import {
   FolderKanban,
   X,
   Plus,
+  FileText,
+  Download,
+  ExternalLink,
+  DollarSign,
+  Award,
+  Paperclip,
+  CheckCircle2,
 } from 'lucide-react';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -64,55 +72,89 @@ export const WorkforceProfile = () => {
     user?.professionalType === 'PARTNER_EMPLOYEE';
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
-  const [formData, setFormData] = useState({
-    name: formatCapitalizedName(workforceUserProfile?.name || 'Professional'),
-    email: workforceUserProfile?.email || '',
-    phone: workforceUserProfile?.phone || '',
-    title: workforceUserProfile?.title || workforceUserProfile?.role || 'Software Specialist',
-    role: workforceUserProfile?.role || 'Software Specialist',
-    location: workforceUserProfile?.location || '',
-    experience: workforceUserProfile?.experience || '',
-    availability: workforceUserProfile?.availability || 'Available',
-    preferredWorkType: workforceUserProfile?.preferredWorkType || 'Remote',
-    portfolioUrl: workforceUserProfile?.portfolioUrl || '',
-    bio: workforceUserProfile?.bio || '',
-    avatar: workforceUserProfile?.avatar || '',
-    skills: workforceUserProfile?.skills || [],
+  const [formData, setFormData] = useState(() => {
+    const src = workforceUserProfile || user || {};
+    const resolvedSkills = (workforceUserProfile?.skills && Array.isArray(workforceUserProfile.skills) && workforceUserProfile.skills.length > 0)
+      ? workforceUserProfile.skills
+      : (user?.skills && Array.isArray(user.skills) && user.skills.length > 0)
+      ? user.skills
+      : [];
+
+    return {
+      name: formatCapitalizedName(src.name || src.fullName || 'Professional'),
+      email: src.email || '',
+      phone: src.phone || '',
+      title: src.title || src.jobTitle || 'Software Specialist',
+      role: isCompanyEmployee ? 'Workforce' : 'Freelancer',
+      location: src.location || '',
+      experience: src.experience || '3+ Years',
+      availability: src.availability || 'Available',
+      preferredWorkType: src.preferredWorkType || 'Remote',
+      portfolioUrl: src.portfolioUrl || src.portfolio || '',
+      linkedin: src.linkedin || src.portfolioUrl || '',
+      github: src.github || '',
+      hourlyRate: src.hourlyRate || '$85/hr',
+      certifications: Array.isArray(src.certifications) ? src.certifications.join(', ') : (src.certifications || ''),
+      staffBadgeId: src.staffBadgeId || src.companyId || src.employeeId || '',
+      staffBadgeName: src.staffBadgeName || '',
+      badgeDocumentUrl: src.badgeDocumentUrl || src.staffBadgeUrl || '',
+      resumeName: src.resumeName || src.resumeFileName || '',
+      resumeUrl: src.resumeUrl || src.resume || '',
+      resumeSize: src.resumeSize || '',
+      bio: src.bio || '',
+      avatar: src.avatar || '',
+      skills: resolvedSkills,
+    };
   });
 
   React.useEffect(() => {
-    if (workforceUserProfile) {
-      setFormData({
-        name: formatCapitalizedName(workforceUserProfile.name || 'Professional'),
-        email: workforceUserProfile.email || '',
-        phone: workforceUserProfile.phone || '',
-        title: workforceUserProfile.title || workforceUserProfile.role || 'Software Specialist',
-        role: workforceUserProfile.role || 'Software Specialist',
-        location: workforceUserProfile.location || '',
-        experience: workforceUserProfile.experience || '',
-        availability: workforceUserProfile.availability || 'Available',
-        preferredWorkType: workforceUserProfile.preferredWorkType || 'Remote',
-        portfolioUrl: workforceUserProfile.portfolioUrl || '',
-        bio: workforceUserProfile.bio || '',
-        avatar: workforceUserProfile.avatar || '',
-        skills: workforceUserProfile.skills || [],
-      });
+    const src = (workforceUserProfile && (workforceUserProfile.email || workforceUserProfile.name)) ? workforceUserProfile : user;
+    if (src && (src.email || src.name || src.fullName)) {
+      setFormData((prev) => ({
+        ...prev,
+        name: formatCapitalizedName(src.name || src.fullName || prev.name || 'Professional'),
+        email: src.email || prev.email || '',
+        phone: src.phone || prev.phone || '',
+        title: src.title || src.jobTitle || prev.title || 'Software Specialist',
+        role: isCompanyEmployee ? 'Workforce' : 'Freelancer',
+        location: src.location || prev.location || '',
+        experience: src.experience || prev.experience || '3+ Years',
+        availability: src.availability || prev.availability || 'Available',
+        preferredWorkType: src.preferredWorkType || prev.preferredWorkType || 'Remote',
+        portfolioUrl: src.portfolioUrl || src.portfolio || prev.portfolioUrl || '',
+        linkedin: src.linkedin || prev.linkedin || src.portfolioUrl || '',
+        github: src.github || prev.github || '',
+        hourlyRate: src.hourlyRate || prev.hourlyRate || '$85/hr',
+        certifications: src.certifications !== undefined
+          ? (Array.isArray(src.certifications) ? src.certifications.join(', ') : src.certifications)
+          : prev.certifications,
+        staffBadgeId: src.staffBadgeId || src.companyId || src.employeeId || prev.staffBadgeId || '',
+        staffBadgeName: src.staffBadgeName || prev.staffBadgeName || '',
+        badgeDocumentUrl: src.badgeDocumentUrl || src.staffBadgeUrl || prev.badgeDocumentUrl || '',
+        resumeName: src.resumeName || src.resumeFileName || prev.resumeName || '',
+        resumeUrl: src.resumeUrl || src.resume || prev.resumeUrl || '',
+        resumeSize: src.resumeSize || prev.resumeSize || '',
+        bio: src.bio !== undefined && src.bio !== '' ? src.bio : prev.bio,
+        avatar: src.avatar || prev.avatar || '',
+        skills: Array.isArray(src.skills) && src.skills.length > 0 ? src.skills : prev.skills,
+      }));
     }
-  }, [workforceUserProfile]);
-
-  const [newSkillInput, setNewSkillInput] = useState('');
+  }, [workforceUserProfile, user, isCompanyEmployee]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
+  const badgeFileInputRef = useRef(null);
+  const resumeFileInputRef = useRef(null);
 
   const handleMediaUpload = (e) => {
     const file = e.target.files?.[0];
@@ -130,22 +172,45 @@ export const WorkforceProfile = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleAddSkill = () => {
-    const trimmed = newSkillInput.trim();
-    if (!trimmed) return;
-    if (formData.skills.includes(trimmed)) {
-      toast.info('Skill already added to your profile.');
-      return;
-    }
-    setFormData((prev) => ({ ...prev, skills: [...prev.skills, trimmed] }));
-    setNewSkillInput('');
+  const handleStaffBadgeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const result = loadEvt.target?.result;
+      setFormData((prev) => ({
+        ...prev,
+        badgeDocumentUrl: result,
+        staffBadgeUrl: result,
+        staffBadgeName: file.name,
+        staffBadgeId: prev.staffBadgeId || file.name.replace(/\.[^/.]+$/, '').toUpperCase(),
+      }));
+      toast.success(`Attached Staff Badge: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleRemoveSkill = (skillToRemove) => {
-    setFormData((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s !== skillToRemove),
-    }));
+  const handleResumeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const sizeFormatted = file.size > 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${(file.size / 1024).toFixed(0)} KB`;
+
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const result = loadEvt.target?.result;
+      setFormData((prev) => ({
+        ...prev,
+        resumeUrl: result,
+        resumeName: file.name,
+        resumeSize: sizeFormatted,
+      }));
+      toast.success(`Attached Resume / CV: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProfileSubmit = (e) => {
@@ -155,6 +220,8 @@ export const WorkforceProfile = () => {
       if (updateWorkforceUserProfile) {
         updateWorkforceUserProfile({
           ...formData,
+          title: formData.title,
+          roleType: isCompanyEmployee ? 'Professional' : 'Freelancer',
         });
       }
       setIsSaving(false);
@@ -246,15 +313,21 @@ export const WorkforceProfile = () => {
           </div>
         </div>
 
-        <div className="text-center sm:text-left flex-1 space-y-1">
+        <div className="text-center sm:text-left flex-1 space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <h2 className="text-xl font-black text-slate-900 dark:text-white capitalize">{formatCapitalizedName(formData.name)}</h2>
+            {formData.staffBadgeId && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 text-[10px] font-mono font-bold">
+                <ShieldCheck size={12} className="text-purple-600" />
+                <span>Badge: {formData.staffBadgeId}</span>
+              </span>
+            )}
           </div>
           <p className="text-xs text-purple-700 dark:text-purple-400 font-extrabold">{formData.title}</p>
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 pt-0.5">
             <span className="flex items-center gap-1">
               <MapPin size={12} className="text-slate-400 dark:text-slate-500" />
-              {formData.location}
+              {formData.location || 'Remote'}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
@@ -266,6 +339,45 @@ export const WorkforceProfile = () => {
               <Clock size={12} className="text-slate-400 dark:text-slate-500" />
               {formData.experience}
             </span>
+            <span>•</span>
+            <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200">
+              <DollarSign size={12} className="text-emerald-500" />
+              {formData.hourlyRate || '$85/hr'}
+            </span>
+          </div>
+
+          {/* Quick External Links Pills */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1.5">
+            {formData.linkedin && (
+              <a
+                href={formData.linkedin.startsWith('http') ? formData.linkedin : `https://${formData.linkedin}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#0077b5] dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800/40 text-[11px] font-bold transition-colors"
+              >
+                <FaLinkedin size={12} />
+                <span>LinkedIn Profile</span>
+                <ExternalLink size={10} />
+              </a>
+            )}
+            {formData.github && (
+              <a
+                href={formData.github.startsWith('http') ? formData.github : `https://${formData.github}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-white/20 border border-slate-200 dark:border-white/10 text-[11px] font-bold transition-colors"
+              >
+                <FaGithub size={12} />
+                <span>GitHub</span>
+                <ExternalLink size={10} />
+              </a>
+            )}
+            {formData.resumeName && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 text-[11px] font-bold">
+                <FileText size={12} />
+                <span>Resume Attached</span>
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -383,7 +495,7 @@ export const WorkforceProfile = () => {
             <div className="border-b border-slate-100 dark:border-white/10 pb-3">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Personal & Technical Information</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Update your contact details, specialty title, skills inventory, and live availability.
+                Update your contact details, specialty title, professional credentials, documents, and live availability.
               </p>
             </div>
 
@@ -436,7 +548,7 @@ export const WorkforceProfile = () => {
               </div>
             </div>
 
-            {/* Form Fields */}
+            {/* Form Fields Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
@@ -488,7 +600,7 @@ export const WorkforceProfile = () => {
                   type="text"
                   required
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value, role: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
                 />
               </div>
@@ -508,6 +620,20 @@ export const WorkforceProfile = () => {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Hourly Billing Rate ($/hr)</label>
+                <div className="relative">
+                  <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={formData.hourlyRate}
+                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                    placeholder="$85/hr"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-3 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Live Availability Status *</label>
                 <select
                   value={formData.availability}
@@ -520,36 +646,96 @@ export const WorkforceProfile = () => {
                 </select>
               </div>
 
-              {!isCompanyEmployee && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Preferred Work Type *</label>
-                  <select
-                    value={formData.preferredWorkType}
-                    onChange={(e) => setFormData({ ...formData, preferredWorkType: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
-                  >
-                    <option value="Remote">100% Remote</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="On-Site">On-Site</option>
-                    <option value="Contract">Contract / Project-Based</option>
-                    <option value="Full-Time">Full-Time Direct</option>
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Preferred Work Type</label>
+                <select
+                  value={formData.preferredWorkType}
+                  onChange={(e) => setFormData({ ...formData, preferredWorkType: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                >
+                  <option value="Remote">100% Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-Site">On-Site</option>
+                  <option value="Contract">Contract / Project-Based</option>
+                  <option value="Full-Time">Full-Time Direct</option>
+                </select>
+              </div>
 
-              {!isCompanyEmployee && (
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Portfolio / LinkedIn URL</label>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Certifications & Honors</label>
+                <div className="relative">
+                  <Award size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="url"
-                    value={formData.portfolioUrl}
-                    onChange={(e) => setFormData({ ...formData, portfolioUrl: e.target.value })}
-                    placeholder="https://linkedin.com/in/... or https://github.com/..."
-                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                    type="text"
+                    value={formData.certifications}
+                    onChange={(e) => setFormData({ ...formData, certifications: e.target.value })}
+                    placeholder="AWS Certified Solutions Architect, CKA, PMP"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-3 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
                   />
                 </div>
-              )}
+              </div>
 
+              {/* LinkedIn Profile URL - Accessible to both Company Employees and Freelancers */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    LinkedIn Profile URL
+                  </label>
+                  {formData.linkedin && (
+                    <a
+                      href={formData.linkedin.startsWith('http') ? formData.linkedin : `https://${formData.linkedin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Open Link</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+                <div className="relative">
+                  <FaLinkedin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" />
+                  <input
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={(e) => setFormData({ ...formData, linkedin: e.target.value, portfolioUrl: e.target.value })}
+                    placeholder="https://linkedin.com/in/username"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-3 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                  />
+                </div>
+              </div>
+
+              {/* GitHub / Code Portfolio URL */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    GitHub / Code Portfolio URL
+                  </label>
+                  {formData.github && (
+                    <a
+                      href={formData.github.startsWith('http') ? formData.github : `https://${formData.github}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-purple-600 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Open Link</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+                <div className="relative">
+                  <FaGithub size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="url"
+                    value={formData.github}
+                    onChange={(e) => setFormData({ ...formData, github: e.target.value })}
+                    placeholder="https://github.com/username"
+                    className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-3 pl-9 pr-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                  />
+                </div>
+              </div>
+
+              {/* Professional Bio */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Professional Bio</label>
                 <textarea
@@ -559,6 +745,203 @@ export const WorkforceProfile = () => {
                   placeholder="Summarize your key achievements, architecture experience, and technical focus..."
                   className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-600"
                 />
+              </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* CREDENTIALS & DOCUMENT UPLOADS (STAFF BADGE ID & RESUME/CV) */}
+            {/* ========================================================================= */}
+            <div className="pt-4 border-t border-slate-100 dark:border-white/10 space-y-4">
+              <div>
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-purple-600" />
+                  <span>Verified Credentials & Uploaded Documents</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Upload your Staff Badge ID document/card and technical Resume / CV document for client review.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. Staff Badge ID & Document */}
+                <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Building2 size={15} className="text-purple-600" />
+                      <span>Staff Badge Id & Document</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Image / PDF</span>
+                  </div>
+
+                  {/* Staff Badge ID Number */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Staff Badge ID Number</label>
+                    <input
+                      type="text"
+                      value={formData.staffBadgeId}
+                      onChange={(e) => setFormData({ ...formData, staffBadgeId: e.target.value })}
+                      placeholder="e.g. INFY-8841, BADGE-9021"
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#14132b] px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-purple-600"
+                    />
+                  </div>
+
+                  {/* Staff Badge File Dropzone / Upload button */}
+                  <div className="space-y-2">
+                    <input
+                      ref={badgeFileInputRef}
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.pdf,.svg"
+                      className="hidden"
+                      onChange={handleStaffBadgeUpload}
+                    />
+
+                    {formData.badgeDocumentUrl || formData.staffBadgeName ? (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl border border-purple-200 dark:border-purple-800/40 bg-purple-50/50 dark:bg-purple-950/30">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {formData.badgeDocumentUrl && formData.badgeDocumentUrl.startsWith('data:image') ? (
+                            <img
+                              src={formData.badgeDocumentUrl}
+                              alt="Staff Badge"
+                              className="w-10 h-10 rounded-lg object-cover border border-purple-200 dark:border-purple-800/50 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center shrink-0">
+                              <Building2 size={20} />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {formData.staffBadgeName || 'Staff Badge Attached'}
+                            </p>
+                            <span className="text-[10px] text-purple-700 dark:text-purple-400 font-mono">
+                              Verified Badge
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {formData.badgeDocumentUrl && (
+                            <a
+                              href={formData.badgeDocumentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+                              title="View Document"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                badgeDocumentUrl: '',
+                                staffBadgeUrl: '',
+                                staffBadgeName: '',
+                              }))
+                            }
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Remove document"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => badgeFileInputRef.current?.click()}
+                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-purple-600 dark:hover:border-purple-400 bg-white dark:bg-[#14132b] text-slate-600 dark:text-slate-300 text-xs font-bold transition-all"
+                      >
+                        <Upload size={14} className="text-purple-600" />
+                        <span>Upload Staff Badge Document (Image / PDF)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Resume / CV Document */}
+                <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <FileText size={15} className="text-purple-600" />
+                      <span>Resume / CV Document</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">PDF / DOCX</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Upload your latest curriculum vitae for client evaluation and project matching.
+                  </p>
+
+                  <div className="space-y-2">
+                    <input
+                      ref={resumeFileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={handleResumeUpload}
+                    />
+
+                    {formData.resumeName || formData.resumeUrl ? (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/30">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center shrink-0">
+                            <FileText size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {formData.resumeName || 'Resume Document'}
+                            </p>
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+                              {formData.resumeSize ? `${formData.resumeSize} • ` : ''}Ready for Review
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {formData.resumeUrl && (
+                            <a
+                              href={formData.resumeUrl}
+                              download={formData.resumeName || 'Resume.pdf'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                              title="Download / View Resume"
+                            >
+                              <Download size={14} />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                resumeUrl: '',
+                                resumeName: '',
+                                resumeSize: '',
+                              }))
+                            }
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Remove resume"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => resumeFileInputRef.current?.click()}
+                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-purple-600 dark:hover:border-purple-400 bg-white dark:bg-[#14132b] text-slate-600 dark:text-slate-300 text-xs font-bold transition-all"
+                      >
+                        <Upload size={14} className="text-purple-600" />
+                        <span>Upload Resume / CV Document (.pdf, .doc, .docx)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

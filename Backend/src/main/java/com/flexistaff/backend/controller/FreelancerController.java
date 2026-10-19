@@ -63,6 +63,23 @@ public class FreelancerController {
         return ResponseEntity.ok(ApiResponse.success("Freelancer profile updated successfully", updated));
     }
 
+    @PutMapping("/{id}/availability")
+    public ResponseEntity<ApiResponse<FreelancerDto>> updateAvailability(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> payload) {
+        String status = "Available";
+        if (payload != null) {
+            if (payload.containsKey("availabilityStatus") && payload.get("availabilityStatus") != null) {
+                status = payload.get("availabilityStatus");
+            } else if (payload.containsKey("availability") && payload.get("availability") != null) {
+                status = payload.get("availability");
+            }
+        }
+        log.info("Received update availability request for id: {}, status: {}", id, status);
+        FreelancerDto updated = freelancerService.updateAvailability(id, status);
+        return ResponseEntity.ok(ApiResponse.success("Availability status updated successfully", updated));
+    }
+
     @PostMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<FreelancerDto>> approveFreelancer(@PathVariable Long id) {
         log.info("Admin approved freelancer with id: {}", id);

@@ -36,6 +36,8 @@ import {
 } from '../../components/workflow';
 import { toast } from 'react-toastify';
 
+const normProjId = (val) => String(val || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
 export const ManagerMatching = () => {
   const { projectId } = useParams();
   const [searchParams] = useSearchParams();
@@ -219,7 +221,6 @@ export const ManagerMatching = () => {
     const candName = (candidate.name || candidate.pseudonym || '').toLowerCase().trim();
     const candIdStr = candidate.id ? String(candidate.id).trim() : '';
 
-    const normProjId = (val) => String(val || '').toLowerCase().replace(/[\s_]/g, '-').trim();
     const targetProjId = normProjId(currentProject?.id);
     const targetProjName = (currentProject?.name || currentProject?.title || '').toLowerCase().trim();
 
@@ -264,8 +265,32 @@ export const ManagerMatching = () => {
       return;
     }
 
-    if (selectedSquad.length >= 5) {
-      toast.error('Maximum 5 workforce members can be assigned to a project.');
+    const requiredHeadcount = Number(currentProject.workforceRequired) || (Array.isArray(currentProject.requirements) && currentProject.requirements.length > 0 ? currentProject.requirements.reduce((acc, r) => acc + (Number(r.required) || 0), 0) : 1);
+
+    const curNormId = normProjId(currentProject.id);
+    const curProjTitle = (currentProject.name || currentProject.title || '').toLowerCase().trim();
+
+    const activeAssignedResources = (currentProject.assignedResources || []).filter((r) => {
+      const st = String(r?.status || '').toLowerCase();
+      return !st.includes('declined') && !st.includes('reject') && !st.includes('cancel');
+    });
+
+    const activeManagerAssignments = (managerAssignments || []).filter((a) => {
+      if (!a) return false;
+      const aProj = normProjId(a.projectId);
+      const isSameProj = (curNormId && aProj === curNormId) || (curProjTitle && a.projectName && a.projectName.toLowerCase().trim() === curProjTitle);
+      return isSameProj && a.status !== 'Rejected' && a.status !== 'Declined';
+    });
+
+    const alreadyAssignedCount = Math.max(activeAssignedResources.length, activeManagerAssignments.length, Number(currentProject.workforceAssigned) || 0);
+    const remainingSlots = Math.max(0, requiredHeadcount - alreadyAssignedCount);
+
+    if (selectedSquad.length >= remainingSlots) {
+      if (remainingSlots === 0) {
+        toast.error(`Project "${currentProject.name || currentProject.title}" is already fully staffed (${alreadyAssignedCount}/${requiredHeadcount} members assigned).`);
+      } else {
+        toast.error(`Cannot select more: Project requires ${requiredHeadcount} workforce members (${alreadyAssignedCount} already assigned, ${remainingSlots} slot${remainingSlots > 1 ? 's' : ''} remaining).`);
+      }
       return;
     }
 
@@ -279,13 +304,34 @@ export const ManagerMatching = () => {
       toast.error('Please select at least 1 candidate.');
       return;
     }
-    if (selectedSquad.length > 5) {
-      toast.error('Maximum 5 workforce members can be assigned to a project.');
+
+    const requiredHeadcount = Number(currentProject.workforceRequired) || (Array.isArray(currentProject.requirements) && currentProject.requirements.length > 0 ? currentProject.requirements.reduce((acc, r) => acc + (Number(r.required) || 0), 0) : 1);
+    const curNormId = normProjId(currentProject.id);
+    const curProjTitle = (currentProject.name || currentProject.title || '').toLowerCase().trim();
+
+    const activeAssignedResources = (currentProject.assignedResources || []).filter((r) => {
+      const st = String(r?.status || '').toLowerCase();
+      return !st.includes('declined') && !st.includes('reject') && !st.includes('cancel');
+    });
+
+    const activeManagerAssignments = (managerAssignments || []).filter((a) => {
+      if (!a) return false;
+      const aProj = normProjId(a.projectId);
+      const isSameProj = (curNormId && aProj === curNormId) || (curProjTitle && a.projectName && a.projectName.toLowerCase().trim() === curProjTitle);
+      return isSameProj && a.status !== 'Rejected' && a.status !== 'Declined';
+    });
+
+    const alreadyAssignedCount = Math.max(activeAssignedResources.length, activeManagerAssignments.length, Number(currentProject.workforceAssigned) || 0);
+    const remainingSlots = Math.max(0, requiredHeadcount - alreadyAssignedCount);
+
+    if (selectedSquad.length > remainingSlots) {
+      toast.error(`Cannot submit: Only ${remainingSlots} workforce slot${remainingSlots > 1 ? 's' : ''} remaining for this project (${alreadyAssignedCount}/${requiredHeadcount} assigned).`);
       return;
     }
 
     if (submitAssignmentRequest) {
-      submitAssignmentRequest(currentProject.id, selectedSquad, notes);
+      const res = submitAssignmentRequest(currentProject.id, selectedSquad, notes);
+      if (res === false) return;
     }
 
     toast.success(

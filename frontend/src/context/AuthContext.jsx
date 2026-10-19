@@ -10,7 +10,32 @@ export const AuthProvider = ({ children }) => {
       const savedUser = localStorage.getItem('flexistaff_user');
       if (savedUser && savedUser !== 'undefined' && savedUser !== 'null') {
         const parsed = JSON.parse(savedUser);
-        if (parsed && typeof parsed === 'object') return parsed;
+        if (parsed && typeof parsed === 'object') {
+          const rLower = String(parsed.role || '').toLowerCase().trim();
+          const validAuthRoles = [
+            'admin', 'partner company', 'partner', 'client', 'manager',
+            'workforce', 'freelancer', 'professional', 'partner employee',
+            'role_admin', 'role_client', 'role_manager', 'role_partner',
+            'role_workforce', 'role_professional', 'role_freelancer'
+          ];
+          // SANITIZE ADMIN: Ensure admin@flexistaff.com is always System Administrator
+          if (parsed.email === 'admin@flexistaff.com' || rLower === 'admin' || rLower === 'role_admin') {
+            parsed.name = 'System Administrator';
+            parsed.fullName = 'System Administrator';
+            parsed.role = 'Admin';
+            localStorage.setItem('flexistaff_user', JSON.stringify(parsed));
+          } else if (!validAuthRoles.includes(rLower)) {
+            // It's a job title! Recover the valid authorization portal role
+            const isEmployee = Boolean(parsed.partnerCompany || parsed.partnerCompanyId || parsed.roleType === 'Professional');
+            const recoveredRole = isEmployee ? 'Workforce' : 'Freelancer';
+            parsed.title = parsed.title || parsed.role;
+            parsed.jobTitle = parsed.jobTitle || parsed.role;
+            parsed.role = recoveredRole;
+            localStorage.setItem('flexistaff_user', JSON.stringify(parsed));
+            localStorage.setItem('flexistaff_role', recoveredRole);
+          }
+          return parsed;
+        }
       }
     } catch {}
     return null;
@@ -19,9 +44,18 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(() => {
     try {
       const r = localStorage.getItem('flexistaff_role');
-      if (r && r !== 'undefined' && r !== 'null') return r;
+      if (r && r !== 'undefined' && r !== 'null') {
+        const rLower = String(r).toLowerCase().trim();
+        const validAuthRoles = [
+          'admin', 'partner company', 'partner', 'client', 'manager',
+          'workforce', 'freelancer', 'professional', 'partner employee',
+          'role_admin', 'role_client', 'role_manager', 'role_partner',
+          'role_workforce', 'role_professional', 'role_freelancer'
+        ];
+        if (validAuthRoles.includes(rLower)) return r;
+      }
     } catch {}
-    return user?.role || '';
+    return user?.role || 'Workforce';
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -35,14 +69,35 @@ export const AuthProvider = ({ children }) => {
   // Sync to localStorage
   useEffect(() => {
     if (user && isAuthenticated) {
-      localStorage.setItem('flexistaff_user', JSON.stringify(user));
-      localStorage.setItem('flexistaff_role', user.role || role);
+      // Guarantee valid role is stored
+      const validAuthRoles = [
+        'admin', 'partner company', 'partner', 'client', 'manager',
+        'workforce', 'freelancer', 'professional', 'partner employee',
+        'role_admin', 'role_client', 'role_manager', 'role_partner',
+        'role_workforce', 'role_professional', 'role_freelancer'
+      ];
+      const effectiveRoleLower = String(user.role || role || '').toLowerCase().trim();
+      const safeRole = validAuthRoles.includes(effectiveRoleLower)
+        ? (user.role || role)
+        : (user.roleType === 'Professional' || user.partnerCompany ? 'Workforce' : 'Freelancer');
+
+      const safeUser = { ...user, role: safeRole };
+      localStorage.setItem('flexistaff_user', JSON.stringify(safeUser));
+      localStorage.setItem('flexistaff_role', safeRole);
       localStorage.setItem('flexistaff_auth', 'true');
+      try {
+        window.dispatchEvent(new CustomEvent('auth_change', { detail: safeUser }));
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
     } else {
       localStorage.removeItem('flexistaff_user');
       localStorage.removeItem('flexistaff_role');
       localStorage.removeItem('flexistaff_token');
       localStorage.setItem('flexistaff_auth', 'false');
+      try {
+        window.dispatchEvent(new CustomEvent('auth_change', { detail: null }));
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
     }
   }, [user, role, isAuthenticated]);
 
@@ -158,8 +213,8 @@ export const AuthProvider = ({ children }) => {
           id: authData.userId,
           numericId: authData.userId,
           partnerCompanyId: partnerCoId || (userRole === 'Partner Company' ? authData.userId : undefined),
-          name: authData.fullName,
-          fullName: authData.fullName,
+          name: (authData.email === 'admin@flexistaff.com' || userRole === 'Admin') ? 'System Administrator' : authData.fullName,
+          fullName: (authData.email === 'admin@flexistaff.com' || userRole === 'Admin') ? 'System Administrator' : authData.fullName,
           email: authData.email,
           phone: authData.phone || '',
           companyName: partnerCoName,
@@ -179,6 +234,13 @@ export const AuthProvider = ({ children }) => {
         setRole(userRole);
         setIsAuthenticated(true);
         localStorage.setItem('flexistaff_user', JSON.stringify(backendUser));
+        localStorage.setItem('flexistaff_role', userRole);
+        localStorage.setItem('flexistaff_auth', 'true');
+
+        try {
+          window.dispatchEvent(new CustomEvent('auth_change', { detail: backendUser }));
+          window.dispatchEvent(new Event('storage'));
+        } catch {}
 
         return {
           success: true,
@@ -449,6 +511,7 @@ export const AuthProvider = ({ children }) => {
         : '/admin/dashboard';
 
     const displayName =
+      (userRole === 'Admin' || trimmedEmail === 'admin@flexistaff.com' || trimmedEmail === 'admin' ? 'System Administrator' : null) ||
       (userRole === 'Manager' ? matchedManagerOrg?.name : null) ||
       (userRole === 'Partner Company' ? (matchedPartnerOrg?.contactPerson || matchedPartnerOrg?.name) : null) ||
       (userRole === 'Client' ? (matchedClientOrg?.contactPerson || matchedClientOrg?.name) : null) ||

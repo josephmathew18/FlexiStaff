@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Pencil,
@@ -31,7 +31,14 @@ import {
   ArrowRight,
   TrendingUp,
   Trash2,
+  FileText,
+  Download,
+  Building2,
+  DollarSign,
+  Award,
+  Upload,
 } from 'lucide-react';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -209,10 +216,6 @@ export const PartnerWorkforce = () => {
       projectSkillList = rawProjectSkills.split(',').map((s) => s.trim()).filter(Boolean);
     }
 
-    if (projectSkillList.length === 0) {
-      projectSkillList = ['React.js', 'PostgreSQL', 'Tailwind CSS', 'Java/Spring Boot'];
-    }
-
     const empSkills = (Array.isArray(selectedEmployee.skills) ? selectedEmployee.skills : (selectedEmployee.skills || '').split(','))
       .map((s) => String(s).toLowerCase().trim());
 
@@ -229,8 +232,8 @@ export const PartnerWorkforce = () => {
     const completedTasks = matchedProject?.completedTasksCount ?? Math.round((progressPercentage / 100) * 12);
     const pendingTasks = matchedProject?.pendingTasksCount ?? Math.max(0, 12 - completedTasks);
 
-    const currentMilestone = selectedEmployee.currentMilestone || matchedProject?.currentMilestone || 'Sprint Phase 2: API & Core Module Integration';
-    const latestProgressUpdate = selectedEmployee.latestCommit?.message || selectedEmployee.currentTask || matchedProject?.recentUpdate || matchedProject?.latestActivity || 'Merged feature updates to main sprint repository and completed module integration.';
+    const currentMilestone = selectedEmployee.currentMilestone || matchedProject?.currentMilestone || 'Active Sprint';
+    const latestProgressUpdate = selectedEmployee.latestCommit?.message || selectedEmployee.currentTask || matchedProject?.recentUpdate || matchedProject?.latestActivity || 'Project assignment active.';
 
     return {
       projectName,
@@ -249,8 +252,79 @@ export const PartnerWorkforce = () => {
     };
   }, [selectedEmployee, projects, partnerProjects, managerAssignments]);
 
+  // Compute enriched full employee dossier
+  const displayEmployee = useMemo(() => {
+    if (!selectedEmployee) return null;
+
+    const sId = String(selectedEmployee.id || '').toLowerCase().trim();
+    const sEmail = String(selectedEmployee.email || '').toLowerCase().trim();
+    const sName = String(selectedEmployee.name || selectedEmployee.pseudonym || '').toLowerCase().trim();
+
+    const matchedWf = (workforce || []).find((w) => {
+      if (!w) return false;
+      const wId = String(w.id || '').toLowerCase().trim();
+      const wEmail = String(w.email || '').toLowerCase().trim();
+      const wName = String(w.name || w.pseudonym || '').toLowerCase().trim();
+      return (sId && wId === sId) || (sEmail && wEmail === sEmail) || (sName && wName === sName);
+    });
+
+    const matchedPartnerWf = (partnerWorkforce || []).find((w) => {
+      if (!w) return false;
+      const wId = String(w.id || '').toLowerCase().trim();
+      const wEmail = String(w.email || '').toLowerCase().trim();
+      const wName = String(w.name || w.pseudonym || '').toLowerCase().trim();
+      return (sId && wId === sId) || (sEmail && wEmail === sEmail) || (sName && wName === sName);
+    });
+
+    let localProfile = null;
+    try {
+      const pStr = localStorage.getItem('flexistaff_workforce_profile');
+      if (pStr) {
+        const p = JSON.parse(pStr);
+        const pEmail = String(p.email || '').toLowerCase().trim();
+        const pName = String(p.name || '').toLowerCase().trim();
+        if ((sEmail && pEmail === sEmail) || (sName && pName === sName)) {
+          localProfile = p;
+        }
+      }
+    } catch {}
+
+    const resolvedSkills = selectedEmployee.skills || matchedPartnerWf?.skills || matchedWf?.skills || localProfile?.skills || [];
+    const skillsArray = Array.isArray(resolvedSkills) ? resolvedSkills : String(resolvedSkills).split(',').map((s) => s.trim()).filter(Boolean);
+
+    return {
+      ...matchedWf,
+      ...matchedPartnerWf,
+      ...localProfile,
+      ...selectedEmployee,
+      name: selectedEmployee.name || selectedEmployee.pseudonym || matchedPartnerWf?.name || matchedWf?.name || 'Professional',
+      email: selectedEmployee.email || matchedPartnerWf?.email || matchedWf?.email || localProfile?.email || '',
+      phone: selectedEmployee.phone || matchedPartnerWf?.phone || matchedWf?.phone || localProfile?.phone || '+91 98765 00000',
+      location: selectedEmployee.location || matchedPartnerWf?.location || matchedWf?.location || localProfile?.location || 'Bengaluru, India',
+      hourlyRate: selectedEmployee.hourlyRate || matchedPartnerWf?.hourlyRate || matchedWf?.hourlyRate || localProfile?.hourlyRate || '$85/hr',
+      experience: selectedEmployee.experience || matchedPartnerWf?.experience || matchedWf?.experience || localProfile?.experience || '3+ Years',
+      bio: selectedEmployee.bio || matchedPartnerWf?.bio || matchedWf?.bio || localProfile?.bio || 'Professional engineering specialist assigned to company bench and project deliveries.',
+      skills: skillsArray,
+      role: selectedEmployee.role || selectedEmployee.title || matchedPartnerWf?.role || matchedWf?.role || 'Software Specialist',
+      title: selectedEmployee.title || selectedEmployee.role || matchedPartnerWf?.title || matchedWf?.title || 'Software Specialist',
+      linkedin: selectedEmployee.linkedin || matchedPartnerWf?.linkedin || matchedWf?.linkedin || localProfile?.linkedin || selectedEmployee.portfolioUrl || localProfile?.portfolioUrl || '',
+      github: selectedEmployee.github || matchedPartnerWf?.github || matchedWf?.github || localProfile?.github || '',
+      staffBadgeId: selectedEmployee.staffBadgeId || selectedEmployee.companyId || selectedEmployee.employeeId || matchedPartnerWf?.staffBadgeId || matchedPartnerWf?.companyId || matchedWf?.staffBadgeId || matchedWf?.companyId || localProfile?.staffBadgeId || '',
+      staffBadgeName: selectedEmployee.staffBadgeName || matchedPartnerWf?.staffBadgeName || matchedWf?.staffBadgeName || localProfile?.staffBadgeName || '',
+      badgeDocumentUrl: selectedEmployee.badgeDocumentUrl || selectedEmployee.staffBadgeUrl || matchedPartnerWf?.staffBadgeUrl || matchedWf?.staffBadgeUrl || localProfile?.badgeDocumentUrl || '',
+      resumeName: selectedEmployee.resumeName || selectedEmployee.resumeFileName || matchedPartnerWf?.resumeName || matchedWf?.resumeName || localProfile?.resumeName || '',
+      resumeUrl: selectedEmployee.resumeUrl || selectedEmployee.resume || matchedPartnerWf?.resumeUrl || matchedWf?.resumeUrl || localProfile?.resumeUrl || '',
+      resumeSize: selectedEmployee.resumeSize || localProfile?.resumeSize || '',
+      partnerCompany: selectedEmployee.partnerCompany || selectedEmployee.partnerName || matchedPartnerWf?.partnerCompany || partnerProfile?.name || 'Partner Organization',
+      certifications: selectedEmployee.certifications || matchedPartnerWf?.certifications || matchedWf?.certifications || localProfile?.certifications || [],
+    };
+  }, [selectedEmployee, workforce, partnerWorkforce, partnerProfile]);
+
   // Edit Professional Modal State
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const editBadgeFileInputRef = useRef(null);
+  const editResumeFileInputRef = useRef(null);
+
   const [editForm, setEditForm] = useState({
     name: '',
     title: '',
@@ -259,9 +333,17 @@ export const PartnerWorkforce = () => {
     phone: '',
     hourlyRate: '',
     location: '',
+    experience: '3+ Years',
     availability: 'Available',
     skills: '',
     bio: '',
+    linkedin: '',
+    github: '',
+    staffBadgeId: '',
+    staffBadgeName: '',
+    badgeDocumentUrl: '',
+    resumeName: '',
+    resumeUrl: '',
   });
 
   const handleStartEdit = (emp) => {
@@ -274,10 +356,49 @@ export const PartnerWorkforce = () => {
       phone: emp.phone || '',
       hourlyRate: emp.hourlyRate || '$85/hr',
       location: emp.location || 'Remote',
+      experience: emp.experience || '3+ Years',
       availability: emp.availability || 'Available',
       skills: Array.isArray(emp.skills) ? emp.skills.join(', ') : String(emp.skills || ''),
       bio: emp.bio || '',
+      linkedin: emp.linkedin || emp.portfolioUrl || '',
+      github: emp.github || '',
+      staffBadgeId: emp.staffBadgeId || emp.companyId || emp.employeeId || '',
+      staffBadgeName: emp.staffBadgeName || '',
+      badgeDocumentUrl: emp.badgeDocumentUrl || emp.staffBadgeUrl || '',
+      resumeName: emp.resumeName || emp.resumeFileName || '',
+      resumeUrl: emp.resumeUrl || emp.resume || '',
     });
+  };
+
+  const handleEditBadgeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      setEditForm((prev) => ({
+        ...prev,
+        badgeDocumentUrl: loadEvt.target?.result,
+        staffBadgeName: file.name,
+        staffBadgeId: prev.staffBadgeId || file.name.replace(/\.[^/.]+$/, '').toUpperCase(),
+      }));
+      toast.success(`Attached Badge: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditResumeUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      setEditForm((prev) => ({
+        ...prev,
+        resumeUrl: loadEvt.target?.result,
+        resumeName: file.name,
+      }));
+      toast.success(`Attached Resume: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveEdit = (e) => {
@@ -286,6 +407,16 @@ export const PartnerWorkforce = () => {
 
     if (!editForm.name.trim()) {
       toast.error('Please enter the employee name.');
+      return;
+    }
+
+    if (!editForm.staffBadgeId?.trim()) {
+      toast.error('Staff Badge ID number is mandatory.');
+      return;
+    }
+
+    if (!editForm.badgeDocumentUrl && !editForm.staffBadgeName) {
+      toast.error('Staff Badge document (Image or PDF) is mandatory.');
       return;
     }
 
@@ -300,18 +431,33 @@ export const PartnerWorkforce = () => {
       title: editForm.title.trim() || 'Software Specialist',
       role: editForm.title.trim() || 'Software Specialist',
       email: editForm.email.trim(),
-      password: editForm.password.trim() || 'Workforce@123',
-      tempPassword: editForm.password.trim() || 'Workforce@123',
+      password: editingEmployee.password || editingEmployee.tempPassword || 'Workforce@123',
+      tempPassword: editingEmployee.tempPassword || editingEmployee.password || 'Workforce@123',
       phone: editForm.phone.trim(),
       hourlyRate: editForm.hourlyRate.trim().startsWith('$') ? editForm.hourlyRate.trim() : `$${editForm.hourlyRate.trim()}`,
       location: editForm.location.trim() || 'Remote',
+      experience: editForm.experience || '3+ Years',
       availability: editForm.availability,
-      skills: skillsArray.length > 0 ? skillsArray : ['React.js', 'Node.js'],
+      skills: skillsArray.length > 0 ? skillsArray : [],
       bio: editForm.bio.trim(),
+      linkedin: editForm.linkedin.trim(),
+      portfolioUrl: editForm.linkedin.trim(),
+      github: editForm.github.trim(),
+      staffBadgeId: editForm.staffBadgeId.trim(),
+      companyId: editForm.staffBadgeId.trim(),
+      employeeId: editForm.staffBadgeId.trim(),
+      staffBadgeName: editForm.staffBadgeName,
+      badgeDocumentUrl: editForm.badgeDocumentUrl,
+      staffBadgeUrl: editForm.badgeDocumentUrl,
+      resumeName: editForm.resumeName,
+      resumeUrl: editForm.resumeUrl,
     };
 
     if (typeof updateWorkforceMember === 'function') {
       updateWorkforceMember(editingEmployee.id, updatedData);
+    }
+    if (selectedEmployee && selectedEmployee.id === editingEmployee.id) {
+      setSelectedEmployee((prev) => ({ ...prev, ...updatedData }));
     }
     toast.success(`Professional "${editForm.name}" updated successfully!`);
     setEditingEmployee(null);
@@ -849,7 +995,7 @@ export const PartnerWorkforce = () => {
       {/* PROFESSIONAL PROFILE DETAILS MODAL */}
       {/* ========================================================================= */}
       <AnimatePresence>
-        {selectedEmployee && (
+        {selectedEmployee && displayEmployee && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0 }}
@@ -862,27 +1008,43 @@ export const PartnerWorkforce = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative z-10 w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8"
+              className="relative z-10 w-full max-w-2xl sm:max-w-3xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8"
             >
               {/* Modal Header */}
               <div className="flex items-start justify-between border-b border-slate-100 p-6 bg-slate-50/70">
                 <div className="flex items-center gap-3.5">
                   <img
-                    src={selectedEmployee.avatar}
-                    alt={selectedEmployee.name || selectedEmployee.pseudonym}
-                    className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white shadow-sm"
+                    src={displayEmployee.avatar || selectedEmployee.avatar}
+                    alt={displayEmployee.name}
+                    className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white shadow-sm"
                   />
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">{selectedEmployee.name || selectedEmployee.pseudonym}</h3>
-                    <p className="text-xs font-semibold text-blue-600">{selectedEmployee.role}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <AvailabilityBadge availability={selectedEmployee.availability} />
-                      <WorkingStatusBadge status={selectedEmployee.workingStatus} />
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-black text-slate-900">{displayEmployee.name}</h3>
+                      {displayEmployee.staffBadgeId && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono font-bold">
+                          Badge: {displayEmployee.staffBadgeId}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-blue-600">{displayEmployee.role} • {displayEmployee.partnerCompany}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <AvailabilityBadge availability={selectedEmployee.availability || displayEmployee.availability} />
+                      <WorkingStatusBadge status={selectedEmployee.workingStatus || displayEmployee.workingStatus} />
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(displayEmployee)}
+                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+                    title="Edit employee details"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteEmployee(selectedEmployee)}
@@ -901,32 +1063,192 @@ export const PartnerWorkforce = () => {
                 </div>
               </div>
 
-              <div className="p-6 max-h-[72vh] overflow-y-auto space-y-5 text-xs">
-                {/* Employee Profile Quick Summary */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <Users size={14} className="text-[#004ac6]" />
-                    <span>Employee Profile</span>
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 pt-1 text-slate-700">
+              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 text-xs">
+                {/* 1. Full Employee Dossier & Information */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2.5">
+                    <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <Users size={14} className="text-[#004ac6]" />
+                      <span>Full Employee Dossier</span>
+                    </h4>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      {displayEmployee.partnerCompany}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-slate-700">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase block">Employee Name</span>
-                      <span className="font-extrabold text-slate-900 text-sm">{selectedEmployee.name || selectedEmployee.pseudonym}</span>
+                      <span className="font-extrabold text-slate-900 text-xs truncate block">{displayEmployee.name}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Role</span>
-                      <span className="font-bold text-blue-700">{selectedEmployee.role || selectedEmployee.title || 'Software Specialist'}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Designation / Role</span>
+                      <span className="font-bold text-blue-700 text-xs truncate block">{displayEmployee.role}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Work Email</span>
+                      {displayEmployee.email ? (
+                        <a href={`mailto:${displayEmployee.email}`} className="font-bold text-slate-900 hover:text-[#004ac6] text-xs truncate block">
+                          {displayEmployee.email}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 italic">Not provided</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Direct Phone</span>
+                      {displayEmployee.phone ? (
+                        <a href={`tel:${displayEmployee.phone}`} className="font-bold text-slate-900 hover:text-[#004ac6] text-xs truncate block">
+                          {displayEmployee.phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 italic">Not provided</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Base Location</span>
+                      <span className="font-bold text-slate-900 text-xs truncate block">{displayEmployee.location}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Hourly Billing</span>
+                      <span className="font-extrabold text-emerald-700 text-xs truncate block">{displayEmployee.hourlyRate}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Experience Level</span>
+                      <span className="font-bold text-slate-900 text-xs truncate block">{displayEmployee.experience}</span>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase block">Current Project</span>
-                      <span className="font-bold text-slate-900">{selectedEmployee.assignedProject || 'Unassigned'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Client Company</span>
-                      <span className="font-bold text-blue-700">{activeEmployeeAssignment?.clientName || selectedEmployee.clientName || 'N/A'}</span>
+                      <span className="font-bold text-blue-700 text-xs truncate block">{displayEmployee.assignedProject || 'Unassigned'}</span>
                     </div>
                   </div>
                 </div>
+
+                {/* 2. Credentials, Badges & Uploaded Documents */}
+                <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-1.5 border-b border-slate-100 pb-2.5">
+                    <ShieldCheck size={14} className="text-[#004ac6]" />
+                    <span>Credentials, Identification & Professional Documents</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    {/* Staff Badge ID Card */}
+                    <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Staff Badge Id</span>
+                          <Building2 size={13} className="text-purple-600" />
+                        </div>
+                        <p className="font-mono font-bold text-slate-900 text-xs mt-1">
+                          {displayEmployee.staffBadgeId || 'ID Pending'}
+                        </p>
+                      </div>
+
+                      {displayEmployee.badgeDocumentUrl ? (
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500 font-semibold truncate max-w-[120px]">
+                            {displayEmployee.staffBadgeName || 'Badge Document'}
+                          </span>
+                          <a
+                            href={displayEmployee.badgeDocumentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#004ac6] hover:underline"
+                          >
+                            <span>View</span>
+                            <ExternalLink size={11} />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">No document uploaded</span>
+                      )}
+                    </div>
+
+                    {/* Resume / CV Document */}
+                    <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Resume / CV Document</span>
+                          <FileText size={13} className="text-emerald-600" />
+                        </div>
+                        <p className="font-bold text-slate-900 text-xs mt-1 truncate">
+                          {displayEmployee.resumeName || (displayEmployee.resumeUrl ? 'Resume_Doc.pdf' : 'Not Attached')}
+                        </p>
+                      </div>
+
+                      {displayEmployee.resumeUrl ? (
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                          <span className="text-[10px] text-emerald-700 font-bold">
+                            {displayEmployee.resumeSize || 'Verified CV'}
+                          </span>
+                          <a
+                            href={displayEmployee.resumeUrl}
+                            download={displayEmployee.resumeName || `${displayEmployee.name}_Resume.pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                          >
+                            <Download size={11} />
+                            <span>Download</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">No CV document uploaded</span>
+                      )}
+                    </div>
+
+                    {/* LinkedIn & Portfolio */}
+                    <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Professional Links</span>
+                          <FaLinkedin size={13} className="text-[#0077b5]" />
+                        </div>
+                        <p className="font-bold text-slate-900 text-xs mt-1">LinkedIn Profile</p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200/60 flex flex-wrap gap-1.5">
+                        {displayEmployee.linkedin ? (
+                          <a
+                            href={displayEmployee.linkedin.startsWith('http') ? displayEmployee.linkedin : `https://${displayEmployee.linkedin}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-100 text-[#0077b5] text-[10px] font-bold hover:bg-blue-200 transition-colors"
+                          >
+                            <FaLinkedin size={11} />
+                            <span>View LinkedIn</span>
+                            <ExternalLink size={9} />
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">No LinkedIn profile</span>
+                        )}
+
+                        {displayEmployee.github && (
+                          <a
+                            href={displayEmployee.github.startsWith('http') ? displayEmployee.github : `https://${displayEmployee.github}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200 text-slate-800 text-[10px] font-bold hover:bg-slate-300 transition-colors"
+                          >
+                            <FaGithub size={11} />
+                            <span>GitHub</span>
+                            <ExternalLink size={9} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Professional Bio */}
+                {displayEmployee.bio && (
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Professional Bio & Experience Summary</span>
+                    <p className="text-slate-700 leading-relaxed font-medium text-xs">
+                      {displayEmployee.bio}
+                    </p>
+                  </div>
+                )}
 
                 {/* Project Details & Progress & Skills Sections */}
                 {activeEmployeeAssignment ? (
@@ -1025,8 +1347,8 @@ export const PartnerWorkforce = () => {
                               key={idx}
                               className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 border ${
                                 sk.status === 'Completed'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
                               }`}
                             >
                               <span>{sk.name}</span>
@@ -1066,7 +1388,7 @@ export const PartnerWorkforce = () => {
                 <div>
                   <h4 className="font-bold text-slate-900 text-xs mb-2">Technical Skills & Competencies</h4>
                   <div className="flex flex-wrap gap-1.5">
-                    {(Array.isArray(selectedEmployee.skills) ? selectedEmployee.skills : (selectedEmployee.skills || '').split(',')).map((skill, idx) => (
+                    {displayEmployee.skills.map((skill, idx) => (
                       <span key={idx} className="px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-semibold text-[11px]">
                         {String(skill).trim()}
                       </span>
@@ -1093,7 +1415,7 @@ export const PartnerWorkforce = () => {
                           toast.success(`Updated availability to ${st}`);
                         }}
                         className={`py-1.5 px-2 rounded-xl text-[10px] font-bold border transition-all ${
-                          selectedEmployee.availability === st
+                          (selectedEmployee.availability || displayEmployee.availability) === st
                             ? 'bg-[#004ac6] text-white border-[#004ac6] shadow-2xs'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                         }`}
@@ -1316,7 +1638,7 @@ export const PartnerWorkforce = () => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Professional Details</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Update employee profile, contact info, and login credentials</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Update employee profile, contact info, and professional credentials</p>
                   </div>
                 </div>
                 <button
@@ -1362,18 +1684,6 @@ export const PartnerWorkforce = () => {
                       required
                       value={editForm.email}
                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
-                    />
-                  </div>
-
-                  {/* Login Password */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Login Password</label>
-                    <input
-                      type="text"
-                      value={editForm.password}
-                      onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                      placeholder="Workforce@123"
                       className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
                     />
                   </div>
@@ -1428,7 +1738,142 @@ export const PartnerWorkforce = () => {
                     </select>
                   </div>
 
-                  {/* Skills */}
+                  {/* Experience */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Years of Experience</label>
+                    <select
+                      value={editForm.experience}
+                      onChange={(e) => setEditForm({ ...editForm, experience: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                    >
+                      <option value="1-2 Years">1-2 Years (Junior Specialist)</option>
+                      <option value="3+ Years">3-5 Years (Mid-Senior Engineer)</option>
+                      <option value="5+ Years">5-8 Years (Senior Specialist)</option>
+                      <option value="8+ Years">8+ Years (Principal / Lead)</option>
+                    </select>
+                  </div>
+
+                  {/* LinkedIn Profile - Optional */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      LinkedIn Profile URL <span className="text-slate-400 font-normal">(Optional - can be added by workforce)</span>
+                    </label>
+                    <div className="relative">
+                      <FaLinkedin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" />
+                      <input
+                        type="url"
+                        value={editForm.linkedin}
+                        onChange={(e) => setEditForm({ ...editForm, linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/in/username"
+                        className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* GitHub / Portfolio - Optional */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      GitHub / Code Portfolio URL <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <div className="relative">
+                      <FaGithub size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="url"
+                        value={editForm.github}
+                        onChange={(e) => setEditForm({ ...editForm, github: e.target.value })}
+                        placeholder="https://github.com/username"
+                        className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Staff Badge ID - Mandatory */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Staff Badge Id Number <span className="text-rose-500">* (Mandatory)</span>
+                    </label>
+                    <div className="relative">
+                      <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-600" />
+                      <input
+                        type="text"
+                        required
+                        value={editForm.staffBadgeId}
+                        onChange={(e) => setEditForm({ ...editForm, staffBadgeId: e.target.value })}
+                        placeholder="e.g. INFY-8841"
+                        className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] py-2 pl-9 pr-3 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-[#004ac6]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Upload Staff Badge Document - Mandatory */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Staff Badge Document (Image/PDF) <span className="text-rose-500">* (Mandatory)</span>
+                    </label>
+                    <input
+                      ref={editBadgeFileInputRef}
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.pdf,.svg"
+                      className="hidden"
+                      onChange={handleEditBadgeUpload}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editBadgeFileInputRef.current?.click()}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/15 hover:border-[#004ac6] bg-slate-50 dark:bg-[#1c1a36] text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        <Upload size={13} className="text-purple-600" />
+                        <span className="truncate">{editForm.staffBadgeName || 'Upload Badge File *'}</span>
+                      </button>
+                      {editForm.badgeDocumentUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, badgeDocumentUrl: '', staffBadgeName: '' })}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Remove badge file"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Upload Resume / CV Document - Optional */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Resume / CV Document (PDF / DOCX) <span className="text-slate-400 font-normal">(Optional - can be added by workforce)</span>
+                    </label>
+                    <input
+                      ref={editResumeFileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={handleEditResumeUpload}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editResumeFileInputRef.current?.click()}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/15 hover:border-[#004ac6] bg-slate-50 dark:bg-[#1c1a36] text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        <FileText size={13} className="text-emerald-600" />
+                        <span className="truncate">{editForm.resumeName || 'Upload Resume / CV File (Optional)'}</span>
+                      </button>
+                      {editForm.resumeUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, resumeUrl: '', resumeName: '' })}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Remove resume file"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Technical Skills */}
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Technical Skills (Comma separated)</label>
                     <input
