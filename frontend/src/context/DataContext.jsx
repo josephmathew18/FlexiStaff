@@ -473,7 +473,7 @@ export const DataProvider = ({ children }) => {
     return list.map((w) => {
       if (!w) return w;
       const wName = (w.name || w.pseudonym || '').toLowerCase();
-      const isPrince = wName.includes('prince') || wName.includes('abraham') || (w.freelancerId && w.freelancerId.includes('00003'));
+      const isPrince = wName.includes('prince') || wName.includes('abraham') || String(w.freelancerId || '').includes('00003');
       if (isPrince || (w.resumeUrl && (!w.experiences || w.experiences.length === 0))) {
         const enrichedExp = (Array.isArray(w.experiences) && w.experiences.length > 0) ? w.experiences : (
           isPrince ? [

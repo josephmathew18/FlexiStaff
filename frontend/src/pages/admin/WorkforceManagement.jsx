@@ -41,6 +41,7 @@ import {
   FileText,
   Trash2,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { FaLinkedin } from 'react-icons/fa';

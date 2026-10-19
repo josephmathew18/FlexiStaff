@@ -202,15 +202,23 @@ export const AdminAssignmentApprovals = () => {
       '';
 
     // Candidate Identity Identification
-    const candidateSearchName = candName.toLowerCase();
+    const candidateCleanName = String(candName || candNameLower || '').toLowerCase().trim();
+    const asgFreelancerId = String(asg.freelancerId || '');
+    const masterFreelancerId = String(masterCandidate?.freelancerId || '');
+    const rawResumeName =
+      masterCandidate?.resumeFileName ||
+      masterCandidate?.resumeName ||
+      asg.resumeName ||
+      '';
+
     const isPrinceCandidate =
-      candidateSearchName.includes('prince') ||
-      candidateSearchName.includes('abraham') ||
+      candidateCleanName.includes('prince') ||
+      candidateCleanName.includes('abraham') ||
       candNameLower.includes('prince') ||
       candNameLower.includes('abraham') ||
-      (asg.freelancerId && asg.freelancerId.includes('00003')) ||
-      (masterCandidate?.freelancerId && masterCandidate.freelancerId.includes('00003')) ||
-      String(resumeName || '').toLowerCase().includes('prince');
+      asgFreelancerId.includes('00003') ||
+      masterFreelancerId.includes('00003') ||
+      rawResumeName.toLowerCase().includes('prince');
 
     // Freelancer Talent ID
     const freelancerId =
@@ -241,9 +249,7 @@ export const AdminAssignmentApprovals = () => {
 
     // Resume / CV Details
     const resumeName =
-      masterCandidate?.resumeFileName ||
-      masterCandidate?.resumeName ||
-      asg.resumeName ||
+      rawResumeName ||
       (isPrinceCandidate ? 'Prince_Abraham_Resume.pdf' : '');
 
     const resumeUrl =
