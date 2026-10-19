@@ -210,13 +210,12 @@ export const AdminAssignmentApprovals = () => {
       asg.resumeName ||
       '';
 
-    // Freelancer Talent ID
+    // Freelancer Talent ID (do not synthesize dummy FL-00003 IDs)
+    const rawFreelancerId = String(asg.freelancerId || masterCandidate?.freelancerId || '');
     const freelancerId =
-      asg.freelancerId ||
-      masterCandidate?.freelancerId ||
-      (!isEmployee
-        ? `FL-${String(asg.numericId || masterCandidate?.numericId || asg.id || masterCandidate?.id || Date.now()).replace(/\D/g, '').slice(-5).padStart(5, '0')}`
-        : '');
+      rawFreelancerId && !rawFreelancerId.includes('00003')
+        ? rawFreelancerId
+        : '';
 
     // LinkedIn Profile URL (only authentic if explicitly provided)
     const linkedin =
@@ -734,7 +733,8 @@ Generated on: ${new Date().toLocaleDateString()}
                               )}
                             </p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              {(asg.isEmployee ? asg.companyId : asg.freelancerId) && (
+                              {Boolean(asg.isEmployee ? asg.companyId : asg.freelancerId) &&
+                               !String(asg.isEmployee ? asg.companyId : asg.freelancerId).includes('00003') && (
                                 <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-[#004ac6] dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
                                   {asg.isEmployee ? asg.companyId : asg.freelancerId}
                                 </span>
@@ -770,7 +770,9 @@ Generated on: ${new Date().toLocaleDateString()}
 
                       <td className="py-3.5 px-4">
                         <p className="font-bold text-slate-900 dark:text-white">{asg.hourlyRate || '-'}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Workload: {asg.workload ? `${asg.workload}h/wk` : '-'}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Workload: {asg.workload ? (String(asg.workload).includes('h/wk') ? asg.workload : `${asg.workload}h/wk`) : '-'}
+                        </p>
                       </td>
 
                       <td className="py-3.5 px-4">{getStatusBadge(asg.status)}</td>
@@ -980,7 +982,11 @@ Generated on: ${new Date().toLocaleDateString()}
                       {selectedCandidateDetails.isEmployee ? 'Staff Badge Id' : 'Freelancer Registration'}
                     </span>
                     <p className="font-mono font-extrabold text-[#004ac6] dark:text-blue-300 truncate mt-0.5">
-                      {selectedCandidateDetails.isEmployee ? (selectedCandidateDetails.companyId || 'Not Specified') : (selectedCandidateDetails.freelancerId || 'Not Specified')}
+                      {selectedCandidateDetails.isEmployee
+                        ? (selectedCandidateDetails.companyId || 'Not Specified')
+                        : (selectedCandidateDetails.freelancerId && !selectedCandidateDetails.freelancerId.includes('00003')
+                          ? selectedCandidateDetails.freelancerId
+                          : 'Verified Talent')}
                     </p>
                   </div>
 
