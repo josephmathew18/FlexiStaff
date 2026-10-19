@@ -305,15 +305,11 @@ export const FreelancerApply = () => {
 
   // In-line Resume Auto-fill without external JS helper files
   const autoFillFromResume = (file, dataUrl) => {
-    const fileName = file?.name || 'Resume.pdf';
-    const candidateName = formData.fullName || `${signUpForm.firstName} ${signUpForm.lastName}`.trim() || 'Prince Abraham';
-    const isPrince = candidateName.toLowerCase().includes('prince') ||
-                     candidateName.toLowerCase().includes('abraham') ||
-                     fileName.toLowerCase().includes('prince');
+    const candidateName = formData.fullName || `${signUpForm.firstName} ${signUpForm.lastName}`.trim() || 'Freelancer';
 
     // Auto-fill Professional Role Title
     if (!professionalRoleTitle) {
-      setProfessionalRoleTitle('Full Stack Developer');
+      setProfessionalRoleTitle('Full Stack Software Engineer');
     }
 
     // Auto-fill Category & Specialties
@@ -338,33 +334,7 @@ export const FreelancerApply = () => {
     });
 
     // Auto-fill Work History Timeline
-    const parsedExperiences = isPrince ? [
-      {
-        id: 'exp-1',
-        title: 'Full Stack Developer',
-        company: 'Independent Enterprise Solutions & Freelance',
-        period: '2022 - Present',
-        location: 'Kottayam, Kerala, India',
-        description: 'Engineered high-performance web applications using React, Node.js, Spring Boot, and PostgreSQL. Architected responsive dashboards, RESTful microservices, and secure JWT-based access controls.',
-        achievements: [
-          'Built and deployed end-to-end full stack web platforms with modern UI/UX workflows.',
-          'Designed scalable database schemas and optimized SQL queries, reducing API response times by 40%.',
-          'Implemented robust automated CI/CD deployment pipelines.'
-        ]
-      },
-      {
-        id: 'exp-2',
-        title: 'Software Developer / MCA Project Lead',
-        company: 'Amal Jyothi Innovation Labs',
-        period: '2020 - 2022',
-        location: 'Kottayam, Kerala, India',
-        description: 'Spearheaded full stack application development for academic and commercial workflow portals. Implemented interactive frontend components with Tailwind CSS and React.',
-        achievements: [
-          'Developed real-time status tracking dashboards with WebSocket and REST endpoints.',
-          'Conducted automated unit and integration tests ensuring high system reliability.'
-        ]
-      }
-    ] : [
+    const parsedExperiences = [
       {
         id: 'exp-1',
         title: professionalRoleTitle || 'Full Stack Software Engineer',
@@ -395,20 +365,7 @@ export const FreelancerApply = () => {
     setExperiences(parsedExperiences);
 
     // Auto-fill Academic Education
-    const parsedEducations = isPrince ? [
-      {
-        id: 'edu-1',
-        degree: 'Master of Computer Applications (MCA)',
-        school: 'Amal Jyothi College of Engineering / APJ Abdul Kalam Technological University',
-        dates: '2020 - 2022'
-      },
-      {
-        id: 'edu-2',
-        degree: 'Bachelor of Computer Applications (BCA)',
-        school: 'JPM Arts and Science College / Mahatma Gandhi University',
-        dates: '2017 - 2020'
-      }
-    ] : [
+    const parsedEducations = [
       {
         id: 'edu-1',
         degree: 'Master of Computer Applications / B.Tech Computer Science',
@@ -426,12 +383,7 @@ export const FreelancerApply = () => {
     setEducations(parsedEducations);
 
     // Auto-fill Professional Certifications
-    const parsedCertifications = isPrince ? [
-      'Full Stack Web Development Professional',
-      'React & Modern JavaScript Certification',
-      'Spring Boot & Java Enterprise Specialist',
-      'AWS Cloud Practitioner & DevOps'
-    ] : [
+    const parsedCertifications = [
       'Full Stack Enterprise Certified Specialist',
       'Cloud Architecture & DevOps Professional',
       'Modern Web & API Systems Certification'
@@ -441,9 +393,7 @@ export const FreelancerApply = () => {
 
     // Auto-fill Professional Bio Overview
     setBioOverview(
-      isPrince
-        ? 'Passionate and results-driven Full Stack Developer with 3+ years of experience architecting, building, and maintaining modern enterprise web applications. Proficient in React, Node.js, Java Spring Boot, PostgreSQL, and AWS cloud solutions.'
-        : 'Experienced Full Stack Engineer specializing in scalable enterprise application development, modern frontend component libraries, and cloud-native services.'
+      'Experienced Full Stack Engineer specializing in scalable enterprise application development, modern frontend component libraries, and cloud-native services.'
     );
 
     // Auto-fill Hourly Rate
@@ -452,10 +402,10 @@ export const FreelancerApply = () => {
     // Auto-fill Personal details location if empty
     setPersonalDetails((prev) => ({
       ...prev,
-      city: prev.city || (isPrince ? 'Kottayam' : 'Bengaluru'),
-      state: prev.state || (isPrince ? 'Kerala' : 'Karnataka'),
+      city: prev.city || 'Bengaluru',
+      state: prev.state || 'Karnataka',
       country: 'India',
-      phoneNumber: prev.phoneNumber || (isPrince ? '9847123456' : prev.phoneNumber),
+      phoneNumber: prev.phoneNumber || '',
     }));
   };
 
@@ -593,104 +543,49 @@ export const FreelancerApply = () => {
 
     try {
       if (addFreelancerApplication) {
-        const isPrinceVal = fullNameVal.toLowerCase().includes('prince') ||
-                            fullNameVal.toLowerCase().includes('abraham') ||
-                            String(resumeDocName || '').toLowerCase().includes('prince');
-        const finalExperiences = experiences.length > 0 ? experiences : (
-          isPrinceVal ? [
-            {
-              id: 'exp-1',
-              title: 'Full Stack Developer',
-              company: 'Independent Enterprise Solutions & Freelance',
-              period: '2022 - Present',
-              location: 'Kottayam, Kerala, India',
-              description: 'Engineered high-performance web applications using React, Node.js, Spring Boot, and PostgreSQL. Architected responsive dashboards, RESTful microservices, and secure JWT-based access controls.',
-              achievements: [
-                'Built and deployed end-to-end full stack web platforms with modern UI/UX workflows.',
-                'Designed scalable database schemas and optimized SQL queries, reducing API response times by 40%.',
-                'Implemented robust automated CI/CD deployment pipelines.'
-              ]
-            },
-            {
-              id: 'exp-2',
-              title: 'Software Developer / MCA Project Lead',
-              company: 'Amal Jyothi Innovation Labs',
-              period: '2020 - 2022',
-              location: 'Kottayam, Kerala, India',
-              description: 'Spearheaded full stack application development for academic and commercial workflow portals. Implemented interactive frontend components with Tailwind CSS and React.',
-              achievements: [
-                'Developed real-time status tracking dashboards with WebSocket and REST endpoints.',
-                'Conducted automated unit and integration tests ensuring high system reliability.'
-              ]
-            }
-          ] : (resumeDataUrl ? [
-            {
-              id: 'exp-1',
-              title: professionalRoleTitle || 'Full Stack Software Engineer',
-              company: 'Enterprise Client Solutions',
-              period: '2022 - Present',
-              location: 'Remote, India',
-              description: `Delivered high-performance enterprise applications as a ${professionalRoleTitle || 'Full Stack Software Engineer'}. Built robust microservices and responsive user interfaces.`,
-              achievements: [
-                'Delivered critical project milestones on time with top code quality benchmarks.',
-                'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
-                'Streamlined build performance and operational workflows.'
-              ]
-            }
-          ] : [])
-        );
+        const finalExperiences = experiences.length > 0 ? experiences : (resumeDataUrl ? [
+          {
+            id: 'exp-1',
+            title: professionalRoleTitle || 'Full Stack Software Engineer',
+            company: 'Enterprise Client Solutions',
+            period: '2022 - Present',
+            location: 'Remote, India',
+            description: `Delivered high-performance enterprise applications as a ${professionalRoleTitle || 'Full Stack Software Engineer'}. Built robust microservices and responsive user interfaces.`,
+            achievements: [
+              'Delivered critical project milestones on time with top code quality benchmarks.',
+              'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
+              'Streamlined build performance and operational workflows.'
+            ]
+          }
+        ] : []);
 
-        const finalEducations = educations.length > 0 ? educations : (
-          isPrinceVal ? [
-            {
-              id: 'edu-1',
-              degree: 'Master of Computer Applications (MCA)',
-              school: 'Amal Jyothi College of Engineering / APJ Abdul Kalam Technological University',
-              dates: '2020 - 2022'
-            },
-            {
-              id: 'edu-2',
-              degree: 'Bachelor of Computer Applications (BCA)',
-              school: 'JPM Arts and Science College / Mahatma Gandhi University',
-              dates: '2017 - 2020'
-            }
-          ] : (resumeDataUrl ? [
-            {
-              id: 'edu-1',
-              degree: 'Master of Computer Applications / B.Tech Computer Science',
-              school: 'Premier Institute of Technology & Engineering',
-              dates: '2018 - 2022'
-            }
-          ] : [])
-        );
+        const finalEducations = educations.length > 0 ? educations : (resumeDataUrl ? [
+          {
+            id: 'edu-1',
+            degree: 'Master of Computer Applications / B.Tech Computer Science',
+            school: 'Premier Institute of Technology & Engineering',
+            dates: '2018 - 2022'
+          }
+        ] : []);
 
-        const finalCertifications = certifications.length > 0 ? certifications : (
-          isPrinceVal ? [
-            'Full Stack Web Development Professional',
-            'React & Modern JavaScript Certification',
-            'Spring Boot & Java Enterprise Specialist',
-            'AWS Cloud Practitioner & DevOps'
-          ] : (resumeDataUrl ? [
-            'Full Stack Enterprise Certified Specialist',
-            'Cloud Architecture & DevOps Professional'
-          ] : [])
-        );
+        const finalCertifications = certifications.length > 0 ? certifications : (resumeDataUrl ? [
+          'Full Stack Enterprise Certified Specialist',
+          'Cloud Architecture & DevOps Professional'
+        ] : []);
 
         const res = await addFreelancerApplication({
           fullName: fullNameVal,
           email: emailVal,
           phone: phoneVal,
           password: passwordVal,
-          roleTitle: professionalRoleTitle || (isPrinceVal ? 'Full Stack Developer' : 'Full Stack Software Engineer'),
+          roleTitle: professionalRoleTitle || 'Full Stack Software Engineer',
           category: selectedCategory,
           specialties: selectedSpecialties.length > 0 ? selectedSpecialties : ['Full Stack Development', 'Frontend Development'],
           skills: selectedSkills.length > 0 ? selectedSkills : ['React', 'Node.js', 'Python', 'TypeScript', 'PostgreSQL', 'Docker', 'AWS'],
           experiences: finalExperiences,
           educations: finalEducations,
           languages,
-          bioOverview: bioOverview || (isPrinceVal
-            ? 'Passionate and results-driven Full Stack Developer with 3+ years of experience architecting, building, and maintaining modern enterprise web applications. Proficient in React, Node.js, Java Spring Boot, PostgreSQL, and AWS cloud solutions.'
-            : 'Experienced Full Stack Engineer specializing in scalable enterprise application development and modern user experiences.'),
+          bioOverview: bioOverview || 'Experienced Full Stack Engineer specializing in scalable enterprise application development and modern user experiences.',
           hourlyRate,
           personalDetails,
           experienceLevel,
@@ -698,7 +593,7 @@ export const FreelancerApply = () => {
           workPreferences,
           openToContractToHire,
           importMethod: importMethod || 'Upload your resume',
-          linkedin: linkedInUrl || (personalDetails.linkedin || (isPrinceVal ? 'https://linkedin.com/in/prince-abraham' : '')),
+          linkedin: linkedInUrl || (personalDetails.linkedin || ''),
           linkedInPdfName: linkedInDocName,
           linkedInPdfUrl: linkedInPdfDataUrl,
           resumeFileName: resumeDocName,

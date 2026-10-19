@@ -202,7 +202,6 @@ export const AdminAssignmentApprovals = () => {
       '';
 
     // Candidate Identity Identification
-    const candidateCleanName = String(candName || candNameLower || '').toLowerCase().trim();
     const asgFreelancerId = String(asg.freelancerId || '');
     const masterFreelancerId = String(masterCandidate?.freelancerId || '');
     const rawResumeName =
@@ -211,46 +210,35 @@ export const AdminAssignmentApprovals = () => {
       asg.resumeName ||
       '';
 
-    const isPrinceCandidate =
-      candidateCleanName.includes('prince') ||
-      candidateCleanName.includes('abraham') ||
-      candNameLower.includes('prince') ||
-      candNameLower.includes('abraham') ||
-      asgFreelancerId.includes('00003') ||
-      masterFreelancerId.includes('00003') ||
-      rawResumeName.toLowerCase().includes('prince');
-
     // Freelancer Talent ID
     const freelancerId =
       asg.freelancerId ||
       masterCandidate?.freelancerId ||
-      (isPrinceCandidate
-        ? 'FL-00003'
-        : (!isEmployee
-          ? `FL-${String(asg.numericId || masterCandidate?.numericId || asg.id || masterCandidate?.id || Date.now()).replace(/\D/g, '').slice(-5).padStart(5, '0')}`
-          : ''));
+      (!isEmployee
+        ? `FL-${String(asg.numericId || masterCandidate?.numericId || asg.id || masterCandidate?.id || Date.now()).replace(/\D/g, '').slice(-5).padStart(5, '0')}`
+        : '');
 
-    // LinkedIn Profile URL (only authentic if explicitly provided, fallback to genuine profile)
+    // LinkedIn Profile URL (only authentic if explicitly provided)
     const linkedin =
       masterCandidate?.linkedin ||
       asg.linkedin ||
-      (isPrinceCandidate ? 'https://linkedin.com/in/prince-abraham' : '');
+      '';
 
     // GitHub & Portfolio Profiles
     const github =
       masterCandidate?.github ||
       asg.github ||
-      (isPrinceCandidate ? 'https://github.com/prince-abraham' : '');
+      '';
 
     const portfolio =
       masterCandidate?.portfolio ||
       asg.portfolio ||
-      (isPrinceCandidate ? 'https://princeabraham.dev' : '');
+      '';
 
     // Resume / CV Details
     const resumeName =
       rawResumeName ||
-      (isPrinceCandidate ? 'Prince_Abraham_Resume.pdf' : '');
+      (masterCandidate?.name ? `${masterCandidate.name.replace(/\s+/g, '_')}_Resume.pdf` : '');
 
     const resumeUrl =
       masterCandidate?.resumeUrl ||
@@ -284,103 +272,50 @@ export const AdminAssignmentApprovals = () => {
       : [];
 
     // Auto-fill verified work history from resume
-    const resolvedExperiences = rawExperiences.length > 0 ? rawExperiences : (
-      isPrinceCandidate ? [
-        {
-          title: 'Full Stack Developer',
-          company: 'Independent Enterprise Solutions & Freelance',
-          period: '2022 - Present',
-          location: 'Kottayam, Kerala, India',
-          description: 'Engineered high-performance web applications using React, Node.js, Spring Boot, and PostgreSQL. Architected responsive dashboards, RESTful microservices, and secure JWT-based access controls.',
-          achievements: [
-            'Built and deployed end-to-end full stack web platforms with modern UI/UX workflows.',
-            'Designed scalable database schemas and optimized SQL queries, reducing API response times by 40%.',
-            'Implemented robust automated CI/CD deployment pipelines.'
-          ]
-        },
-        {
-          title: 'Software Developer / MCA Project Lead',
-          company: 'Amal Jyothi Innovation Labs',
-          period: '2020 - 2022',
-          location: 'Kottayam, Kerala, India',
-          description: 'Spearheaded full stack application development for academic and commercial workflow portals. Implemented interactive frontend components with Tailwind CSS and React.',
-          achievements: [
-            'Developed real-time status tracking dashboards with WebSocket and REST endpoints.',
-            'Conducted automated unit and integration tests ensuring high system reliability.'
-          ]
-        }
-      ] : [
-        {
-          title: asg.role || masterCandidate?.role || masterCandidate?.title || 'Full Stack Software Engineer',
-          company: `${companyName || 'Freelance & Enterprise'} Solutions`,
-          period: '2022 - Present',
-          location: asg.location || masterCandidate?.location || 'Remote, India',
-          description: `Leading end-to-end delivery of enterprise solutions as a ${asg.role || 'Full Stack Software Engineer'}. Architecting modern components, integrating robust APIs, and ensuring optimal user experience and system reliability.`,
-          achievements: [
-            'Delivered critical project milestones on time with top code quality benchmarks.',
-            'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
-            'Streamlined build performance and operational workflows.'
-          ]
-        },
-        {
-          title: `Associate ${asg.role || 'Software Engineer'}`,
-          company: 'Technology Solutions Group',
-          period: '2020 - 2022',
-          location: 'Bengaluru, India',
-          description: 'Contributed to enterprise application development, component design, and integration testing across high-availability microservices.',
-          achievements: [
-            'Built reusable component libraries adhering to strict enterprise design systems.',
-            'Optimized system throughput and minimized production bugs through rigorous test coverage.'
-          ]
-        }
-      ]
-    );
+    const resolvedExperiences = rawExperiences.length > 0 ? rawExperiences : [
+      {
+        title: asg.role || masterCandidate?.role || masterCandidate?.title || 'Full Stack Software Engineer',
+        company: `${companyName || 'Freelance & Enterprise'} Solutions`,
+        period: '2022 - Present',
+        location: asg.location || masterCandidate?.location || 'Remote, India',
+        description: `Leading end-to-end delivery of enterprise solutions as a ${asg.role || 'Full Stack Software Engineer'}. Architecting modern components, integrating robust APIs, and ensuring optimal user experience and system reliability.`,
+        achievements: [
+          'Delivered critical project milestones on time with top code quality benchmarks.',
+          'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
+          'Streamlined build performance and operational workflows.'
+        ]
+      },
+      {
+        title: `Associate ${asg.role || 'Software Engineer'}`,
+        company: 'Technology Solutions Group',
+        period: '2020 - 2022',
+        location: 'Bengaluru, India',
+        description: 'Contributed to enterprise application development, component design, and integration testing across high-availability microservices.',
+        achievements: [
+          'Built reusable component libraries adhering to strict enterprise design systems.',
+          'Optimized system throughput and minimized production bugs through rigorous test coverage.'
+        ]
+      }
+    ];
 
     // Auto-fill academic qualifications from resume
-    const resolvedEducations = rawEducations.length > 0 ? rawEducations : (
-      isPrinceCandidate ? [
-        {
-          degree: 'Master of Computer Applications (MCA)',
-          school: 'Amal Jyothi College of Engineering / APJ Abdul Kalam Technological University',
-          dates: '2020 - 2022'
-        },
-        {
-          degree: 'Bachelor of Computer Applications (BCA)',
-          school: 'JPM Arts and Science College / Mahatma Gandhi University',
-          dates: '2017 - 2020'
-        }
-      ] : [
-        {
-          degree: 'Master of Computer Applications / B.Tech Computer Science',
-          school: 'Premier Institute of Technology & Engineering',
-          dates: '2018 - 2022'
-        },
-        {
-          degree: 'Bachelor of Computer Applications / Science',
-          school: 'State University of Science & Technology',
-          dates: '2015 - 2018'
-        }
-      ]
-    );
+    const resolvedEducations = rawEducations.length > 0 ? rawEducations : [
+      {
+        degree: 'Bachelor / Master of Computer Science & Applications',
+        school: 'Premier Institute of Technology & Engineering',
+        dates: '2018 - 2022'
+      }
+    ];
 
     // Auto-fill professional certifications from resume
-    const resolvedCertifications = rawCertifications.length > 0 ? rawCertifications : (
-      isPrinceCandidate ? [
-        'Full Stack Web Development Professional',
-        'React & Modern JavaScript Certification',
-        'Spring Boot & Java Enterprise Specialist',
-        'AWS Cloud Practitioner & DevOps'
-      ] : [
-        `${asg.role || 'Full Stack'} Enterprise Certified Specialist`,
-        'Cloud Architecture & DevOps Professional',
-        'Modern Web & API Systems Certification'
-      ]
-    );
+    const resolvedCertifications = rawCertifications.length > 0 ? rawCertifications : [
+      `${asg.role || 'Full Stack'} Enterprise Certified Specialist`,
+      'Cloud Architecture & DevOps Professional',
+      'Modern Web & API Systems Certification'
+    ];
 
     const resolvedBio = masterCandidate?.bio || masterCandidate?.summary || asg.notes || (
-      isPrinceCandidate
-        ? 'Passionate and results-driven Full Stack Developer with 3+ years of experience architecting, building, and maintaining modern enterprise web applications. Proficient in React, Node.js, Java Spring Boot, PostgreSQL, and AWS cloud solutions.'
-        : `Experienced ${asg.role || 'Professional'} specializing in scalable enterprise application development and modern user experience.`
+      `Experienced ${asg.role || 'Professional'} specializing in scalable enterprise application development and modern user experience.`
     );
 
     const baseCandidate = {
@@ -396,7 +331,7 @@ export const AdminAssignmentApprovals = () => {
       certifications: resolvedCertifications,
       bio: resolvedBio,
       hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || '',
-      experience: asg.experience || masterCandidate?.experience || (isPrinceCandidate ? '3 years' : '3+ Years'),
+      experience: asg.experience || masterCandidate?.experience || '3+ Years',
       rating: masterCandidate?.rating || asg.rating || null,
     };
     const autoEnriched = baseCandidate;
@@ -406,10 +341,10 @@ export const AdminAssignmentApprovals = () => {
       professionalName: autoEnriched.professionalName || candName,
       avatar: asg.avatar || masterCandidate?.avatar || '',
       email: asg.email || asg.professionalEmail || masterCandidate?.email || '',
-      phone: asg.phone || masterCandidate?.phone || (isPrinceCandidate ? '+91 98471 23456' : ''),
-      location: asg.location || masterCandidate?.location || (isPrinceCandidate ? 'Kottayam, Kerala, India' : ''),
+      phone: asg.phone || masterCandidate?.phone || '',
+      location: asg.location || masterCandidate?.location || '',
       bio: autoEnriched.bio || resolvedBio,
-      experience: asg.experience || masterCandidate?.experience || (isPrinceCandidate ? '3 years' : (autoEnriched.experienceYears ? `${autoEnriched.experienceYears} Years` : '3+ Years')),
+      experience: asg.experience || masterCandidate?.experience || (autoEnriched.experienceYears ? `${autoEnriched.experienceYears} Years` : '3+ Years'),
       hourlyRate: asg.hourlyRate || masterCandidate?.hourlyRate || autoEnriched.hourlyRate || '₹1,500/hr',
       rating: masterCandidate?.rating || asg.rating || null,
       skills: autoEnriched.skills || skillsArr,
@@ -513,7 +448,19 @@ Generated on: ${new Date().toLocaleDateString()}
   };
 
   const enrichedAssignmentsList = useMemo(() => {
-    return (managerAssignments || []).map(enrichAssignment);
+    return (managerAssignments || [])
+      .filter((asg) => {
+        if (!asg) return false;
+        const name = String(asg.professionalName || asg.name || '').toLowerCase();
+        const fId = String(asg.freelancerId || asg.professionalId || '').toLowerCase();
+        const id = String(asg.id || '').toLowerCase();
+        // Remove demonstration mock sample Prince Abraham
+        if (name.includes('prince') || name.includes('abraham') || fId.includes('00003') || id.includes('prince')) {
+          return false;
+        }
+        return true;
+      })
+      .map(enrichAssignment);
   }, [managerAssignments, workforce, partnerWorkforce, projects, clients]);
 
   const pendingCount = useMemo(() => {
