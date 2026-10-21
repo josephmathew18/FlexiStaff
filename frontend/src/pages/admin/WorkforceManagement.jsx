@@ -42,23 +42,27 @@ import {
   Trash2,
   Pencil,
   Eye,
+  GraduationCap,
 } from 'lucide-react';
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
-import { FaLinkedin } from 'react-icons/fa';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
 
 // ====================================================================
 // INLINE REUSABLE UI: StatusBadge
 // ====================================================================
-const StatusBadge = ({ status = 'Available', size = 'sm', className = '', title = '' }) => {
+const StatusBadge = ({ status = '', size = 'sm', className = '', title = '' }) => {
   const normalized = (status || '').toLowerCase().trim();
+  if (!status || ['available', 'immediate'].includes(normalized)) {
+    return null;
+  }
   let colorClasses = 'bg-slate-100 text-[#565e74] border-[#c3c6d7]';
   let dotColor = 'bg-slate-400';
 
-  if (['available', 'active', 'approved', 'verified'].includes(normalized)) {
+  if (['active', 'approved', 'verified'].includes(normalized)) {
     colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     dotColor = 'bg-emerald-500';
-  } else if (['assigned', 'busy', 'in progress', 'currently assigned'].includes(normalized)) {
+  } else if (['assigned', 'busy', 'in progress', 'currently assigned', 'working'].includes(normalized)) {
     colorClasses = 'bg-blue-50 text-blue-700 border-blue-200';
     dotColor = 'bg-blue-500';
   } else if (['temporarily unavailable', 'unavailable', 'on leave'].includes(normalized)) {
@@ -251,6 +255,58 @@ export const WorkforceManagement = () => {
   const [rejectionModalTalent, setRejectionModalTalent] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('Skill set does not match current project requirements');
 
+  // Enriched talent detail opener (merges freelancer application verification data if available)
+  const handleOpenTalentDetails = (talent) => {
+    if (!talent) return;
+    const matchingApp = (freelancerApplications || []).find(
+      (a) =>
+        (a.email && talent.email && a.email.toLowerCase() === talent.email.toLowerCase()) ||
+        a.id === talent.id ||
+        a.numericId === talent.numericId ||
+        a.id === talent.freelancerId ||
+        (a.fullName && talent.name && a.fullName.toLowerCase() === talent.name.toLowerCase())
+    );
+
+    const merged = matchingApp
+      ? {
+          ...matchingApp,
+          ...talent,
+          experiences: (talent.experiences && talent.experiences.length > 0)
+            ? talent.experiences
+            : (matchingApp.experiences || []),
+          educations: (talent.educations && talent.educations.length > 0)
+            ? talent.educations
+            : (matchingApp.educations || []),
+          certifications: (talent.certifications && talent.certifications.length > 0)
+            ? talent.certifications
+            : (matchingApp.certifications || []),
+          languages: (talent.languages && talent.languages.length > 0)
+            ? talent.languages
+            : (matchingApp.languages || []),
+          bio: talent.bio || matchingApp.bioOverview || matchingApp.bio || '',
+          bioOverview: talent.bio || matchingApp.bioOverview || matchingApp.bio || '',
+          category: talent.category || matchingApp.category || '',
+          specialties: (talent.specialties && talent.specialties.length > 0)
+            ? talent.specialties
+            : (matchingApp.specialties || []),
+          experienceLevel: talent.experienceLevel || matchingApp.experienceLevel || 'I have some experience',
+          freelanceGoal: talent.freelanceGoal || matchingApp.freelanceGoal || 'To earn my main income',
+          workPreferences: (Array.isArray(talent.workPreferences) && talent.workPreferences.length > 0)
+            ? talent.workPreferences
+            : ((Array.isArray(matchingApp.workPreferences) && matchingApp.workPreferences.length > 0) ? matchingApp.workPreferences : ['I\'d like to find opportunities myself']),
+          openToContractToHire: talent.openToContractToHire ?? matchingApp.openToContractToHire ?? true,
+          resumeUrl: talent.resumeUrl || talent.resume || matchingApp.resumeUrl || matchingApp.resume || '',
+          resumeName: talent.resumeName || talent.resumeFileName || matchingApp.resumeFileName || matchingApp.resumeName || '',
+          linkedInPdfUrl: talent.linkedInPdfUrl || matchingApp.linkedInPdfUrl || '',
+          linkedInPdfName: talent.linkedInPdfName || matchingApp.linkedInPdfName || '',
+          linkedin: talent.linkedin || matchingApp.linkedin || '',
+          github: talent.github || matchingApp.github || '',
+        }
+      : talent;
+
+    setSelectedTalent(merged);
+  };
+
   // Edit Employee Modal state
   const [editingTalent, setEditingTalent] = useState(null);
   const [editTalentForm, setEditTalentForm] = useState({
@@ -377,7 +433,49 @@ export const WorkforceManagement = () => {
     );
   };
 
-  // Clean workforce roster without partner company organizations and without Admin/Manager/Client users
+  // Helper to check if record is rejected either in workforce or in freelancer applications
+  const isRejectedRecord = (member) => {
+    if (!member) return false;
+    const status = (member.status || '').toLowerCase().trim();
+    const approval = (member.approvalStatus || '').toLowerCase().trim();
+    const verification = (member.verificationStatus || '').toLowerCase().trim();
+    const account = (member.accountStatus || '').toLowerCase().trim();
+
+    if (
+      status === 'rejected' || status === 'declined' ||
+      approval === 'rejected' || approval === 'declined' ||
+      verification === 'rejected' || verification === 'declined' ||
+      account === 'rejected' || account === 'declined'
+    ) {
+      return true;
+    }
+
+    const mEmail = (member.email || '').toLowerCase().trim();
+    const mName = (member.name || member.pseudonym || '').toLowerCase().trim();
+    const mId = String(member.id || '');
+    const mNum = String(member.numericId || '');
+
+    const matchingApp = (freelancerApplications || []).find((a) => {
+      const aEmail = (a.email || '').toLowerCase().trim();
+      const aName = (a.fullName || a.name || '').toLowerCase().trim();
+      const aId = String(a.id || '');
+      const aNum = String(a.numericId || '');
+      return (
+        (mEmail && aEmail && mEmail === aEmail) ||
+        (mName && aName && mName === aName) ||
+        (mId && aId && mId === aId) ||
+        (mNum && aNum && mNum === aNum)
+      );
+    });
+
+    if (matchingApp && (matchingApp.status === 'Rejected' || matchingApp.status === 'Declined')) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Clean workforce roster without partner company organizations, without Admin/Manager/Client users, and without Rejected records
   const cleanWorkforceRoster = useMemo(() => {
     return workforce.filter((w) => {
       if (!w) return false;
@@ -399,9 +497,132 @@ export const WorkforceManagement = () => {
         return false;
       }
 
+      // DO NOT show rejected workforce in standard active roster
+      if (isRejectedRecord(w)) {
+        return false;
+      }
+
       return true;
     });
-  }, [workforce]);
+  }, [workforce, freelancerApplications]);
+
+  // Non-rejected freelancer applications for the "Freelancer Applications" tab
+  const activeFreelancerApplications = useMemo(() => {
+    return (freelancerApplications || []).filter(
+      (app) => app && app.status !== 'Rejected' && app.status !== 'Declined'
+    );
+  }, [freelancerApplications]);
+
+  // Dedicated separate collection of Rejected Candidates / Workforce for Admin
+  const rejectedRecords = useMemo(() => {
+    const list = [];
+    const seenEmails = new Set();
+    const seenIds = new Set();
+
+    // 1. From workforce who are marked rejected
+    (workforce || []).forEach((w) => {
+      if (!w || isPartnerCompanyOrg(w)) return;
+      if (isRejectedRecord(w)) {
+        const email = (w.email || '').toLowerCase().trim();
+        const id = String(w.id || '');
+        if (email) seenEmails.add(email);
+        if (id) seenIds.add(id);
+
+        const matchingApp = (freelancerApplications || []).find(
+          (a) =>
+            (a.email && email && a.email.toLowerCase().trim() === email) ||
+            String(a.id) === id ||
+            String(a.numericId) === id
+        );
+
+        list.push({
+          ...matchingApp,
+          ...w,
+          isFromApp: Boolean(matchingApp),
+          appId: matchingApp?.id,
+          rejectionReason: w.rejectionReason || matchingApp?.rejectionReason || 'Declined by Administrator',
+        });
+      }
+    });
+
+    // 2. From freelancerApplications marked rejected
+    (freelancerApplications || []).forEach((app) => {
+      if (!app) return;
+      if (app.status === 'Rejected' || app.status === 'Declined') {
+        const email = (app.email || '').toLowerCase().trim();
+        const id = String(app.id || '');
+        if ((email && seenEmails.has(email)) || (id && seenIds.has(id))) {
+          return;
+        }
+        if (email) seenEmails.add(email);
+        if (id) seenIds.add(id);
+
+        list.push({
+          id: app.id,
+          numericId: app.numericId,
+          name: app.fullName || app.name || 'Candidate',
+          title: app.roleTitle || 'Freelancer Professional',
+          role: app.roleTitle || 'Freelancer',
+          email: app.email,
+          phone: app.phone || app.personalDetails?.phoneNumber,
+          hourlyRate: typeof app.hourlyRate === 'number' ? `₹${app.hourlyRate.toFixed(2)}/hr` : (app.hourlyRate || '₹1500/hr'),
+          experience: app.experienceLevel || '3+ years',
+          location: app.personalDetails?.city || app.place || 'Remote',
+          skills: app.skills || [],
+          source: 'Independent Freelancer',
+          roleType: 'Freelancer',
+          status: 'Rejected',
+          approvalStatus: 'Rejected',
+          rejectionReason: app.rejectionReason || 'Declined by Administrator',
+          isFromApp: true,
+          appId: app.id,
+          personalDetails: app.personalDetails,
+          resumeUrl: app.resumeUrl || app.resume,
+          resumeName: app.resumeFileName || app.resumeName,
+          linkedin: app.linkedin,
+          github: app.github,
+          bio: app.bioOverview,
+          bioOverview: app.bioOverview,
+          submittedAt: app.submittedAt,
+        });
+      }
+    });
+
+    return list;
+  }, [workforce, freelancerApplications]);
+
+  // Filtered Rejected Records based on search and role type filter
+  const filteredRejectedRecords = useMemo(() => {
+    return rejectedRecords.filter((talent) => {
+      if (roleTypeFilter !== 'all') {
+        const isFreelancer =
+          talent.roleType === 'Freelancer' ||
+          talent.source === 'Freelancer' ||
+          talent.source === 'Independent Freelancer' ||
+          talent.source === 'Freelancer Registration' ||
+          talent.professionalType === 'FREELANCER' ||
+          !talent.partnerCompanyId;
+        if (roleTypeFilter === 'Freelancer' && !isFreelancer) return false;
+        if (roleTypeFilter === 'Professional' && isFreelancer) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const nameStr = (talent.name || talent.pseudonym || '').toLowerCase();
+        const titleStr = (talent.title || talent.role || '').toLowerCase();
+        const emailStr = (talent.email || '').toLowerCase();
+        const matchesName = nameStr.includes(q);
+        const matchesTitle = titleStr.includes(q);
+        const matchesEmail = emailStr.includes(q);
+        const matchesSkills = Array.isArray(talent.skills)
+          ? talent.skills.some((s) => String(s).toLowerCase().includes(q))
+          : typeof talent.skills === 'string'
+          ? talent.skills.toLowerCase().includes(q)
+          : false;
+        if (!matchesName && !matchesTitle && !matchesEmail && !matchesSkills) return false;
+      }
+      return true;
+    });
+  }, [rejectedRecords, roleTypeFilter, searchQuery]);
 
   // Counts for Badges
   const pendingCount = useMemo(
@@ -734,13 +955,35 @@ export const WorkforceManagement = () => {
         >
           <Sparkles size={15} />
           <span>Freelancer Applications</span>
-          {(freelancerApplications || []).filter((a) => a.status === 'Pending Admin Approval').length > 0 && (
+          {(activeFreelancerApplications || []).filter((a) => a.status === 'Pending Admin Approval').length > 0 && (
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
                 activeTab === 'freelancer-applications' ? 'bg-white text-purple-700' : 'bg-[#7c3aed] text-white'
               }`}
             >
-              {(freelancerApplications || []).filter((a) => a.status === 'Pending Admin Approval').length}
+              {(activeFreelancerApplications || []).filter((a) => a.status === 'Pending Admin Approval').length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('rejected')}
+          className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
+            activeTab === 'rejected'
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'text-[#565e74] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10'
+          }`}
+        >
+          <X size={15} />
+          <span>Rejected Workforce</span>
+          {rejectedRecords.length > 0 && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                activeTab === 'rejected' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
+              }`}
+            >
+              {rejectedRecords.length}
             </span>
           )}
         </button>
@@ -805,33 +1048,185 @@ export const WorkforceManagement = () => {
       {/* ========================================================================= */}
       {/* WORKFORCE GRID / TABLE VIEW */}
       {/* ========================================================================= */}
-      {activeTab === 'freelancer-applications' ? (
+      {activeTab === 'rejected' ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                <span>Rejected Workforce & Declined Candidates ({rejectedRecords.length})</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Talent and freelancer submissions declined during administrative review. Stored separately from the active workforce pool.
+              </p>
+            </div>
+          </div>
+
+          {rejectedRecords.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#14132b] p-12 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 flex items-center justify-center mb-3">
+                <CheckCircle2 size={24} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">No Rejected Workforce Records</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                There are currently no declined candidate applications. All candidate submissions are either active or awaiting decision.
+              </p>
+            </div>
+          ) : filteredRejectedRecords.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] dark:border-white/10 bg-white dark:bg-[#14132b] p-12 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/10 text-slate-400 flex items-center justify-center mb-3">
+                <FolderSearch size={24} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">No rejected candidates match your filters</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                Try clearing your search query or adjusting role type filter.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredRejectedRecords.map((talent) => (
+                <div
+                  key={talent.id || talent.email}
+                  className="rounded-3xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#16152B] p-5 shadow-xs flex flex-col justify-between hover:border-rose-300 transition-all"
+                >
+                  <div className="space-y-3.5">
+                    {/* Top Bar: Source & Rejected Badge */}
+                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-rose-100 dark:border-white/10">
+                      <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-md text-[11px] font-bold">
+                        <Code2 size={12} className="shrink-0" />
+                        <span>{talent.source || 'Independent Freelancer'}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 text-[10px] font-extrabold">
+                        <X size={11} className="shrink-0" />
+                        <span>Rejected</span>
+                      </span>
+                    </div>
+
+                    {/* Candidate Identity */}
+                    <div className="flex items-start gap-3.5">
+                      <UserAvatar
+                        src={talent.avatar || talent.personalDetails?.avatarUrl}
+                        name={talent.name}
+                        size="md"
+                        className="w-12 h-12 rounded-xl shrink-0 grayscale opacity-80"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{talent.name}</h3>
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">{talent.title}</p>
+                        <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span>{talent.experience}</span>
+                          <span>•</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{talent.hourlyRate}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rejection Reason Notice */}
+                    <div className="p-3 rounded-xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/40 space-y-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-rose-800 dark:text-rose-300">
+                        <AlertCircle size={13} className="text-rose-600 shrink-0" />
+                        <span>Decline Reason</span>
+                      </div>
+                      <p className="text-xs text-rose-900 dark:text-rose-200 italic font-medium leading-relaxed">
+                        "{talent.rejectionReason || 'Declined by Administrator'}"
+                      </p>
+                    </div>
+
+                    {/* Contact Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                      <div className="truncate">
+                        <span className="text-slate-400 text-[10px] font-bold block">Email</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block" title={talent.email}>{talent.email}</span>
+                      </div>
+                      <div className="truncate">
+                        <span className="text-slate-400 text-[10px] font-bold block">Phone</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{talent.phone || 'N/A'}</span>
+                      </div>
+                    </div>
+
+                    {/* Skills */}
+                    {Array.isArray(talent.skills) && talent.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {talent.skills.slice(0, 5).map((s) => (
+                          <span
+                            key={s}
+                            className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 text-[11px] font-medium"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions: View Details, Restore / Approve, Remove */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenTalentDetails(talent)}
+                      className="w-full py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye size={13} />
+                      <span>View Full Profile</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (talent.appId || talent.isFromApp) {
+                            approveFreelancerApplication(talent.appId || talent.id);
+                          }
+                          approveWorkforceMember(talent.id);
+                          toast.success(`Re-evaluated & Approved ${talent.name}! Restored to active talent pool.`);
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Check size={13} />
+                        <span>Re-evaluate & Approve</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWorkforceMember(talent)}
+                        className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 font-bold text-xs transition-colors cursor-pointer"
+                        title="Delete record permanently"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'freelancer-applications' ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">
-              Submitted Freelancer Applications ({freelancerApplications.length})
+              Submitted Freelancer Applications ({activeFreelancerApplications.length})
             </h3>
             <span className="text-xs text-slate-500">
               Approve to add candidate to active workforce pool
             </span>
           </div>
 
-          {freelancerApplications.length === 0 ? (
+          {activeFreelancerApplications.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#c3c6d7] bg-white p-12 text-center">
               <div className="w-12 h-12 rounded-2xl bg-purple-50 text-[#7c3aed] flex items-center justify-center mb-3">
                 <Sparkles size={24} />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">No Freelancer Applications Yet</h3>
+              <h3 className="text-sm font-bold text-slate-900">No Pending Freelancer Applications</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm">
                 Applications submitted by independent freelancers via the Workforce login page will appear here for Admin approval.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {freelancerApplications.map((app) => {
+              {activeFreelancerApplications.map((app) => {
                 const isPending = app.status === 'Pending Admin Approval';
                 const isApproved = app.status === 'Approved';
-                const isRejected = app.status === 'Rejected';
 
                 return (
                   <div
@@ -854,9 +1249,7 @@ export const WorkforceManagement = () => {
                                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                                   isPending
                                     ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                    : isApproved
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 }`}
                               >
                                 {app.status}
@@ -936,7 +1329,7 @@ export const WorkforceManagement = () => {
                           type="button"
                           onClick={() => {
                             rejectFreelancerApplication(app.id);
-                            toast.info(`Rejected application for ${app.fullName}.`);
+                            toast.info(`Rejected application for ${app.fullName}. Moved to Rejected Workforce.`);
                           }}
                           className="flex-1 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5"
                         >
@@ -947,8 +1340,8 @@ export const WorkforceManagement = () => {
                     ) : (
                       <div className="pt-2 border-t border-slate-100 text-xs font-bold text-slate-500 flex justify-between items-center">
                         <span>Submitted on: {app.submittedAt}</span>
-                        <span className={isApproved ? 'text-emerald-600' : 'text-rose-600'}>
-                          Decision Finalized
+                        <span className="text-emerald-600">
+                          Decision Finalized (Approved)
                         </span>
                       </div>
                     )}
@@ -1015,11 +1408,13 @@ export const WorkforceManagement = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                      <StatusBadge
-                        status={talent.availabilityStatus || talent.availability || 'Available'}
-                        size="sm"
-                        title="Live Availability Status"
-                      />
+                      {talent.availabilityStatus && !['available', 'immediate'].includes(String(talent.availabilityStatus).toLowerCase().trim()) && (
+                        <StatusBadge
+                          status={talent.availabilityStatus}
+                          size="sm"
+                          title="Live Status"
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -1095,9 +1490,19 @@ export const WorkforceManagement = () => {
                 </div>
 
                 {/* Bottom Actions Area */}
-                <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-white/10">
+                <div className="mt-5 pt-3.5 border-t border-slate-100 dark:border-white/10 space-y-2">
+                  {/* Verification Details Button - ALWAYS SHOWN */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenTalentDetails(talent)}
+                    className="w-full text-center py-2 px-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/40 text-xs font-bold text-[#004ac6] dark:text-blue-300 transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-98 cursor-pointer"
+                  >
+                    <Eye size={14} />
+                    <span>View Verification Details</span>
+                  </button>
+
                   {isPending ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5 pt-1">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center justify-between">
                         <span>Admin Decision Required</span>
                         <span>{talent.submittedDate || 'Pending'}</span>
@@ -1107,7 +1512,7 @@ export const WorkforceManagement = () => {
                         <button
                           type="button"
                           onClick={() => handleAdminAccept(talent)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all cursor-pointer"
                         >
                           <Check size={14} />
                           <span>Accept</span>
@@ -1117,7 +1522,7 @@ export const WorkforceManagement = () => {
                         <button
                           type="button"
                           onClick={() => setRejectionModalTalent(talent)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white dark:bg-white/10 border border-rose-300 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-bold shadow-2xs active:scale-95 transition-all"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white dark:bg-white/10 border border-rose-300 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer"
                         >
                           <X size={14} />
                           <span>Reject</span>
@@ -1125,21 +1530,23 @@ export const WorkforceManagement = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between pt-1">
                       <button
                         type="button"
-                        onClick={() => setSelectedTalent(talent)}
-                        className="flex-1 text-center py-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-700 dark:text-white transition-colors"
+                        onClick={() => handleStartEditTalent(talent)}
+                        className="text-[11px] font-bold text-slate-500 hover:text-[#004ac6] dark:hover:text-blue-400 flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        View Verification Details
+                        <Pencil size={12} />
+                        <span>Edit Profile</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteWorkforceMember(talent)}
-                        className="p-2 rounded-xl bg-slate-50 dark:bg-[#1c1a36] hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-white/10 transition-colors"
+                        className="text-[11px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
                         title="Delete candidate"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={13} />
+                        <span>Remove</span>
                       </button>
                     </div>
                   )}
@@ -1195,7 +1602,9 @@ export const WorkforceManagement = () => {
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{talent.experience}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <StatusBadge status={talent.availabilityStatus || talent.availability || 'Available'} size="sm" title="Live Availability" />
+                          {talent.availabilityStatus && !['available', 'immediate'].includes(String(talent.availabilityStatus).toLowerCase().trim()) ? (
+                            <StatusBadge status={talent.availabilityStatus} size="sm" title="Live Status" />
+                          ) : null}
                         </div>
                         <div className="mt-1.5 text-[11px]">
                           {Boolean(talent.isCurrentlyWorking && talent.currentProject && talent.currentProject !== 'None' && talent.currentProject !== 'none') ? (
@@ -1210,18 +1619,26 @@ export const WorkforceManagement = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         {isPending ? (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenTalentDetails(talent)}
+                              className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#004ac6] dark:text-blue-300 text-[11px] font-bold hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye size={12} />
+                              <span>Details</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleAdminAccept(talent)}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-xs cursor-pointer"
                             >
                               Accept
                             </button>
                             <button
                               type="button"
                               onClick={() => setRejectionModalTalent(talent)}
-                              className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-100"
+                              className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-100 cursor-pointer"
                             >
                               Reject
                             </button>
@@ -1230,15 +1647,16 @@ export const WorkforceManagement = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => setSelectedTalent(talent)}
-                              className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-semibold"
+                              onClick={() => handleOpenTalentDetails(talent)}
+                              className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
                             >
-                              Details
+                              <Eye size={12} />
+                              <span>Details</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteWorkforceMember(talent)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                               title="Delete candidate"
                             >
                               <Trash2 size={14} />
@@ -1258,342 +1676,557 @@ export const WorkforceManagement = () => {
       {/* ========================================================================= */}
       {/* CANDIDATE VERIFICATION & ADMIN DECISION MODAL */}
       {/* ========================================================================= */}
+      {/* ========================================================================= */}
+      {/* MODAL 1: VIEW VERIFICATION & PROFILE DETAILS */}
+      {/* ========================================================================= */}
       <Modal
         isOpen={Boolean(selectedTalent)}
         onClose={() => setSelectedTalent(null)}
-        title="Candidate Profile & Verification"
+        title="Candidate Profile & Full Verification Details"
         subtitle={selectedTalent?.title}
+        maxWidth="max-w-3xl"
       >
-        {selectedTalent && (
-          <div className="space-y-5">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <UserAvatar
-                src={selectedTalent.avatar}
-                name={selectedTalent.name}
-                size="lg"
-                className="w-16 h-16 rounded-xl shrink-0"
-              />
-              <div>
-                <h4 className="text-base font-bold text-slate-900">{selectedTalent.name}</h4>
-                <p className="text-xs font-semibold text-blue-600">{selectedTalent.title}</p>
-                <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  <StatusBadge status={selectedTalent.availabilityStatus || selectedTalent.availability || 'Available'} size="sm" title="Live Availability Status" />
-                  <span className="text-xs font-bold text-slate-800">{selectedTalent.hourlyRate}</span>
+        {selectedTalent && (() => {
+          const isPendingDecision =
+            selectedTalent.approvalStatus === 'Pending Review' ||
+            selectedTalent.approvalStatus === 'Pending' ||
+            selectedTalent.approvalStatus === 'Pending Admin Review' ||
+            selectedTalent.verificationStatus === 'Pending' ||
+            selectedTalent.status === 'Pending Review' ||
+            selectedTalent.status === 'Pending' ||
+            selectedTalent.status === 'Pending Admin Approval' ||
+            selectedTalent.status === 'Pending Admin Review' ||
+            selectedTalent.accountStatus === 'Pending Review';
+
+          const isFreelancer =
+            selectedTalent.roleType === 'Freelancer' ||
+            selectedTalent.source === 'Freelancer' ||
+            selectedTalent.source === 'Freelancer Registration' ||
+            selectedTalent.source === 'Independent Freelancer' ||
+            selectedTalent.professionalType === 'FREELANCER' ||
+            (!selectedTalent.partnerCompanyId && !selectedTalent.partnerCompany && selectedTalent.source !== 'Partner Company');
+
+          return (
+            <div className="space-y-5">
+              {/* Top Banner Card */}
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                <UserAvatar
+                  src={selectedTalent.avatar}
+                  name={selectedTalent.name}
+                  size="lg"
+                  className="w-16 h-16 rounded-xl shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white truncate">{selectedTalent.name}</h4>
+                    <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/40 shrink-0">
+                      {selectedTalent.hourlyRate}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">{selectedTalent.title}</p>
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    {selectedTalent.availabilityStatus && !['available', 'immediate'].includes(String(selectedTalent.availabilityStatus).toLowerCase().trim()) && (
+                      <StatusBadge status={selectedTalent.availabilityStatus} size="sm" title="Live Status" />
+                    )}
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Status: <strong className={isPendingDecision ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                        {selectedTalent.approvalStatus || selectedTalent.status || 'Active'}
+                      </strong>
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Recruitment Source</span>
-                <p className="font-bold text-slate-800 mt-0.5">
-                  {getPartnerCompanyName(selectedTalent, partners, clients) || selectedTalent?.partnerCompany || (selectedTalent?.partnerCompanyId || selectedTalent?.source === 'Partner Company' || selectedTalent?.professionalType === 'PARTNER_EMPLOYEE' ? 'Partner Company' : 'Independent Freelancer')}
-                </p>
+              {/* Personal & Contact Details Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Recruitment Source</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">
+                    {getPartnerCompanyName(selectedTalent, partners, clients) || selectedTalent?.partnerCompany || (selectedTalent?.partnerCompanyId || selectedTalent?.source === 'Partner Company' || selectedTalent?.professionalType === 'PARTNER_EMPLOYEE' ? 'Partner Company' : 'Independent Freelancer')}
+                  </p>
+                </div>
+                {!isFreelancer && (
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Company Staff Badge ID</span>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">
+                      {selectedTalent.staffBadgeId || selectedTalent.employeeId || selectedTalent.companyId || (
+                        <span className="text-slate-400 font-normal italic">Not assigned</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Experience</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">{selectedTalent.experience || 'Not specified'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Location</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{selectedTalent.location || 'Remote'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Email Address</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate" title={selectedTalent.email}>{selectedTalent.email || 'Not provided'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Phone Number</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">{selectedTalent.phone || <span className="text-slate-400 font-normal italic">Not provided</span>}</p>
+                </div>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Company Staff Badge ID</span>
-                <p className="font-bold text-slate-800 mt-0.5">
-                  {selectedTalent.staffBadgeId || selectedTalent.employeeId || selectedTalent.companyId || (
-                    <span className="text-slate-400 font-normal italic">Not assigned</span>
-                  )}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Experience</span>
-                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.experience || 'Not specified'}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Location</span>
-                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.location || 'Remote'}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
-                <p className="font-bold text-slate-800 mt-0.5 truncate">{selectedTalent.email || 'Not provided'}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Phone Number</span>
-                <p className="font-bold text-slate-800 mt-0.5">{selectedTalent.phone || <span className="text-slate-400 font-normal italic">Not provided</span>}</p>
-              </div>
-            </div>
 
-            {/* Verification Documents & Digital Credentials (Strictly real data - No demo samples) */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Credentials & Verification Documents
-              </h5>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {/* 1. Staff ID Badge Proof */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                      <ShieldCheck size={16} />
+              {/* Category & Technical Specialties */}
+              {(selectedTalent.category || (Array.isArray(selectedTalent.specialties) && selectedTalent.specialties.length > 0)) && (
+                <div className="p-3.5 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-purple-900 dark:text-purple-300">
+                      Primary Domain: {selectedTalent.category || 'Web, Mobile & Software Dev'}
+                    </span>
+                  </div>
+                  {Array.isArray(selectedTalent.specialties) && selectedTalent.specialties.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedTalent.specialties.map((spec, i) => (
+                        <span key={i} className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 text-[11px] font-bold border border-purple-200 dark:border-purple-700">
+                          {spec}
+                        </span>
+                      ))}
                     </div>
-                    <div className="truncate">
-                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Staff ID Badge</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {selectedTalent.staffBadgeName || selectedTalent.badgeDocumentName || (selectedTalent.staffBadgeUrl ? 'Badge Document' : 'Not uploaded')}
-                      </p>
+                  )}
+                </div>
+              )}
+
+              {/* Professional Bio & Overview */}
+              {(selectedTalent.bio || selectedTalent.bioOverview) && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 space-y-1.5">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Professional Bio & Overview
+                  </h5>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                    {selectedTalent.bio || selectedTalent.bioOverview}
+                  </p>
+                </div>
+              )}
+
+              {/* Quick Onboarding Responses & Freelancer Preferences */}
+              {(selectedTalent.experienceLevel || selectedTalent.freelanceGoal || (Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0) || selectedTalent.openToContractToHire !== undefined) && (
+                <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
+                      <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" />
+                      <span>Onboarding Quick Questions & Working Preferences</span>
+                    </h5>
+                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-700">
+                      Applicant Survey
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {/* 1. Prior Freelancing Experience */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">1. Prior Freelancing Experience</span>
+                      <div className="flex items-center gap-2">
+                        <Briefcase size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-slate-100">
+                          {selectedTalent.experienceLevel || 'I have some experience'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Primary Freelance Goal */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">2. Primary Freelancing Goal</span>
+                      <div className="flex items-center gap-2">
+                        <Star size={14} className="text-amber-500 shrink-0" />
+                        <span className="font-bold text-slate-800 dark:text-slate-100">
+                          {selectedTalent.freelanceGoal || 'To earn my main income'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Work Preferences */}
+                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1 sm:col-span-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">3. Preferred Ways of Working & Contracting</span>
+                        {selectedTalent.openToContractToHire !== false && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
+                            Open to Contract-to-Hire
+                          </span>
+                        )}
+                      </div>
+                      {Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {selectedTalent.workPreferences.map((pref, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-100/70 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs font-bold border border-indigo-200 dark:border-indigo-800/40">
+                              <CheckCircle2 size={12} className="text-indigo-600 dark:text-indigo-400" />
+                              <span>{pref}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-500 italic font-medium">Standard Talent Marketplace bidding</span>
+                      )}
                     </div>
                   </div>
-                  {Boolean(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl) ? (
+                </div>
+              )}
+
+              {/* Verification Documents & Credentials */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#1c1a36] border border-slate-200 dark:border-white/10 space-y-3">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Credentials & Verification Documents
+                </h5>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {/* 1. Resume / CV */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div className="truncate">
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Resume / CV Document</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {selectedTalent.resumeName || (selectedTalent.resumeUrl || selectedTalent.resume ? 'Resume Attached' : 'Not uploaded')}
+                        </p>
+                      </div>
+                    </div>
+                    {Boolean(selectedTalent.resumeUrl || selectedTalent.resume) ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewResumeModal({
+                              url: selectedTalent.resumeUrl || selectedTalent.resume,
+                              title: `${selectedTalent.name} - Resume / CV Document`,
+                              name: selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`,
+                            })
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Eye size={11} />
+                          <span>Preview</span>
+                        </button>
+                        <a
+                          href={selectedTalent.resumeUrl || selectedTalent.resume}
+                          download={selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-colors"
+                          title="Download Resume Document"
+                        >
+                          <Download size={11} />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                        Not uploaded
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 2. Staff ID Badge Proof */}
+                  {!isFreelancer && (
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <ShieldCheck size={16} />
+                        </div>
+                        <div className="truncate">
+                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Staff ID Badge</p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {selectedTalent.staffBadgeName || selectedTalent.badgeDocumentName || (selectedTalent.staffBadgeUrl ? 'Badge Attached' : 'Not uploaded')}
+                          </p>
+                        </div>
+                      </div>
+                      {Boolean(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDocument(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl, `${selectedTalent.name}_Staff_Badge`)}
+                          className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] hover:bg-blue-100 dark:hover:bg-blue-900 shrink-0 flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <ExternalLink size={11} />
+                          <span>View</span>
+                        </button>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                          Not uploaded
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. LinkedIn Profile & PDF */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-8 h-8 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] flex items-center justify-center font-bold text-xs shrink-0">
+                        in
+                      </div>
+                      <div className="truncate">
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">LinkedIn Profile</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {selectedTalent.linkedin ? selectedTalent.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '@') : 'Not provided'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {selectedTalent.linkedin && (
+                        <a
+                          href={selectedTalent.linkedin.startsWith('http') ? selectedTalent.linkedin : `https://${selectedTalent.linkedin}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] font-bold text-[10px] hover:bg-[#0a66c2]/20 flex items-center gap-1 transition-colors"
+                        >
+                          <ExternalLink size={11} />
+                          <span>Open</span>
+                        </a>
+                      )}
+                      {selectedTalent.linkedInPdfUrl && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewResumeModal({
+                              url: selectedTalent.linkedInPdfUrl,
+                              title: `${selectedTalent.name} - LinkedIn PDF Profile`,
+                              name: selectedTalent.linkedInPdfName || 'LinkedIn_Profile.pdf',
+                            })
+                          }
+                          className="px-2 py-1 rounded-lg bg-blue-600 text-white font-bold text-[10px] hover:bg-blue-700"
+                          title="Preview LinkedIn PDF Export"
+                        >
+                          PDF
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4. GitHub / Portfolio */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0">
+                        <Code2 size={16} />
+                      </div>
+                      <div className="truncate">
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">GitHub Profile</p>
+                        <p className="text-[10px] text-slate-400 truncate">
+                          {selectedTalent.github ? selectedTalent.github.replace(/^https?:\/\/(www\.)?github\.com\//i, '@') : 'Not provided'}
+                        </p>
+                      </div>
+                    </div>
+                    {selectedTalent.github ? (
+                      <a
+                        href={selectedTalent.github.startsWith('http') ? selectedTalent.github : `https://${selectedTalent.github}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-bold text-[10px] hover:bg-slate-200 dark:hover:bg-white/20 shrink-0 flex items-center gap-1 transition-colors"
+                      >
+                        <ExternalLink size={11} />
+                        <span>Open</span>
+                      </a>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
+                        Not provided
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Technical Competencies (Skills) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Technical Competencies & Skills
+                  </h5>
+                  <span className="text-[11px] text-slate-400 font-semibold">
+                    {selectedTalent.skills?.length || 0} skills verified
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedTalent.skills?.map((skill, idx) => (
+                    <span key={idx} className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/40 text-xs font-bold text-blue-800 dark:text-blue-300">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Employment History & Experience */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Employment History & Work Experience
+                  </h5>
+                  <span className="text-[11px] text-slate-400 font-semibold">
+                    {Array.isArray(selectedTalent.experiences) ? selectedTalent.experiences.length : 0} positions
+                  </span>
+                </div>
+                {Array.isArray(selectedTalent.experiences) && selectedTalent.experiences.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {selectedTalent.experiences.map((exp, idx) => (
+                      <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 space-y-1.5">
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <h6 className="font-extrabold text-xs text-slate-900 dark:text-white">{exp.title}</h6>
+                            <p className="text-xs font-bold text-blue-600 dark:text-blue-400">{exp.company} {exp.location ? `• ${exp.location}` : ''}</p>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-500 bg-white dark:bg-white/10 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-white/10 shrink-0">
+                            {exp.period || exp.dates}
+                          </span>
+                        </div>
+                        {exp.description && (
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                            {exp.description}
+                          </p>
+                        )}
+                        {exp.documentName && (
+                          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold text-[11px]">
+                            <FileCheck size={13} className="text-emerald-600" />
+                            <span>Attached Proof: {exp.documentName}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                    No individual employment records submitted. Commercial experience: {selectedTalent.experience || 'Not specified'}.
+                  </p>
+                )}
+              </div>
+
+              {/* Education & Academic Qualifications */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Education & Academic Qualifications
+                  </h5>
+                  <span className="text-[11px] text-slate-400 font-semibold">
+                    {Array.isArray(selectedTalent.educations) ? selectedTalent.educations.length : 0} degrees/schools
+                  </span>
+                </div>
+                {Array.isArray(selectedTalent.educations) && selectedTalent.educations.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedTalent.educations.map((edu, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex justify-between items-center text-xs">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <GraduationCap size={16} />
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-slate-900 dark:text-white">{edu.degree}</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">{edu.school}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 bg-white dark:bg-white/10 px-2 py-0.5 rounded border border-slate-200 dark:border-white/10 shrink-0">
+                          {edu.year || edu.dates || 'Completed'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                    No academic degree records attached.
+                  </p>
+                )}
+              </div>
+
+              {/* Certifications & Licenses */}
+              {Array.isArray(selectedTalent.certifications) && selectedTalent.certifications.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Certifications & Professional Credentials
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedTalent.certifications.map((cert, idx) => (
+                      <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex items-center gap-2">
+                        <Award size={15} className="text-amber-500 shrink-0" />
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">{cert}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Languages & Fluency */}
+              {Array.isArray(selectedTalent.languages) && selectedTalent.languages.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Languages & Fluency
+                  </h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {selectedTalent.languages.map((lang, idx) => (
+                      <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">{lang.name}</span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                          {lang.proficiency}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Decision Action Banner when candidate is pending */}
+              {isPendingDecision && (
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
+                      <span>Admin Decision Required</span>
+                    </h5>
+                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                      Full verification review complete
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
                     <button
                       type="button"
-                      onClick={() => handleOpenDocument(selectedTalent.staffBadgeUrl || selectedTalent.badgeDocumentUrl, `${selectedTalent.name}_Staff_Badge`)}
-                      className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-bold text-[10px] hover:bg-blue-100 dark:hover:bg-blue-900 shrink-0 flex items-center gap-1 transition-colors"
+                      onClick={() => {
+                        handleAdminAccept(selectedTalent);
+                        setSelectedTalent(null);
+                      }}
+                      className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <ExternalLink size={11} />
-                      <span>View</span>
+                      <Check size={16} />
+                      <span>Accept Candidate</span>
                     </button>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
-                      Not uploaded
-                    </span>
-                  )}
-                </div>
-
-                {/* 2. Resume / Curriculum Vitae */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <FileText size={16} />
-                    </div>
-                    <div className="truncate">
-                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Resume / CV</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {selectedTalent.resumeName || (selectedTalent.resumeUrl || selectedTalent.resume ? 'Resume Attached' : 'Not uploaded')}
-                      </p>
-                    </div>
-                  </div>
-                  {Boolean(selectedTalent.resumeUrl || selectedTalent.resume) ? (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewResumeModal({
-                            url: selectedTalent.resumeUrl || selectedTalent.resume,
-                            title: `${selectedTalent.name} - Resume / CV Document`,
-                            name: selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`,
-                          })
-                        }
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs flex items-center gap-1 transition-colors"
-                      >
-                        <Eye size={11} />
-                        <span>Preview</span>
-                      </button>
-                      <a
-                        href={selectedTalent.resumeUrl || selectedTalent.resume}
-                        download={selectedTalent.resumeName || `${selectedTalent.name}_Resume.pdf`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition-colors"
-                        title="Download Resume Document"
-                      >
-                        <Download size={11} />
-                      </a>
-                    </div>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
-                      Not uploaded
-                    </span>
-                  )}
-                </div>
-
-                {/* 3. LinkedIn Profile */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] flex items-center justify-center font-bold text-xs shrink-0">
-                      in
-                    </div>
-                    <div className="truncate">
-                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">LinkedIn Profile</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {selectedTalent.linkedin ? selectedTalent.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '@') : 'Not provided'}
-                      </p>
-                    </div>
-                  </div>
-                  {selectedTalent.linkedin ? (
-                    <a
-                      href={selectedTalent.linkedin.startsWith('http') ? selectedTalent.linkedin : `https://${selectedTalent.linkedin}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg bg-[#0a66c2]/10 text-[#0a66c2] font-bold text-[10px] hover:bg-[#0a66c2]/20 shrink-0 flex items-center gap-1 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = selectedTalent;
+                        setSelectedTalent(null);
+                        setRejectionModalTalent(target);
+                      }}
+                      className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <ExternalLink size={11} />
-                      <span>Open</span>
-                    </a>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
-                      Not provided
-                    </span>
-                  )}
-                </div>
-
-                {/* 4. GitHub / Portfolio */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0">
-                      <Code2 size={16} />
-                    </div>
-                    <div className="truncate">
-                      <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">GitHub Profile</p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {selectedTalent.github ? selectedTalent.github.replace(/^https?:\/\/(www\.)?github\.com\//i, '@') : 'Not provided'}
-                      </p>
-                    </div>
+                      <X size={16} />
+                      <span>Reject Request</span>
+                    </button>
                   </div>
-                  {selectedTalent.github ? (
-                    <a
-                      href={selectedTalent.github.startsWith('http') ? selectedTalent.github : `https://${selectedTalent.github}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 font-bold text-[10px] hover:bg-slate-200 dark:hover:bg-white/20 shrink-0 flex items-center gap-1 transition-colors"
-                    >
-                      <ExternalLink size={11} />
-                      <span>Open</span>
-                    </a>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-[10px] font-medium text-slate-400 shrink-0">
-                      Not provided
-                    </span>
-                  )}
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Currently Working Active Assignment Card */}
-            {Boolean(selectedTalent.isCurrentlyWorking && selectedTalent.currentProject && selectedTalent.currentProject !== 'None' && selectedTalent.currentProject !== 'none') ? (
-              <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/40 space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                    <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                    <span>Currently Working</span>
-                  </div>
-                  <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/60 px-1.5 py-0.5 rounded">
-                    {selectedTalent.assignmentStatus || 'Assigned'}
-                  </span>
-                </div>
-                <p className="text-sm font-black text-slate-900 dark:text-white">
-                  {selectedTalent.currentProjectName || selectedTalent.currentProject}
-                </p>
-                {selectedTalent.currentProjectClient && (
-                  <p className="text-xs text-slate-700 dark:text-slate-300 font-bold">
-                    Client: {selectedTalent.currentProjectClient}
-                  </p>
-                )}
-                {selectedTalent.currentProjectRole && (
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    Role: {selectedTalent.currentProjectRole}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">Assignment Status:</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-300">None</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">Current Project:</span>
-                  <span className="font-semibold text-slate-500 dark:text-slate-400 italic">None</span>
-                </div>
-              </div>
-            )}
-
-            <div>
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Technical Competencies</h5>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedTalent.skills?.map((skill, idx) => (
-                  <span key={idx} className="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-xs font-bold text-blue-800">
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Employment History & Projects */}
-            {Array.isArray(selectedTalent.experiences) && selectedTalent.experiences.length > 0 && (
-              <div className="space-y-2">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Employment History & Projects</h5>
-                <div className="space-y-2">
-                  {selectedTalent.experiences.map((exp, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 space-y-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-extrabold text-xs text-slate-900 dark:text-white">{exp.title}</span>
-                        <span className="text-[10px] font-bold text-slate-500">{exp.period}</span>
-                      </div>
-                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400">{exp.company}</p>
-                      {exp.description && <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{exp.description}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Educational Qualifications */}
-            {Array.isArray(selectedTalent.educations) && selectedTalent.educations.length > 0 && (
-              <div className="space-y-2">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Education & Academic Qualifications</h5>
-                <div className="space-y-1.5">
-                  {selectedTalent.educations.map((edu, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex justify-between items-center text-xs">
-                      <div>
-                        <p className="font-extrabold text-slate-900 dark:text-white">{edu.degree}</p>
-                        <p className="text-[11px] text-slate-500">{edu.school}</p>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400">{edu.year || edu.dates}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* If Pending, Show Admin Accept/Reject Controls */}
-            {selectedTalent.approvalStatus === 'Pending Review' && (
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
-                <h5 className="text-xs font-bold text-amber-900 uppercase tracking-wider">Admin Decision Required</h5>
-                <div className="grid grid-cols-2 gap-3">
+              {/* Modal Footer / Actions */}
+              <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleAdminAccept(selectedTalent)}
-                    className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                    onClick={() => handleDeleteWorkforceMember(selectedTalent)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer"
                   >
-                    Accept Candidate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRejectionModalTalent(selectedTalent);
-                    }}
-                    className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
-                  >
-                    Reject Request
+                    <Trash2 size={14} />
+                    <span>Remove Candidate</span>
                   </button>
                 </div>
-              </div>
-            )}
-            {/* Modal Footer / Actions */}
-            <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDeleteWorkforceMember(selectedTalent)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
+                  onClick={() => setSelectedTalent(null)}
+                  className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/20 transition-colors cursor-pointer"
                 >
-                  <Trash2 size={14} />
-                  <span>Remove Candidate</span>
+                  Close
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTalent(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/20 transition-colors"
-              >
-                Close
-              </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* ========================================================================= */}
@@ -1732,13 +2365,21 @@ export const WorkforceManagement = () => {
                   { value: 'Inactive', label: 'Inactive' },
                 ]}
               />
-              <FormInput
-                label="Company Staff Badge ID"
-                name="staffBadgeId"
-                value={editTalentForm.staffBadgeId || ''}
-                onChange={(e) => setEditTalentForm((prev) => ({ ...prev, staffBadgeId: e.target.value }))}
-                placeholder="e.g. EMP-1049"
-              />
+              {!(
+                editingTalent?.roleType === 'Freelancer' ||
+                editingTalent?.source === 'Freelancer' ||
+                editingTalent?.source === 'Independent Freelancer' ||
+                editingTalent?.professionalType === 'FREELANCER' ||
+                (!editingTalent?.partnerCompanyId && !editingTalent?.partnerCompany && editingTalent?.source !== 'Partner Company')
+              ) && (
+                <FormInput
+                  label="Company Staff Badge ID"
+                  name="staffBadgeId"
+                  value={editTalentForm.staffBadgeId || ''}
+                  onChange={(e) => setEditTalentForm((prev) => ({ ...prev, staffBadgeId: e.target.value }))}
+                  placeholder="e.g. EMP-1049"
+                />
+              )}
               <FormInput
                 label="LinkedIn Profile URL"
                 name="linkedin"
@@ -1757,49 +2398,57 @@ export const WorkforceManagement = () => {
 
             {/* Document Uploads: Staff Badge & Resume */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Staff ID Badge Proof
-                </label>
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all">
-                    <Download size={13} className="rotate-180" />
-                    <span>{editTalentForm.staffBadgeUrl ? 'Change File' : 'Upload Badge'}</span>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (evt) => {
-                            setEditTalentForm((prev) => ({
-                              ...prev,
-                              staffBadgeUrl: evt.target.result,
-                              staffBadgeName: file.name,
-                            }));
-                            toast.info(`Staff badge "${file.name}" attached.`);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+              {!(
+                editingTalent?.roleType === 'Freelancer' ||
+                editingTalent?.source === 'Freelancer' ||
+                editingTalent?.source === 'Independent Freelancer' ||
+                editingTalent?.professionalType === 'FREELANCER' ||
+                (!editingTalent?.partnerCompanyId && !editingTalent?.partnerCompany && editingTalent?.source !== 'Partner Company')
+              ) && (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Staff ID Badge Proof
                   </label>
-                  {editTalentForm.staffBadgeUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setEditTalentForm((prev) => ({ ...prev, staffBadgeUrl: '', staffBadgeName: '' }))}
-                      className="text-xs text-rose-500 hover:underline"
-                    >
-                      Remove
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all">
+                      <Download size={13} className="rotate-180" />
+                      <span>{editTalentForm.staffBadgeUrl ? 'Change File' : 'Upload Badge'}</span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              setEditTalentForm((prev) => ({
+                                ...prev,
+                                staffBadgeUrl: evt.target.result,
+                                staffBadgeName: file.name,
+                              }));
+                              toast.info(`Staff badge "${file.name}" attached.`);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {editTalentForm.staffBadgeUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditTalentForm((prev) => ({ ...prev, staffBadgeUrl: '', staffBadgeName: '' }))}
+                        className="text-xs text-rose-500 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {editTalentForm.staffBadgeName && (
+                    <p className="text-[11px] text-slate-500 truncate">{editTalentForm.staffBadgeName}</p>
                   )}
                 </div>
-                {editTalentForm.staffBadgeName && (
-                  <p className="text-[11px] text-slate-500 truncate">{editTalentForm.staffBadgeName}</p>
-                )}
-              </div>
+              )}
 
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -2083,6 +2732,32 @@ export const WorkforceManagement = () => {
                     >
                       <ExternalLink size={13} />
                       <span>Open LinkedIn</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* GitHub Profile Link Card */}
+                {(viewingAppModal.github || viewingAppModal.personalDetails?.github) && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                        <FaGithub size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-extrabold text-slate-900 dark:text-white">GitHub Profile</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium truncate max-w-[280px]">
+                          {viewingAppModal.github || viewingAppModal.personalDetails?.github}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={(viewingAppModal.github || viewingAppModal.personalDetails?.github).startsWith('http') ? (viewingAppModal.github || viewingAppModal.personalDetails?.github) : `https://${viewingAppModal.github || viewingAppModal.personalDetails?.github}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open GitHub</span>
                     </a>
                   </div>
                 )}

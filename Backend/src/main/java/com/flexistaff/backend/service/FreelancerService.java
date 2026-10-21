@@ -588,14 +588,8 @@ public class FreelancerService {
             WorkforceAllocation activeAlloc = (allocations != null ? allocations : new java.util.ArrayList<WorkforceAllocation>())
                     .stream()
                     .filter(a -> a != null && a.getProject() != null &&
-                            a.getStatus() != AllocationStatus.REJECTED &&
-                            a.getStatus() != AllocationStatus.DECLINED &&
-                            a.getStatus() != AllocationStatus.CANCELLED &&
-                            a.getStatus() != AllocationStatus.DECLINED_BY_CANDIDATE &&
-                            a.getProject().getStatus() != ProjectStatus.REJECTED &&
-                            a.getProject().getStatus() != ProjectStatus.DECLINED &&
-                            a.getProject().getStatus() != ProjectStatus.CANCELLED &&
-                            a.getProject().getStatus() != ProjectStatus.COMPLETED)
+                            (a.getStatus() == AllocationStatus.ACTIVE || a.getStatus() == AllocationStatus.ACCEPTED) &&
+                            (a.getProject().getStatus() == ProjectStatus.IN_PROGRESS || a.getProject().getStatus() == ProjectStatus.APPROVED))
                     .findFirst()
                     .orElse(null);
 

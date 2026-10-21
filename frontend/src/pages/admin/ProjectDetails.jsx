@@ -23,6 +23,8 @@ import {
   Mail,
   Phone,
   MapPin,
+  Lock,
+  AlertCircle,
 } from 'lucide-react';
 import { useData, getPartnerCompanyName, mapBackendProjectToFrontend } from '../../context/DataContext';
 import api from '../../services/api';
@@ -292,6 +294,27 @@ export const ProjectDetails = () => {
 
   const combinedActiveResources = activeSquad;
 
+  const requiredHeadcount = useMemo(() => {
+    if (!project) return 1;
+    const reqFromProject = Number(
+      project.workforceRequired ||
+      project.headcount ||
+      project.teamHeadcount ||
+      project.requiredHeadcount ||
+      project.requiredProfessionals ||
+      project.workforceCount
+    );
+    if (reqFromProject && reqFromProject > 0) return reqFromProject;
+    if (Array.isArray(project.requirements) && project.requirements.length > 0) {
+      const sum = project.requirements.reduce((acc, r) => acc + (Number(r.required || r.count || r.quantity) || 0), 0);
+      if (sum > 0) return sum;
+    }
+    if (Array.isArray(project.requiredSkills) && project.requiredSkills.length > 0) {
+      return project.requiredSkills.length;
+    }
+    return 4;
+  }, [project]);
+
   const displayMilestones = useMemo(() => {
     if (!project) return [];
     const default5 = [
@@ -359,12 +382,29 @@ export const ProjectDetails = () => {
     );
   }
 
-  const isPendingApproval =
-    project.status === 'Pending Admin Approval' ||
-    project.stage === 'Pending Admin Approval' ||
-    project.status === 'Pending Approval' ||
-    project.stage === 'Request' ||
-    project.status === 'Pending';
+  const isPendingApproval = Boolean(
+    project && (
+      project.status === 'Pending Admin Approval' ||
+      project.stage === 'Pending Admin Approval' ||
+      project.status === 'PENDING_APPROVAL' ||
+      project.stage === 'PENDING_APPROVAL' ||
+      project.status === 'Pending Approval' ||
+      project.stage === 'Pending Approval' ||
+      project.stage === 'Request' ||
+      project.status === 'Pending' ||
+      project.status === 'Draft' ||
+      project.stage === 'Draft' ||
+      (project.approvalStatus && String(project.approvalStatus).toLowerCase().includes('pending'))
+    )
+  );
+
+  const isProjectApproved = Boolean(
+    project &&
+    !isPendingApproval &&
+    project.status !== 'Rejected' &&
+    project.status !== 'REJECTED' &&
+    project.stage !== 'Rejected'
+  );
 
   const pendingSquadApprovalCount = pendingSquadMembers.length;
 
@@ -378,9 +418,14 @@ export const ProjectDetails = () => {
     approveProject(project.id, selectedManagerName);
     toast.success(`Project "${project.title}" approved and assigned to HR Manager ${selectedManagerName}! Forwarded for workforce matching.`);
     setIsApproveModalOpen(false);
+    fetchProjectDetails();
   };
 
   const handleMilestoneToggle = (milestoneId) => {
+    if (!isProjectApproved) {
+      toast.warning('Milestones are locked. Please approve the project first before marking deliverables complete.');
+      return;
+    }
     toggleMilestone(project.id, milestoneId);
     toast.info('Milestone status updated.');
   };
@@ -573,15 +618,23 @@ export const ProjectDetails = () => {
               Team Headcount
             </span>
             <span className="text-xl font-bold text-[#191b23] dark:text-white mt-1 block">
-              {combinedActiveResources.length} Active / {combinedActiveResources.length + pendingSquadMembers.length} Total
+              {combinedActiveResources.length} Active / {requiredHeadcount} Total
             </span>
             {pendingSquadMembers.length > 0 ? (
               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-1 block">
                 {pendingSquadMembers.length} Staged Pending Sign-off
               </span>
-            ) : (
+            ) : combinedActiveResources.length >= requiredHeadcount ? (
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
-                ✓ Active Engagement
+                ✓ Fully Staffed
+              </span>
+            ) : combinedActiveResources.length > 0 ? (
+              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium mt-1 block">
+                {Math.max(0, requiredHeadcount - combinedActiveResources.length)} Position(s) Needed
+              </span>
+            ) : (
+              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium mt-1 block">
+                {requiredHeadcount} Position{requiredHeadcount === 1 ? '' : 's'} Needed
               </span>
             )}
           </div>
@@ -620,15 +673,32 @@ export const ProjectDetails = () => {
 
           {/* Interactive Milestones Tracker */}
           <div className="rounded-2xl border border-[#c3c6d7]/70 dark:border-white/10 bg-white dark:bg-[#14132b] p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
-                  Milestones & Task Checklist
-                </h3>
-                <p className="text-xs text-[#737686] dark:text-slate-400">
-                  Click items to mark complete and automatically update overall project progress.
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-[#191b23] dark:text-white tracking-tight">
+                    Milestones & Task Checklist
+                  </h3>
+                  {!isProjectApproved && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                      <Lock size={12} />
+                      Locked (Pending Approval)
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-[#737686] dark:text-slate-400 mt-0.5">
+                  {!isProjectApproved
+                    ? 'Checklist is locked until this project is approved by the Administrator.'
+                    : 'Click items to mark complete and automatically update overall project progress.'}
                 </p>
               </div>
+
+              {!isProjectApproved && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                  <AlertCircle size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Approve project above to enable task completion</span>
+                </div>
+              )}
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-white/10 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50">
@@ -642,40 +712,86 @@ export const ProjectDetails = () => {
                 const isStarted = !isCompleted && (m.status === 'In Progress' || m.status === 'IN_PROGRESS' || matchedMs.status === 'In Progress' || msCommits.length > 0);
                 const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
 
-                  return (
-                    <div key={m.id || m.title} className="p-4 space-y-2 hover:bg-white dark:hover:bg-[#14132b] transition-colors">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isCompleted}
-                          onChange={() => handleMilestoneToggle(m.id)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#2563eb] focus:ring-[#2563eb]"
-                        />
-                        <div className="flex-1 min-w-0">
+                const isCheckDisabled = !isProjectApproved;
+
+                return (
+                  <div
+                    key={m.id || m.title}
+                    className={`p-4 space-y-2 transition-colors ${
+                      isCheckDisabled
+                        ? 'bg-slate-50/70 dark:bg-[#181630]/70 opacity-80 cursor-not-allowed select-none'
+                        : 'hover:bg-white dark:hover:bg-[#14132b]'
+                    }`}
+                    onClick={() => {
+                      if (isCheckDisabled) {
+                        toast.warning('Milestones cannot be marked complete until the project is approved.');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isCompleted}
+                        disabled={isCheckDisabled}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (isCheckDisabled) {
+                            toast.warning('Milestones cannot be marked complete until the project is approved.');
+                            return;
+                          }
+                          handleMilestoneToggle(m.id);
+                        }}
+                        onClick={(e) => {
+                          if (isCheckDisabled) {
+                            e.stopPropagation();
+                            toast.warning('Milestones cannot be marked complete until the project is approved.');
+                          }
+                        }}
+                        className={`mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#2563eb] focus:ring-[#2563eb] ${
+                          isCheckDisabled
+                            ? 'cursor-not-allowed opacity-40 bg-slate-200 dark:bg-slate-700 pointer-events-none'
+                            : 'cursor-pointer'
+                        }`}
+                        title={
+                          isCheckDisabled
+                            ? 'Approve the project first to unlock milestone updates'
+                            : 'Click to toggle milestone completion'
+                        }
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
                           <p
                             className={`text-xs sm:text-sm font-bold ${
-                              isCompleted ? 'text-emerald-950 dark:text-emerald-300 font-bold' : 'text-[#191b23] dark:text-white'
+                              isCompleted
+                                ? 'text-emerald-950 dark:text-emerald-300 font-bold'
+                                : isCheckDisabled
+                                ? 'text-slate-500 dark:text-slate-400'
+                                : 'text-[#191b23] dark:text-white'
                             }`}
                           >
                             {String(m.title || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
                           </p>
-                          <span className="text-[11px] text-[#737686] dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Calendar size={12} className="text-slate-400 dark:text-slate-500" />
-                            <span>Target: {m.dueDate || m.deadline || project.endDate || '2027-02-28'}</span>
-                          </span>
+                          {isCheckDisabled && (
+                            <Lock size={12} className="text-amber-500 dark:text-amber-400 shrink-0" />
+                          )}
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            isCompleted
-                              ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
-                              : isStarted
-                              ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300'
-                              : 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
-                          }`}
-                        >
-                          {statusText}
+                        <span className="text-[11px] text-[#737686] dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Calendar size={12} className="text-slate-400 dark:text-slate-500" />
+                          <span>Target: {m.dueDate || m.deadline || project.endDate || '2027-02-28'}</span>
                         </span>
                       </div>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                          isCompleted
+                            ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
+                            : isStarted
+                            ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300'
+                            : 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
+                        }`}
+                      >
+                        {statusText}
+                      </span>
+                    </div>
 
                       {/* Git Commit Log Timeline for Admin */}
                       {msCommits.length > 0 && (
@@ -857,7 +973,7 @@ export const ProjectDetails = () => {
                 </p>
               </div>
               <span className="text-[11px] font-semibold text-[#004ac6] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800/40">
-                {combinedActiveResources.length} Staffed
+                {combinedActiveResources.length} / {requiredHeadcount} Staffed
               </span>
             </div>
 

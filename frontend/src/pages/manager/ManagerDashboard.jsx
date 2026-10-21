@@ -82,9 +82,22 @@ export const ManagerDashboard = () => {
   const pendingAssignmentsCount = (managerAssignments || []).filter(
     (a) => a.status === 'Pending Assignment Approval' || a.status === 'Pending'
   ).length;
+  const isNotRejected = (w) =>
+    w &&
+    w.status !== 'Rejected' &&
+    w.approvalStatus !== 'Rejected' &&
+    w.verificationStatus !== 'Rejected' &&
+    w.availability !== 'Rejected' &&
+    String(w.status || '').toLowerCase() !== 'rejected';
+
   const availableWorkforceCount = (workforce || []).filter(
-    (w) => (w.availability === 'Available' || w.availability === 'Immediate') && (w.approvalStatus === 'Approved' || w.status === 'Active')
+    (w) =>
+      isNotRejected(w) &&
+      (w.availability === 'Available' || w.availability === 'Immediate') &&
+      !w.isCurrentlyWorking &&
+      (w.approvalStatus === 'Approved' || w.status === 'Active' || !w.status)
   ).length;
+
   const activeProjectsCount = approvedList.filter(
     (p) => p.stage === 'In Progress' || p.status === 'In Progress'
   ).length;
@@ -93,13 +106,15 @@ export const ManagerDashboard = () => {
   ).length;
 
   const assignedWorkforceCount = (workforce || []).filter(
-    (w) => w.status === 'Assigned' || w.availability === 'Assigned'
+    (w) => isNotRejected(w) && (w.status === 'Assigned' || w.availability === 'Assigned' || w.isCurrentlyWorking)
   ).length;
+
   const workingWorkforceCount = (workforce || []).filter(
-    (w) => w.status === 'Busy' || w.availability === 'Busy' || w.availability === 'Working'
+    (w) => isNotRejected(w) && (w.status === 'Busy' || w.availability === 'Busy' || w.availability === 'Working' || w.workingStatus === 'Working')
   ).length;
+
   const unavailableWorkforceCount = (workforce || []).filter(
-    (w) => w.availability === 'Unavailable'
+    (w) => isNotRejected(w) && !w.isCurrentlyWorking && (w.availability === 'Unavailable' || w.workingStatus === 'Unavailable' || String(w.availability || '').toLowerCase().includes('leave'))
   ).length;
 
   // Chart 1: Project Status Distribution

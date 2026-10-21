@@ -52,8 +52,58 @@ export const ManagerWorkforce = () => {
         return false;
       }
 
+      // Strictly exclude rejected workforce members
+      const isRejected =
+        emp.status === 'Rejected' ||
+        emp.approvalStatus === 'Rejected' ||
+        emp.verificationStatus === 'Rejected' ||
+        emp.accountStatus === 'Rejected' ||
+        emp.availability === 'Rejected' ||
+        emp.workingStatus === 'Rejected' ||
+        String(emp.status || '').toLowerCase() === 'rejected' ||
+        String(emp.approvalStatus || '').toLowerCase() === 'rejected' ||
+        String(emp.verificationStatus || '').toLowerCase() === 'rejected';
+
+      if (isRejected) {
+        return false;
+      }
+
+      // Exclude pending review applicants (not yet approved into the talent pool)
+      const isPending =
+        emp.status === 'Pending Review' ||
+        emp.status === 'Pending' ||
+        emp.approvalStatus === 'Pending Review' ||
+        emp.approvalStatus === 'Pending';
+
+      if (isPending) {
+        return false;
+      }
+
+      // Resolve workforce state: Available, Assigned, or Unavailable
+      const isAssigned = Boolean(
+        emp.isCurrentlyWorking ||
+        (emp.assignedProject && emp.assignedProject !== 'None' && emp.assignedProject !== 'none') ||
+        emp.availability === 'Assigned' ||
+        emp.workingStatus === 'Working'
+      );
+      const isUnavailable = !isAssigned && (
+        emp.availability === 'Unavailable' ||
+        emp.availability === 'Temporarily Unavailable' ||
+        emp.workingStatus === 'Unavailable' ||
+        String(emp.availability || '').toLowerCase().includes('leave')
+      );
+      const isAvailable = !isAssigned && !isUnavailable;
+
       if (roleFilter !== 'all' && !emp.role?.toLowerCase().includes(roleFilter.toLowerCase())) return false;
-      if (availabilityFilter !== 'all' && emp.availability?.toLowerCase() !== availabilityFilter.toLowerCase()) return false;
+      
+      if (availabilityFilter !== 'all') {
+        const filterKey = availabilityFilter.toLowerCase();
+        if (filterKey === 'available' && !isAvailable) return false;
+        if (filterKey === 'assigned' && !isAssigned) return false;
+        if (filterKey === 'unavailable' && !isUnavailable) return false;
+        if (filterKey === 'partially available' && !String(emp.availability || '').toLowerCase().includes('partially')) return false;
+      }
+
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = (emp.name || '').toLowerCase().includes(q);
@@ -129,6 +179,7 @@ export const ManagerWorkforce = () => {
             <option value="all">All Availability</option>
             <option value="available">Available</option>
             <option value="assigned">Assigned</option>
+            <option value="unavailable">Unavailable</option>
             <option value="partially available">Partially Available</option>
           </select>
         </div>
@@ -153,7 +204,23 @@ export const ManagerWorkforce = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredWorkforce.map((emp) => {
-                const isAvailable = emp.availability === 'Available';
+                const isAssigned = Boolean(
+                  emp.isCurrentlyWorking ||
+                  (emp.assignedProject && emp.assignedProject !== 'None' && emp.assignedProject !== 'none') ||
+                  emp.availability === 'Assigned' ||
+                  emp.workingStatus === 'Working'
+                );
+                const isUnavailable = !isAssigned && (
+                  emp.availability === 'Unavailable' ||
+                  emp.availability === 'Temporarily Unavailable' ||
+                  emp.workingStatus === 'Unavailable' ||
+                  String(emp.availability || '').toLowerCase().includes('leave')
+                );
+                const isAvailable = !isAssigned && !isUnavailable;
+
+                const displayAvailability = isAssigned ? 'Assigned' : isUnavailable ? 'Unavailable' : (emp.availability || 'Available');
+                const displayWorkingStatus = isAssigned ? 'Working' : isUnavailable ? 'Unavailable' : 'Available';
+
                 return (
                   <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-500">{emp.id}</td>
@@ -183,17 +250,21 @@ export const ManagerWorkforce = () => {
                     <td className="py-3.5 px-4 text-slate-600 font-semibold">{emp.experience || 'N/A'}</td>
                     <td className="py-3.5 px-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                        isAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        isAvailable
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : isAssigned
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
                         <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        <span>{emp.availability}</span>
+                        <span>{displayAvailability}</span>
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-800">{emp.workingStatus || (isAvailable ? 'Available' : 'Working')}</span>
+                      <span className="font-bold text-slate-800">{displayWorkingStatus}</span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">
-                      {emp.assignedProject ? (
+                      {isAssigned && emp.assignedProject && emp.assignedProject !== 'None' ? (
                         <span className="font-semibold text-blue-700">{emp.assignedProject}</span>
                       ) : (
                         <span className="text-slate-400 italic">None (On Bench)</span>

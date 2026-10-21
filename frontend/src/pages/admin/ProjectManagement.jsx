@@ -350,7 +350,16 @@ export const ProjectManagement = () => {
     const st = prj.status || prj.stage || '';
     const sg = prj.stage || prj.status || '';
 
-    if (st === 'Pending Admin Approval' || sg === 'Pending Admin Approval' || sg === 'Request' || st === 'Pending') {
+    if (
+      st === 'Pending Admin Approval' ||
+      sg === 'Pending Admin Approval' ||
+      st === 'PENDING_APPROVAL' ||
+      sg === 'PENDING_APPROVAL' ||
+      st === 'Pending Approval' ||
+      sg === 'Pending Approval' ||
+      sg === 'Request' ||
+      st === 'Pending'
+    ) {
       return 'Pending Admin Approval';
     }
     if (st === 'Rejected' || sg === 'Rejected') {
@@ -589,7 +598,12 @@ export const ProjectManagement = () => {
         const isPendingApproval =
           row.status === 'Pending Admin Approval' ||
           row.stage === 'Pending Admin Approval' ||
-          row.stage === 'Request';
+          row.status === 'PENDING_APPROVAL' ||
+          row.stage === 'PENDING_APPROVAL' ||
+          row.status === 'Pending Approval' ||
+          row.stage === 'Pending Approval' ||
+          row.stage === 'Request' ||
+          row.status === 'Pending';
 
         if (isPendingApproval) {
           return (

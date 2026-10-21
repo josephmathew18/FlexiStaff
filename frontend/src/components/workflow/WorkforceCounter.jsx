@@ -1,6 +1,5 @@
 import React from 'react';
-import { Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Users, CheckCircle2 } from 'lucide-react';
 
 /**
  * WorkforceCounter Component
@@ -79,20 +78,6 @@ export const WorkforceCounter = ({
           ))}
         </div>
       </div>
-
-      <AnimatePresence>
-        {!isFullyStaffed && isMaxReached && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-900 text-xs font-bold"
-          >
-            <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-            <span>Available project slots filled ({count}/{effectiveMax} staged for total required workforce of {totalRequired}).</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

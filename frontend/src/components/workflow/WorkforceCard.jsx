@@ -97,12 +97,13 @@ export const WorkforceCard = ({
               </div>
             </div>
           </div>
-
-          <StatusBadge status={isAlreadyQueued ? 'Staged' : candidate.availability || 'Available'} size="sm" />
+          {(isAlreadyQueued || (candidate.availability && !['available', 'immediate'].includes(String(candidate.availability).toLowerCase().trim()))) && (
+            <StatusBadge status={isAlreadyQueued ? 'Staged' : candidate.availability} size="sm" />
+          )}
         </div>
 
         {/* Currently Working Active Project Badge */}
-        {(candidate.isCurrentlyWorking || candidate.currentProjectName || candidate.currentProject) && (
+        {Boolean(candidate.isCurrentlyWorking && candidate.currentProject && candidate.currentProject !== 'None' && candidate.currentProject !== 'none') && (
           <div className="p-2.5 rounded-xl bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-[11px] space-y-0.5">
             <div className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-300">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />

@@ -156,6 +156,16 @@ export const ManagerMatching = () => {
       if (cid && seenIds.has(cid)) return;
       if (nameKey && seenNames.has(nameKey)) return;
 
+      // Strictly exclude rejected workforce members
+      const isRejected =
+        cand.status === 'Rejected' ||
+        cand.approvalStatus === 'Rejected' ||
+        cand.verificationStatus === 'Rejected' ||
+        cand.accountStatus === 'Rejected' ||
+        String(cand.status || '').toLowerCase() === 'rejected' ||
+        String(cand.approvalStatus || '').toLowerCase() === 'rejected';
+      if (isRejected) return;
+
       // Only include available candidates (filter out assigned, busy, or unavailable)
       const statusLower = (cand.availability || cand.status || '').toLowerCase().trim();
       if (

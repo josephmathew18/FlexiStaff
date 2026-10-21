@@ -72,7 +72,14 @@ export const ManagerLayout = () => {
       p.stage?.includes('Approved') ||
       p.stage?.includes('Matching')
   );
-  const availableWorkforceCount = (workforce || []).filter((w) => w.availability === 'Available').length;
+  const availableWorkforceCount = (workforce || []).filter(
+    (w) =>
+      (w.availability === 'Available' || w.availability === 'Immediate') &&
+      w.status !== 'Rejected' &&
+      w.approvalStatus !== 'Rejected' &&
+      w.verificationStatus !== 'Rejected' &&
+      !w.isCurrentlyWorking
+  ).length;
   const unreadNotifCount = (managerNotifications || []).filter((n) => n.unread).length;
 
   const navItems = [

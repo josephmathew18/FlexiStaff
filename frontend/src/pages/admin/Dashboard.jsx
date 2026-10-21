@@ -118,7 +118,7 @@ const DashboardCard = ({ title, value, icon: Icon, trend, trendLabel = 'vs last 
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { projects = [], workforce = [], partners = [], clients = [], managers = [], activities = [], dashboardStats } = useData();
+  const { projects = [], workforce = [], partners = [], clients = [], managers = [], activities = [], dashboardStats, freelancerApplications = [] } = useData();
   const navigate = useNavigate();
 
   // General Metrics calculation for Admin
@@ -146,9 +146,35 @@ export const Dashboard = () => {
     );
   };
 
+  const isRejectedRecord = (w) => {
+    if (!w) return false;
+    const stat = (w.status || '').toLowerCase().trim();
+    const appStat = (w.approvalStatus || '').toLowerCase().trim();
+    const verStat = (w.verificationStatus || '').toLowerCase().trim();
+    const accStat = (w.accountStatus || '').toLowerCase().trim();
+    if (
+      stat === 'rejected' || stat === 'declined' ||
+      appStat === 'rejected' || appStat === 'declined' ||
+      verStat === 'rejected' || verStat === 'declined' ||
+      accStat === 'rejected' || accStat === 'declined'
+    ) {
+      return true;
+    }
+    const wEmail = (w.email || '').toLowerCase().trim();
+    const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+    const wId = String(w.id || '');
+    const matchingApp = (freelancerApplications || []).find((a) => {
+      const aEmail = (a.email || '').toLowerCase().trim();
+      const aName = (a.fullName || a.name || '').toLowerCase().trim();
+      const aId = String(a.id || a.numericId || '');
+      return (wEmail && aEmail && wEmail === aEmail) || (wName && aName && wName === aName) || (wId && aId && wId === aId);
+    });
+    return Boolean(matchingApp && (matchingApp.status === 'Rejected' || matchingApp.status === 'Declined'));
+  };
+
   const cleanWorkforceRoster = useMemo(
-    () => (workforce || []).filter((w) => !isPartnerCompanyOrg(w)),
-    [workforce]
+    () => (workforce || []).filter((w) => !isPartnerCompanyOrg(w) && !isRejectedRecord(w)),
+    [workforce, freelancerApplications]
   );
 
   const pendingTalentApprovals = useMemo(
@@ -437,7 +463,7 @@ export const Dashboard = () => {
               </span>
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5">
-              Enterprise Delivery Operations Lead
+              HR Manager & Operations Lead
             </h3>
           </div>
           <Link

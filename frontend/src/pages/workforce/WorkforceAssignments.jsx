@@ -107,7 +107,16 @@ export const WorkforceAssignments = () => {
         const key = `asg_${normProj}_${a.id || aName}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
-          results.push(a);
+          const projName = String(a.projectName || a.title || '').toLowerCase().trim();
+          const currProj = String(workforceUserProfile?.currentProject || workforceUserProfile?.assignedProject || '').toLowerCase().trim();
+          const isWorkingOnIt = currProj && projName && currProj !== 'none' && (currProj === projName || currProj.includes(projName) || projName.includes(currProj));
+
+          results.push({
+            ...a,
+            status: isWorkingOnIt && (a.status === 'Pending' || a.status === 'Pending Assignment Approval' || a.status === 'Awaiting Workforce Response')
+              ? 'Accepted'
+              : a.status,
+          });
           if (normProj) handledProjectIds.add(normProj);
         }
       }
@@ -201,8 +210,13 @@ export const WorkforceAssignments = () => {
           const key = `prt_${normProj}_${pr.id}`;
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
+            const projName = String(pr.projectName || '').toLowerCase().trim();
+            const currProj = String(workforceUserProfile?.currentProject || workforceUserProfile?.assignedProject || '').toLowerCase().trim();
+            const isWorkingOnIt = currProj && projName && currProj !== 'none' && (currProj === projName || currProj.includes(projName) || projName.includes(currProj));
+
             results.push({
               id: pr.id,
+              originType: 'partnerWorkforceRequest',
               projectId: pr.projectId || pr.id,
               projectName: pr.projectName || 'Enterprise Project',
               client: pr.client || 'Partner Client',
@@ -210,10 +224,14 @@ export const WorkforceAssignments = () => {
               hourlyRate: pr.hourlyRate || '$95/hr',
               workload: 40,
               skills: (pr.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
-              status: pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status,
+              status: isWorkingOnIt
+                ? 'Accepted'
+                : (pr.status === 'Pending' ? 'Awaiting Workforce Response' : pr.status),
               assignedDate: pr.createdDate || new Date().toISOString().split('T')[0],
               notes: pr.additionalRequirements || 'Partner Company Allocation Request.',
-              currentTask: pr.status === 'Declined' || pr.status === 'Rejected' ? 'Assignment declined by candidate.' : 'Partner Workforce Request assigned to your company. Awaiting response.',
+              currentTask: pr.status === 'Declined' || pr.status === 'Rejected'
+                ? 'Assignment declined by candidate.'
+                : (isWorkingOnIt ? 'Assignment accepted. Milestone deliverables in progress.' : 'Partner Workforce Request assigned to your company. Awaiting response.'),
             });
             if (normProj) handledProjectIds.add(normProj);
           }
@@ -237,9 +255,17 @@ export const WorkforceAssignments = () => {
     return setObj;
   }, [projects]);
 
-  const isPendingStatus = (st) => {
+  const isPendingStatus = (st, item) => {
     const s = String(st || '').toLowerCase();
-    return s.includes('pending') || s.includes('awaiting');
+    const pending = s.includes('pending') || s.includes('awaiting');
+    if (!pending) return false;
+
+    const projName = String(item?.projectName || item?.title || '').toLowerCase().trim();
+    const currProj = String(workforceUserProfile?.currentProject || workforceUserProfile?.assignedProject || '').toLowerCase().trim();
+    if (currProj && projName && currProj !== 'none' && (currProj === projName || currProj.includes(projName) || projName.includes(currProj))) {
+      return false;
+    }
+    return true;
   };
 
   const pendingInvitations = useMemo(() => {
@@ -247,9 +273,9 @@ export const WorkforceAssignments = () => {
       if (!a) return false;
       const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
       if (rejectedProjectIds.has(normProj)) return false;
-      return isPendingStatus(a.status);
+      return isPendingStatus(a.status, a);
     });
-  }, [myAssignments, rejectedProjectIds]);
+  }, [myAssignments, rejectedProjectIds, workforceUserProfile]);
 
   const activeAssignments = useMemo(() => {
     return myAssignments.filter((a) => {
@@ -266,7 +292,7 @@ export const WorkforceAssignments = () => {
   const filteredAssignments = useMemo(() => {
     return myAssignments.filter((asg) => {
       if (statusFilter !== 'all') {
-        if (statusFilter === 'invitations' && !isPendingStatus(asg.status)) return false;
+        if (statusFilter === 'invitations' && !isPendingStatus(asg.status, asg)) return false;
         if (statusFilter === 'active' && asg.status !== 'Accepted' && asg.status !== 'Working' && asg.status !== 'In Progress') return false;
         if (statusFilter === 'completed' && asg.status !== 'Completed') return false;
         if (statusFilter === 'declined' && asg.status !== 'Declined' && asg.status !== 'Rejected') return false;
@@ -280,15 +306,18 @@ export const WorkforceAssignments = () => {
       }
       return true;
     });
-  }, [myAssignments, statusFilter, searchQuery]);
+  }, [myAssignments, statusFilter, searchQuery, workforceUserProfile]);
 
   const handleAccept = (asg) => {
-    if (asg.id && String(asg.id).startsWith('fl-')) {
-      if (respondFreelancerWorkforceRequest) respondFreelancerWorkforceRequest(asg.id, true);
-    } else if (asg.id && (String(asg.id).startsWith('pr-') || String(asg.id).startsWith('prt-'))) {
-      if (respondPartnerWorkforceRequest) respondPartnerWorkforceRequest(asg.id, [workforceUserProfile?.id]);
-    } else {
-      if (acceptWorkforceAssignment) acceptWorkforceAssignment(asg.id);
+    if (!asg) return;
+    if (acceptWorkforceAssignment) {
+      acceptWorkforceAssignment(asg.id, asg);
+    }
+    if (asg.id && String(asg.id).startsWith('fl-') && respondFreelancerWorkforceRequest) {
+      respondFreelancerWorkforceRequest(asg.id, true);
+    }
+    if (respondPartnerWorkforceRequest) {
+      respondPartnerWorkforceRequest(asg.id, [workforceUserProfile?.id || 'wf-101']);
     }
     toast.success(`You have accepted the assignment for "${asg.projectName}". Project is active!`);
   };
@@ -301,7 +330,15 @@ export const WorkforceAssignments = () => {
       return;
     }
 
-    declineWorkforceAssignment(selectedAsgForDecline.id, declineReason);
+    if (declineWorkforceAssignment) {
+      declineWorkforceAssignment(selectedAsgForDecline.id, declineReason, selectedAsgForDecline);
+    }
+    if (selectedAsgForDecline.id && String(selectedAsgForDecline.id).startsWith('fl-') && respondFreelancerWorkforceRequest) {
+      respondFreelancerWorkforceRequest(selectedAsgForDecline.id, false, declineReason);
+    }
+    if (rejectPartnerWorkforceRequest) {
+      rejectPartnerWorkforceRequest(selectedAsgForDecline.id, declineReason);
+    }
     toast.info(`You have declined the assignment for "${selectedAsgForDecline.projectName}". Manager has been notified.`);
     setIsDeclineModalOpen(false);
     setSelectedAsgForDecline(null);

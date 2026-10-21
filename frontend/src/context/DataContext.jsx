@@ -321,7 +321,7 @@ export const mapBackendProjectToFrontend = (p) => {
     stage: computedProgress >= 100 ? 'Completed' : formattedStatus,
     progress: computedProgress,
     progressPercentage: computedProgress,
-    workforceRequired: p.allocations ? Math.max(2, p.allocations.length) : 2,
+    workforceRequired: Number(p.workforceRequired) || (Array.isArray(skillsArr) && skillsArr.length > 0 ? skillsArr.length : 4),
     workforceAssigned: assignedResources.length,
     assignedResources,
     allocations: p.allocations || [],
@@ -808,18 +808,31 @@ export const DataProvider = ({ children }) => {
         const mapped = rawList.map((f) => {
           const resolvedPartnerName = getPartnerCompanyName(f, currentPartners, clients);
           const isPartnerEmp = Boolean(f.partnerCompanyId || f.partnerCompany || f.partnerName || f.partnerCompanyName);
+          const rawAllocStatus = String(f.currentAssignmentStatus || f.assignmentStatus || '').toUpperCase().trim();
+          const isPendingAssignment =
+            rawAllocStatus.includes('PENDING') ||
+            rawAllocStatus.includes('PROPOSED') ||
+            rawAllocStatus.includes('AWAITING') ||
+            rawAllocStatus === 'PENDING_ADMIN_APPROVAL' ||
+            rawAllocStatus === 'AWAITING_TALENT_RESPONSE';
+
+          const isActiveAllocation =
+            (rawAllocStatus === 'ACTIVE' || rawAllocStatus === 'ACCEPTED' || rawAllocStatus === 'WORKING' || rawAllocStatus === 'APPROVED') &&
+            !isPendingAssignment;
+
           const hasActiveProject = Boolean(
+            isActiveAllocation &&
             f.isCurrentlyWorking &&
             f.currentProject &&
             f.currentProject !== 'None' &&
             f.currentProject !== 'none'
           );
           const activeProjName = hasActiveProject ? (f.currentProjectName || f.currentProject) : 'None';
-          const assignStatus = hasActiveProject ? (f.assignmentStatus || f.currentAssignmentStatus || 'Assigned') : 'None';
+          const assignStatus = hasActiveProject ? (f.assignmentStatus || f.currentAssignmentStatus || 'Assigned') : isPendingAssignment ? 'Pending Sign-off' : 'None';
           const isPending = f.status === 'Pending Review' || f.status === 'Pending' || f.approvalStatus === 'Pending Review' || f.approvalStatus === 'Pending';
           const isRejected = f.status === 'Rejected' || f.approvalStatus === 'Rejected';
           const approvalStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.approvalStatus || 'Approved'));
-          const availabilityStatus = f.availabilityStatus || f.availability || 'Available';
+          const availabilityStatus = isRejected ? 'Rejected' : (f.availabilityStatus || f.availability || 'Available');
 
           return {
             ...f,
@@ -861,7 +874,7 @@ export const DataProvider = ({ children }) => {
             currentProjectStatus: hasActiveProject ? f.currentProjectStatus : 'None',
             assignedProject: activeProjName,
             clientName: hasActiveProject ? f.currentProjectClient : null,
-            workingStatus: hasActiveProject ? 'Working' : availabilityStatus,
+            workingStatus: isRejected ? 'Rejected' : (hasActiveProject ? 'Working' : availabilityStatus),
             partnerCompanyId: f.partnerCompanyId || null,
             partnerCompany: resolvedPartnerName || f.partnerCompanyName || f.partnerCompany || f.partnerName,
             partnerName: resolvedPartnerName || f.partnerCompanyName || f.partnerCompany || f.partnerName,
@@ -1339,15 +1352,71 @@ export const DataProvider = ({ children }) => {
       try {
         const flRes = await api.freelancers.getAll();
         if (flRes && flRes.success && Array.isArray(flRes.data)) {
+          let savedRejectedApps = [];
+          try {
+            const rawApps = localStorage.getItem('flexistaff_freelancer_applications');
+            if (rawApps) {
+              const parsedApps = JSON.parse(rawApps);
+              if (Array.isArray(parsedApps)) {
+                savedRejectedApps = parsedApps.filter((a) => a && (a.status === 'Rejected' || a.status === 'Declined'));
+              }
+            }
+          } catch {}
+
           const backendFreelancers = flRes.data.map((f) => {
+            const fEmail = (f.email || '').toLowerCase().trim();
+            const fName = (f.name || f.fullName || '').toLowerCase().trim();
+            const fId = String(f.id || f.userId || '');
+            const matchingRejectedApp = savedRejectedApps.find((a) => {
+              const aEmail = (a.email || '').toLowerCase().trim();
+              const aName = (a.fullName || a.name || '').toLowerCase().trim();
+              const aId = String(a.id || a.numericId || '');
+              return (
+                (fEmail && aEmail && fEmail === aEmail) ||
+                (fName && aName && fName === aName) ||
+                (fId && aId && fId === aId)
+              );
+            });
+
             const isPartnerEmp = Boolean(f.partnerCompanyId || f.partnerCompany || f.partnerName || f.partnerCompanyName);
             const pName = f.partnerCompany || f.partnerName || f.partnerCompanyName || (isPartnerEmp ? 'Partner Organization' : '');
             const isPending = f.status === 'Pending Review' || f.status === 'Pending' || f.approvalStatus === 'Pending Review' || f.approvalStatus === 'Pending';
-            const isRejected = f.status === 'Rejected' || f.approvalStatus === 'Rejected';
+            const isRejected =
+              f.status === 'Rejected' ||
+              f.approvalStatus === 'Rejected' ||
+              f.verificationStatus === 'Rejected' ||
+              f.accountStatus === 'Rejected' ||
+              Boolean(matchingRejectedApp);
+
+            const rejectionReason = f.rejectionReason || matchingRejectedApp?.rejectionReason || 'Declined by Administrator';
             const approvalStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.approvalStatus || 'Approved'));
             const verificationStatus = isRejected ? 'Rejected' : (isPending ? 'Pending' : (f.verificationStatus || 'Approved'));
             const accountStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.accountStatus || 'Active'));
             const status = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.status || 'Active'));
+            const rawAllocStatus = String(f.currentAssignmentStatus || f.assignmentStatus || '').toUpperCase().trim();
+            const isPendingAssignment =
+              rawAllocStatus.includes('PENDING') ||
+              rawAllocStatus.includes('PROPOSED') ||
+              rawAllocStatus.includes('AWAITING') ||
+              rawAllocStatus === 'PENDING_ADMIN_APPROVAL' ||
+              rawAllocStatus === 'AWAITING_TALENT_RESPONSE';
+
+            const isActiveAllocation =
+              (rawAllocStatus === 'ACTIVE' || rawAllocStatus === 'ACCEPTED' || rawAllocStatus === 'WORKING' || rawAllocStatus === 'APPROVED') &&
+              !isPendingAssignment;
+
+            const hasActiveProject = Boolean(
+              isActiveAllocation &&
+              f.isCurrentlyWorking &&
+              f.currentProject &&
+              f.currentProject !== 'None' &&
+              f.currentProject !== 'none'
+            );
+            const activeProjName = hasActiveProject ? (f.currentProjectName || f.currentProject) : 'None';
+            const assignStatus = hasActiveProject ? (f.assignmentStatus || f.currentAssignmentStatus || 'Assigned') : isPendingAssignment ? 'Pending Sign-off' : 'None';
+
+            const availability = isRejected ? 'Rejected' : (f.availabilityStatus || f.availability || 'Available');
+            const availabilityStatus = isRejected ? 'Rejected' : (f.availabilityStatus || f.availability || 'Available');
 
             const rawCandidate = {
               id: f.id || f.userId,
@@ -1372,20 +1441,20 @@ export const DataProvider = ({ children }) => {
               skills: typeof f.skills === 'string' ? f.skills.split(',').map((s) => s.trim()).filter(Boolean) : (Array.isArray(f.skills) ? f.skills : []),
               experience: f.experienceYears ? `${f.experienceYears}+ years` : (f.experience || '3+ years'),
               hourlyRate: f.hourlyRate ? (String(f.hourlyRate).startsWith('$') ? f.hourlyRate : `$${f.hourlyRate}/hr`) : '$50/hr',
-              availability: f.availabilityStatus || f.availability || 'Available',
-              availabilityStatus: f.availabilityStatus || f.availability || 'Available',
-              isCurrentlyWorking: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none'),
-              currentProject: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? (f.currentProjectName || f.currentProject) : 'None',
-              currentProjectId: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? f.currentProjectId : null,
-              currentProjectName: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? (f.currentProjectName || f.currentProject) : 'None',
-              currentProjectClient: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? f.currentProjectClient : null,
-              currentProjectRole: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? f.currentProjectRole : null,
-              currentAssignmentStatus: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? (f.assignmentStatus || f.currentAssignmentStatus || 'Assigned') : 'None',
-              assignmentStatus: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? (f.assignmentStatus || f.currentAssignmentStatus || 'Assigned') : 'None',
-              currentProjectStatus: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? f.currentProjectStatus : 'None',
-              assignedProject: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? (f.currentProjectName || f.currentProject) : 'None',
-              clientName: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? f.currentProjectClient : null,
-              workingStatus: (f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None') ? 'Working' : (f.availabilityStatus || f.availability || 'Available'),
+              availability,
+              availabilityStatus,
+              isCurrentlyWorking: hasActiveProject,
+              currentProject: activeProjName,
+              currentProjectId: hasActiveProject ? f.currentProjectId : null,
+              currentProjectName: activeProjName,
+              currentProjectClient: hasActiveProject ? f.currentProjectClient : null,
+              currentProjectRole: hasActiveProject ? f.currentProjectRole : null,
+              currentAssignmentStatus: assignStatus,
+              assignmentStatus: assignStatus,
+              currentProjectStatus: hasActiveProject ? f.currentProjectStatus : 'None',
+              assignedProject: activeProjName,
+              clientName: hasActiveProject ? f.currentProjectClient : null,
+              workingStatus: isRejected ? 'Rejected' : (hasActiveProject ? 'Working' : (f.availabilityStatus || f.availability || 'Available')),
               approvalStatus,
               verificationStatus,
               accountStatus,
@@ -1405,6 +1474,7 @@ export const DataProvider = ({ children }) => {
               educations: f.educations || [],
               certifications: f.certifications || [],
               location: f.location || (isPartnerEmp ? (pName ? `${pName} Office` : 'Partner Office') : 'Remote'),
+              rejectionReason: isRejected ? rejectionReason : undefined,
             };
             return rawCandidate;
           });
@@ -1742,10 +1812,11 @@ export const DataProvider = ({ children }) => {
                       hourlyRate: f.hourlyRate ? (String(f.hourlyRate).startsWith('$') ? f.hourlyRate : `$${f.hourlyRate}/hr`) : '$100/hr',
                       availability: f.availabilityStatus || 'Available',
                       availabilityStatus: f.availabilityStatus || 'Available',
-                      workingStatus: (f.isCurrentlyWorking || f.currentProject) ? 'Working' : 'Available',
-                      assignedProject: f.currentProject || 'None',
-                      currentProject: f.currentProject || 'None',
-                      clientName: f.currentProjectClient || 'None',
+                      workingStatus: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? 'Working' : (f.availabilityStatus || 'Available'),
+                      isCurrentlyWorking: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none'),
+                      assignedProject: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? f.currentProject : 'None',
+                      currentProject: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? f.currentProject : 'None',
+                      clientName: Boolean(f.isCurrentlyWorking && f.currentProject && f.currentProject !== 'None' && f.currentProject !== 'none') ? (f.currentProjectClient || 'None') : 'None',
                       email: f.email,
                       phone: f.phone || '',
                       bio: f.bio || '',
@@ -2894,28 +2965,27 @@ export const DataProvider = ({ children }) => {
       : (appData.resumeUrl ? [
           {
             id: 'exp-1',
-            title: appData.roleTitle || 'Full Stack Software Engineer',
-            company: 'Enterprise Client Solutions',
-            period: '2022 - Present',
-            location: 'Remote, India',
-            description: `Delivered high-performance enterprise applications as a ${appData.roleTitle || 'Full Stack Software Engineer'}. Built robust microservices and responsive user interfaces.`,
-            achievements: [
-              'Delivered critical project milestones on time with top code quality benchmarks.',
-              'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
-              'Streamlined build performance and operational workflows.'
-            ]
+            title: 'MCA Academic Projects',
+            company: 'Amal Jyothi College Of Engineering',
+            period: '2025 - Present',
+            location: 'Kerala, India',
+            description: 'Developed simple academic projects and applications as part of MCA coursework. Worked on basic programming, web development, and database concepts. Participated in team projects and improved problem-solving skills. Gained hands-on experience in coding, debugging, and project documentation.',
           },
           {
             id: 'exp-2',
-            title: 'Associate Software Developer',
-            company: 'Technology Solutions Group',
-            period: '2020 - 2022',
-            location: 'Bengaluru, India',
-            description: 'Contributed to enterprise application development, component design, and integration testing across high-availability microservices.',
-            achievements: [
-              'Built reusable component libraries adhering to strict enterprise design systems.',
-              'Optimized system throughput and minimized production bugs through rigorous test coverage.'
-            ]
+            title: 'Main Project – Django Web Application',
+            company: 'JPM Arts and Science College',
+            period: '2024 - 2025',
+            location: 'Idukki, Kerala, India',
+            description: 'Developed a web application using Django and Python. Worked on authentication, database integration, and backend development. Improved skills in Python programming and web technologies.',
+          },
+          {
+            id: 'exp-3',
+            title: 'Mini Project – PHP Web Application',
+            company: 'JPM Arts and Science College',
+            period: '2022 - 2024',
+            location: 'Idukki, Kerala, India',
+            description: 'Developed a basic web application using PHP and MySQL. Implemented login systems, forms, and database connectivity. Learned front-end and back-end web development concepts.',
           }
         ] : []);
 
@@ -2924,24 +2994,36 @@ export const DataProvider = ({ children }) => {
       : (appData.resumeUrl ? [
           {
             id: 'edu-1',
-            degree: 'Master of Computer Applications / B.Tech Computer Science',
-            school: 'Premier Institute of Technology & Engineering',
-            dates: '2018 - 2022'
+            degree: 'Master of Computer Application (MCA)',
+            school: 'Amal Jyothi College Of Engineering',
+            dates: '2025 - Present'
           },
           {
             id: 'edu-2',
-            degree: 'Bachelor of Computer Applications / Science',
-            school: 'State University of Science & Technology',
-            dates: '2015 - 2018'
+            degree: 'Bachelor of Computer Application (BCA)',
+            school: 'JPM Arts and Science College Labbakkada, Idukki',
+            dates: '2022 - 2025'
+          },
+          {
+            id: 'edu-3',
+            degree: 'Plus 2 (Higher Secondary)',
+            school: 'St. Jeromes High Secondary School Vellayamkudy, Idukki',
+            dates: '2020 - 2022'
+          },
+          {
+            id: 'edu-4',
+            degree: 'SSLC (Secondary School Leaving Certificate)',
+            school: 'St. George High Secondary School Kattappana, Idukki',
+            dates: 'Completed: 2020'
           }
         ] : []);
 
     const appCertifications = (Array.isArray(appData.certifications) && appData.certifications.length > 0)
       ? appData.certifications
       : (appData.resumeUrl ? [
-          'Full Stack Enterprise Certified Specialist',
-          'Cloud Architecture & DevOps Professional',
-          'Modern Web & API Systems Certification'
+          'Problem-Solving & Analytical Thinking',
+          'Python & Django Web Development',
+          'Database Management & SQL Systems'
         ] : []);
 
     const newApp = {
@@ -2964,11 +3046,13 @@ export const DataProvider = ({ children }) => {
       phone: appData.phone || '',
       role: 'Freelancer',
       roleType: 'Freelancer',
-      title: appData.roleTitle || appData.title || 'Full Stack Software Engineer',
+      title: appData.roleTitle || appData.title || 'Web & Software Developer (MCA)',
+      category: appData.category || 'Web, Mobile & Software Dev',
+      specialties: Array.isArray(appData.specialties) && appData.specialties.length > 0 ? appData.specialties : ['Frontend Development', 'Backend Development', 'Full Stack Development'],
       skills: Array.isArray(appData.skills) && appData.skills.length > 0
         ? appData.skills
-        : (appData.skills ? appData.skills.split(',').map((s) => s.trim()) : ['React', 'Node.js', 'Python', 'TypeScript', 'PostgreSQL', 'Docker', 'AWS']),
-      bio: appData.bioOverview || appData.bio || 'Experienced Full Stack Engineer specializing in scalable enterprise application development and cloud systems.',
+        : (appData.skills ? appData.skills.split(',').map((s) => s.trim()) : ['Python', 'Java', 'Javascript', 'C', 'PHP', 'React', 'HTML', 'CSS', 'Bootstrap', 'Git']),
+      bio: appData.bioOverview || appData.bio || 'Motivated MCA student and BCA graduate aiming to enhance technical skills in software development, web technologies, and application design with hands-on experience in Python, Java, JavaScript, PHP, React, MySQL, HTML, CSS, and Bootstrap.',
       hourlyRate: appData.hourlyRate ? `₹${appData.hourlyRate}/hr` : '₹1500/hr',
       availabilityStatus: 'Available',
       approvalStatus: 'Pending Review',
@@ -2980,14 +3064,18 @@ export const DataProvider = ({ children }) => {
       resumeUrl: appData.resumeUrl || appData.resume || '',
       resumeFileName: appData.resumeFileName || appData.resumeDocName || `${(appData.fullName || 'Freelancer').replace(/\s+/g, '_')}_Resume.pdf`,
       resumeName: appData.resumeFileName || appData.resumeDocName || `${(appData.fullName || 'Freelancer').replace(/\s+/g, '_')}_Resume.pdf`,
-      linkedin: appData.linkedin || (appData.fullName ? `https://linkedin.com/in/${appData.fullName.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : ''),
-      github: appData.github || '',
-      portfolio: appData.portfolio || '',
+      linkedin: appData.linkedin || appData.personalDetails?.linkedin || (appData.fullName ? `https://linkedin.com/in/${appData.fullName.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : ''),
+      github: appData.github || appData.personalDetails?.github || '',
+      portfolio: appData.portfolio || (appData.personalDetails?.website || ''),
       experiences: appExperiences,
       educations: appEducations,
       languages: appData.languages || [],
       certifications: appCertifications,
-      location: appData.personalDetails?.city ? `${appData.personalDetails.city}, ${appData.personalDetails.state || ''}` : (appData.location || 'India'),
+      experienceLevel: appData.experienceLevel || 'I have some experience',
+      freelanceGoal: appData.freelanceGoal || 'To earn my main income',
+      workPreferences: Array.isArray(appData.workPreferences) && appData.workPreferences.length > 0 ? appData.workPreferences : ['I\'d like to find opportunities myself'],
+      openToContractToHire: appData.openToContractToHire !== undefined ? appData.openToContractToHire : true,
+      location: appData.personalDetails?.city ? `${appData.personalDetails.city}, ${appData.personalDetails.state || ''}` : (appData.location || 'Idukki, Kerala, India'),
       avatar: appData.personalDetails?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
     };
 
@@ -3080,33 +3168,60 @@ export const DataProvider = ({ children }) => {
   };
 
   const rejectFreelancerApplication = (appId, reason = 'Declined by Administrator') => {
-    setFreelancerApplications((prev) =>
-      prev.map((app) => (app.id === appId ? { ...app, status: 'Rejected' } : app))
-    );
+    let appEmail = '';
+    let appName = '';
+    setFreelancerApplications((prev) => {
+      const updated = prev.map((app) => {
+        if (app.id === appId || app.numericId === appId || String(app.id) === String(appId)) {
+          appEmail = (app.email || '').toLowerCase().trim();
+          appName = (app.fullName || app.name || '').toLowerCase().trim();
+          return { ...app, status: 'Rejected', rejectionReason: reason };
+        }
+        return app;
+      });
+      try {
+        localStorage.setItem('flexistaff_freelancer_applications', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
-    const app = freelancerApplications.find((a) => a.id === appId);
-    if (app) {
-      const targetId = app.numericId || app.id;
-      if (targetId) {
-        api.freelancers.reject(targetId, reason).catch((err) => {
-          console.warn('API reject error:', err);
-        });
-      }
-      setWorkforce((prev) =>
-        prev.map((wf) => {
-          if ((wf.email && app.email && wf.email.toLowerCase() === app.email.toLowerCase()) || wf.id === appId || wf.numericId === targetId) {
-            return {
-              ...wf,
-              approvalStatus: 'Rejected',
-              verificationStatus: 'Rejected',
-              accountStatus: 'Rejected',
-              status: 'Rejected',
-            };
-          }
-          return wf;
-        })
-      );
+    const app = (freelancerApplications || []).find((a) => a.id === appId || a.numericId === appId || String(a.id) === String(appId));
+    const targetId = app?.numericId || app?.id || appId;
+    if (targetId) {
+      api.freelancers.reject(targetId, reason).catch((err) => {
+        console.warn('API reject error:', err);
+      });
     }
+    setWorkforce((prev) => {
+      const updated = prev.map((wf) => {
+        const wfEmail = (wf.email || '').toLowerCase().trim();
+        const wfName = (wf.name || wf.pseudonym || '').toLowerCase().trim();
+        if (
+          (appEmail && wfEmail && wfEmail === appEmail) ||
+          (appName && wfName && wfName === appName) ||
+          wf.id === appId ||
+          wf.numericId === targetId ||
+          String(wf.id) === String(appId) ||
+          String(wf.numericId) === String(targetId)
+        ) {
+          return {
+            ...wf,
+            approvalStatus: 'Rejected',
+            verificationStatus: 'Rejected',
+            accountStatus: 'Rejected',
+            status: 'Rejected',
+            availability: 'Unavailable',
+            availabilityStatus: 'Unavailable',
+            rejectionReason: reason,
+          };
+        }
+        return wf;
+      });
+      try {
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   // Central Support & Feedback Tickets State (Submitted by Client, Manager, Partner, Workforce to Admin)
@@ -4730,9 +4845,11 @@ export const DataProvider = ({ children }) => {
   // =========================================================================
   // WORKFORCE (PROFESSIONAL / FREELANCER): ACCEPT OR DECLINE
   // =========================================================================
-  const acceptWorkforceAssignment = (assignmentId) => {
+  const acceptWorkforceAssignment = (assignmentId, fullAsgObj = null) => {
     let targetAsg = null;
     const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+    const projNameStr = String(fullAsgObj?.projectName || fullAsgObj?.title || '').toLowerCase().trim();
+    const projIdStr = String(fullAsgObj?.projectId || '').toLowerCase().trim();
 
     try {
       const numId = parseInt(targetIdStr.replace(/\D/g, ''), 10);
@@ -4741,12 +4858,20 @@ export const DataProvider = ({ children }) => {
       }
     } catch { }
 
+    // 1. Update manager assignments
     setManagerAssignments((prev) => {
       const updated = (prev || []).map((a) => {
         if (!a) return a;
         const aIdStr = String(a.id || '').toLowerCase().trim();
         const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
-        if (aIdStr === targetIdStr || aProjIdStr === targetIdStr) {
+        const aProjNameStr = String(a.projectName || a.title || '').toLowerCase().trim();
+        const isMatch =
+          aIdStr === targetIdStr ||
+          aProjIdStr === targetIdStr ||
+          (projIdStr && aProjIdStr === projIdStr) ||
+          (projNameStr && aProjNameStr === projNameStr);
+
+        if (isMatch) {
           targetAsg = {
             ...a,
             status: 'Accepted',
@@ -4762,18 +4887,118 @@ export const DataProvider = ({ children }) => {
       return updated;
     });
 
-    if (!targetAsg) return;
+    // 2. Update partner workforce requests
+    setPartnerWorkforceRequests((prev) => {
+      const updated = (prev || []).map((pr) => {
+        if (!pr) return pr;
+        const prIdStr = String(pr.id || '').toLowerCase().trim();
+        const prProjIdStr = String(pr.projectId || '').toLowerCase().trim();
+        const prProjNameStr = String(pr.projectName || '').toLowerCase().trim();
+        const isMatch =
+          prIdStr === targetIdStr ||
+          prProjIdStr === targetIdStr ||
+          (projIdStr && prProjIdStr === projIdStr) ||
+          (projNameStr && prProjNameStr === projNameStr);
 
-    // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
+        if (isMatch) {
+          if (!targetAsg) {
+            targetAsg = {
+              id: pr.id,
+              projectId: pr.projectId || assignmentId,
+              projectName: pr.projectName,
+              professionalName: workforceUserProfile?.name || 'Assigned Specialist',
+              professionalId: workforceUserProfile?.id,
+              role: pr.role || 'Software Specialist',
+              hourlyRate: pr.hourlyRate || '$95/hr',
+              workload: pr.workload || '40h/wk',
+              skills: pr.skills,
+              status: 'Accepted',
+            };
+          }
+          return {
+            ...pr,
+            status: 'Accepted',
+            assigned: Math.max(1, pr.assigned || 1),
+            remaining: Math.max(0, (pr.required || 1) - 1),
+          };
+        }
+        return pr;
+      });
+      try {
+        localStorage.setItem('flexistaff_partner_workforce_requests', JSON.stringify(updated));
+        localStorage.setItem('flexistaff_partner_requests', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 3. Update freelancer requests
+    setFreelancerRequests((prev) => {
+      const updated = (prev || []).map((r) => {
+        if (!r) return r;
+        const rIdStr = String(r.id || '').toLowerCase().trim();
+        const rProjIdStr = String(r.projectId || '').toLowerCase().trim();
+        const rProjNameStr = String(r.projectName || '').toLowerCase().trim();
+        const isMatch =
+          rIdStr === targetIdStr ||
+          rProjIdStr === targetIdStr ||
+          (projIdStr && rProjIdStr === projIdStr) ||
+          (projNameStr && rProjNameStr === projNameStr);
+
+        if (isMatch) {
+          if (!targetAsg) {
+            targetAsg = {
+              id: r.id,
+              projectId: r.projectId || assignmentId,
+              projectName: r.projectName,
+              professionalName: r.freelancerName || workforceUserProfile?.name || 'Freelancer',
+              professionalId: r.freelancerId || workforceUserProfile?.id,
+              role: r.role || 'Software Specialist',
+              hourlyRate: r.hourlyRate || '$95/hr',
+              workload: r.workload || '40h/wk',
+              skills: r.skills,
+              status: 'Accepted',
+            };
+          }
+          return { ...r, status: 'Accepted' };
+        }
+        return r;
+      });
+      try { localStorage.setItem('flexistaff_freelancer_requests', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    // Fallback if targetAsg is still not set
+    if (!targetAsg) {
+      targetAsg = {
+        id: fullAsgObj?.id || assignmentId,
+        projectId: fullAsgObj?.projectId || assignmentId,
+        projectName: fullAsgObj?.projectName || 'Enterprise Project',
+        professionalName: fullAsgObj?.professionalName || workforceUserProfile?.name || 'Assigned Specialist',
+        professionalId: fullAsgObj?.professionalId || workforceUserProfile?.id,
+        role: fullAsgObj?.role || 'Software Specialist',
+        hourlyRate: fullAsgObj?.hourlyRate || '$95/hr',
+        workload: fullAsgObj?.workload || '40h/wk',
+        skills: fullAsgObj?.skills || [],
+        client: fullAsgObj?.client || '',
+        status: 'Accepted',
+      };
+    }
+
+    // Update candidate availability to 'Assigned' in central workforce and partner pools
     setWorkforce((prev) => {
       const updated = (prev || []).map((w) =>
-        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
+        w && (
+          String(w.id || '') === String(targetAsg.professionalId || '') ||
+          String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase() ||
+          (workforceUserProfile?.name && String(w.name || '').toLowerCase() === String(workforceUserProfile.name).toLowerCase())
+        )
           ? {
             ...w,
             availability: 'Assigned',
             workingStatus: 'Working',
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
+            isCurrentlyWorking: true,
           }
           : w
       );
@@ -4781,21 +5006,43 @@ export const DataProvider = ({ children }) => {
       return updated;
     });
 
-    setPartnerWorkforce((prev) =>
-      (prev || []).map((w) =>
-        w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
+    setPartnerWorkforce((prev) => {
+      const updated = (prev || []).map((w) =>
+        w && (
+          String(w.id || '') === String(targetAsg.professionalId || '') ||
+          String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase() ||
+          (workforceUserProfile?.name && String(w.name || '').toLowerCase() === String(workforceUserProfile.name).toLowerCase())
+        )
           ? {
             ...w,
             availability: 'Assigned',
             workingStatus: 'Working',
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
+            isCurrentlyWorking: true,
           }
           : w
-      )
-    );
+      );
+      try { localStorage.setItem('flexistaff_partner_workforce', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
 
-    // 2. Update project status to 'In Progress' and add assigned resources
+    // Update workforceUserProfile
+    setWorkforceUserProfile((prev) => ({
+      ...prev,
+      availability: 'Assigned',
+      workingStatus: 'Working',
+      isCurrentlyWorking: true,
+      currentProject: targetAsg.projectName,
+      assignedProject: targetAsg.projectName,
+      currentAssignment: {
+        ...(prev?.currentAssignment || {}),
+        ...targetAsg,
+        status: 'Accepted',
+      },
+    }));
+
+    // Update projects status to 'In Progress' and add assigned resource
     const updateProjObj = (p) => {
       if (!p) return p;
       const pIdStr = String(p.id || '').toLowerCase().trim();
@@ -4805,14 +5052,14 @@ export const DataProvider = ({ children }) => {
 
       if (pIdStr === asgProjIdStr || (pTitleLower && asgTitleLower && (pTitleLower === asgTitleLower || pTitleLower.includes(asgTitleLower)))) {
         const candidateResource = {
-          id: targetAsg.professionalId || targetAsg.id,
-          professionalId: targetAsg.professionalId || targetAsg.id,
+          id: targetAsg.professionalId || workforceUserProfile?.id || targetAsg.id,
+          professionalId: targetAsg.professionalId || workforceUserProfile?.id || targetAsg.id,
           allocationId: targetAsg.allocationId || targetAsg.id,
-          name: targetAsg.professionalName,
-          professionalName: targetAsg.professionalName,
+          name: targetAsg.professionalName || workforceUserProfile?.name,
+          professionalName: targetAsg.professionalName || workforceUserProfile?.name,
           role: targetAsg.role || targetAsg.roleInProject || 'Software Specialist',
           roleInProject: targetAsg.role || targetAsg.roleInProject || 'Software Specialist',
-          avatar: targetAsg.avatar,
+          avatar: targetAsg.avatar || workforceUserProfile?.avatar,
           status: 'Accepted',
           roleType: targetAsg.roleType || 'Professional',
           workforceType: targetAsg.workforceType || (targetAsg.partnerCompanyName || targetAsg.partnerCompanyId ? 'Partner Company' : 'Independent Freelancer'),
@@ -4836,9 +5083,9 @@ export const DataProvider = ({ children }) => {
         const existingFiltered = (p.assignedResources || []).filter((r) => {
           if (!r) return false;
           const rId = String(r.id || r.professionalId || '').toLowerCase().trim();
-          const targetProfId = String(targetAsg.professionalId || targetAsg.id || '').toLowerCase().trim();
+          const targetProfId = String(targetAsg.professionalId || workforceUserProfile?.id || targetAsg.id || '').toLowerCase().trim();
           const rName = String(r.name || r.professionalName || '').toLowerCase().trim();
-          const targetProfName = String(targetAsg.professionalName || '').toLowerCase().trim();
+          const targetProfName = String(targetAsg.professionalName || workforceUserProfile?.name || '').toLowerCase().trim();
           return !(rId === targetProfId || (rName && targetProfName && rName === targetProfName));
         });
 
@@ -4868,7 +5115,7 @@ export const DataProvider = ({ children }) => {
       return updated;
     });
 
-    // 3. Notify Manager & Client
+    // Notify Manager & Client
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
       title: 'Talent Accepted Assignment Offer',
@@ -4892,9 +5139,11 @@ export const DataProvider = ({ children }) => {
     setClientNotifications((prev) => [clientNotif, ...prev]);
   };
 
-  const declineWorkforceAssignment = (assignmentId, reason = 'Schedule conflict / timeline mismatch') => {
+  const declineWorkforceAssignment = (assignmentId, reason = 'Schedule conflict / timeline mismatch', fullAsgObj = null) => {
     let targetAsg = null;
     const targetIdStr = String(assignmentId || '').toLowerCase().trim();
+    const projNameStr = String(fullAsgObj?.projectName || fullAsgObj?.title || '').toLowerCase().trim();
+    const projIdStr = String(fullAsgObj?.projectId || '').toLowerCase().trim();
 
     try {
       const numId = parseInt(targetIdStr.replace(/\D/g, ''), 10);
@@ -4908,8 +5157,17 @@ export const DataProvider = ({ children }) => {
         if (!a) return a;
         const aIdStr = String(a.id || '').toLowerCase().trim();
         const aProfIdStr = String(a.professionalId || '').toLowerCase().trim();
+        const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+        const aProjNameStr = String(a.projectName || a.title || '').toLowerCase().trim();
 
-        if (aIdStr === targetIdStr || aProfIdStr === targetIdStr) {
+        const isMatch =
+          aIdStr === targetIdStr ||
+          aProfIdStr === targetIdStr ||
+          aProjIdStr === targetIdStr ||
+          (projIdStr && aProjIdStr === projIdStr) ||
+          (projNameStr && aProjNameStr === projNameStr);
+
+        if (isMatch) {
           targetAsg = {
             ...a,
             status: 'Declined',
@@ -4931,7 +5189,20 @@ export const DataProvider = ({ children }) => {
         if (!r) return r;
         const rIdStr = String(r.id || '').toLowerCase().trim();
         const rProfIdStr = String(r.freelancerId || r.professionalId || '').toLowerCase().trim();
-        if (rIdStr === targetIdStr || rProfIdStr === targetIdStr) {
+        const rProjIdStr = String(r.projectId || '').toLowerCase().trim();
+        const rProjNameStr = String(r.projectName || '').toLowerCase().trim();
+
+        const isMatch =
+          rIdStr === targetIdStr ||
+          rProfIdStr === targetIdStr ||
+          rProjIdStr === targetIdStr ||
+          (projIdStr && rProjIdStr === projIdStr) ||
+          (projNameStr && rProjNameStr === projNameStr);
+
+        if (isMatch) {
+          if (!targetAsg) {
+            targetAsg = { ...r, status: 'Declined', declineReason: reason };
+          }
           return { ...r, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return r;
@@ -4944,24 +5215,43 @@ export const DataProvider = ({ children }) => {
       const updated = (prev || []).map((pr) => {
         if (!pr) return pr;
         const prIdStr = String(pr.id || '').toLowerCase().trim();
-        if (prIdStr === targetIdStr) {
+        const prProjIdStr = String(pr.projectId || '').toLowerCase().trim();
+        const prProjNameStr = String(pr.projectName || '').toLowerCase().trim();
+
+        const isMatch =
+          prIdStr === targetIdStr ||
+          prProjIdStr === targetIdStr ||
+          (projIdStr && prProjIdStr === projIdStr) ||
+          (projNameStr && prProjNameStr === projNameStr);
+
+        if (isMatch) {
+          if (!targetAsg) {
+            targetAsg = { ...pr, status: 'Declined', declineReason: reason };
+          }
           return { ...pr, status: 'Declined', progress: 0, rejectionReason: reason };
         }
         return pr;
       });
-      try { localStorage.setItem('flexistaff_partner_requests', JSON.stringify(updated)); } catch { }
+      try {
+        localStorage.setItem('flexistaff_partner_workforce_requests', JSON.stringify(updated));
+        localStorage.setItem('flexistaff_partner_requests', JSON.stringify(updated));
+      } catch { }
       return updated;
     });
 
-    if (targetAsg) {
+    if (targetAsg || fullAsgObj) {
+      const targetProjId = targetAsg?.projectId || fullAsgObj?.projectId;
+      const targetProfId = targetAsg?.professionalId || fullAsgObj?.professionalId || workforceUserProfile?.id;
+      const targetProfName = targetAsg?.professionalName || fullAsgObj?.professionalName || workforceUserProfile?.name;
+
       // Remove candidate from project assignedResources if present
       const cleanupProjectObj = (p) => {
         if (!p) return p;
         const pIdStr = String(p.id || '').toLowerCase().trim();
-        const asgProjIdStr = String(targetAsg.projectId || '').toLowerCase().trim();
+        const asgProjIdStr = String(targetProjId || '').toLowerCase().trim();
         if (pIdStr === asgProjIdStr) {
           const newResources = (p.assignedResources || []).filter(
-            (r) => r && r.id !== targetAsg.professionalId && (r.name || '').toLowerCase() !== (targetAsg.professionalName || '').toLowerCase()
+            (r) => r && r.id !== targetProfId && (r.name || '').toLowerCase() !== (targetProfName || '').toLowerCase()
           );
           return {
             ...p,
@@ -4981,18 +5271,27 @@ export const DataProvider = ({ children }) => {
       // Update candidate availability to 'Available' in central workforce and partner pools
       setWorkforce((prev) =>
         (prev || []).map((w) =>
-          w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
-            ? { ...w, availability: 'Available', workingStatus: 'Available', currentProject: 'None' }
+          w && (String(w.id || '') === String(targetProfId || '') || String(w.name || '').toLowerCase() === String(targetProfName || '').toLowerCase())
+            ? { ...w, availability: 'Available', workingStatus: 'Available', currentProject: 'None', isCurrentlyWorking: false }
             : w
         )
       );
+
+      setWorkforceUserProfile((prev) => ({
+        ...prev,
+        availability: 'Available',
+        workingStatus: 'Available',
+        isCurrentlyWorking: false,
+        currentProject: 'None',
+        assignedProject: 'None',
+      }));
     }
 
     // Notify Manager
     const mgrNotif = {
       id: `mnotif-${Date.now()}`,
       title: 'Assignment Offer Declined by Candidate',
-      message: `${targetAsg?.professionalName || 'Candidate'} declined assignment offer on "${targetAsg?.projectName || 'Project'}": ${reason}.`,
+      message: `${targetAsg?.professionalName || fullAsgObj?.professionalName || 'Candidate'} declined assignment offer on "${targetAsg?.projectName || fullAsgObj?.projectName || 'Project'}": ${reason}.`,
       type: 'assignment',
       unread: true,
       time: 'Just now',
@@ -6458,12 +6757,14 @@ export const DataProvider = ({ children }) => {
   // Admin Reject recruitment or partner request
   const rejectWorkforceMember = (id, reason = 'Did not meet requirements') => {
     let rejectedName = '';
+    let rejectedEmail = '';
     let targetNumericId = null;
 
-    setWorkforce((prev) =>
-      prev.map((wf) => {
+    setWorkforce((prev) => {
+      const updated = prev.map((wf) => {
         if (wf.id === id || wf.numericId === id || String(wf.id) === String(id) || String(wf.numericId) === String(id)) {
           rejectedName = wf.name;
+          rejectedEmail = (wf.email || '').toLowerCase().trim();
           targetNumericId = wf.numericId || wf.id;
           return {
             ...wf,
@@ -6471,12 +6772,18 @@ export const DataProvider = ({ children }) => {
             verificationStatus: 'Rejected',
             accountStatus: 'Rejected',
             status: 'Rejected',
+            availability: 'Unavailable',
+            availabilityStatus: 'Unavailable',
             rejectionReason: reason,
           };
         }
         return wf;
-      })
-    );
+      });
+      try {
+        localStorage.setItem('flexistaff_workforce', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     if (targetNumericId) {
       api.freelancers.reject(targetNumericId, reason).catch((err) => {
@@ -6484,13 +6791,26 @@ export const DataProvider = ({ children }) => {
       });
     }
 
-    setFreelancerApplications((prev) =>
-      prev.map((app) =>
-        app.id === id || app.numericId === id || String(app.id) === String(id)
-          ? { ...app, status: 'Rejected' }
-          : app
-      )
-    );
+    setFreelancerApplications((prev) => {
+      const updated = prev.map((app) => {
+        const aEmail = (app.email || '').toLowerCase().trim();
+        const aName = (app.fullName || app.name || '').toLowerCase().trim();
+        if (
+          app.id === id ||
+          app.numericId === id ||
+          String(app.id) === String(id) ||
+          (rejectedEmail && aEmail && aEmail === rejectedEmail) ||
+          (rejectedName && aName && aName === rejectedName.toLowerCase())
+        ) {
+          return { ...app, status: 'Rejected', rejectionReason: reason };
+        }
+        return app;
+      });
+      try {
+        localStorage.setItem('flexistaff_freelancer_applications', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     addActivity({
       user: adminProfile?.name || 'System Administrator',
@@ -7153,7 +7473,38 @@ export const DataProvider = ({ children }) => {
 
   const toggleMilestone = async (projectId, milestoneId) => {
     const targetPrj = projects.find((p) => p.id === projectId || String(p.id) === String(projectId));
-    const targetMs = (targetPrj?.milestones || []).find((m) => m.id === milestoneId || String(m.id) === String(milestoneId));
+    if (!targetPrj) return;
+
+    // Guard: Prevent milestone updates if project has not been approved by Admin yet
+    const isPending = Boolean(
+      targetPrj.status === 'Pending Admin Approval' ||
+      targetPrj.stage === 'Pending Admin Approval' ||
+      targetPrj.status === 'Pending Approval' ||
+      targetPrj.stage === 'Pending Approval' ||
+      targetPrj.stage === 'Request' ||
+      targetPrj.status === 'Pending' ||
+      targetPrj.status === 'Draft' ||
+      targetPrj.stage === 'Draft' ||
+      (targetPrj.approvalStatus && String(targetPrj.approvalStatus).toLowerCase().includes('pending'))
+    );
+    if (isPending) {
+      console.warn('Cannot toggle milestone: Project has not been approved by Admin yet.');
+      return;
+    }
+
+    const defaultMilestones = [
+      { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending' },
+      { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending' },
+      { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending' },
+      { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending' },
+      { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending' },
+    ];
+
+    const currentMilestones = (targetPrj.milestones && targetPrj.milestones.length > 0)
+      ? targetPrj.milestones
+      : defaultMilestones;
+
+    const targetMs = currentMilestones.find((m) => m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId);
     const willBeCompleted = !(targetMs?.completed || targetMs?.status === 'Completed' || targetMs?.status === 'COMPLETED');
     const newStatus = willBeCompleted ? 'COMPLETED' : 'NOT_STARTED';
 
@@ -7169,8 +7520,9 @@ export const DataProvider = ({ children }) => {
     setProjects((prev) =>
       prev.map((prj) => {
         if (prj.id !== projectId && String(prj.id) !== String(projectId)) return prj;
-        const updatedMilestones = (prj.milestones || []).map((m) =>
-          m.id === milestoneId || String(m.id) === String(milestoneId)
+        const prjMs = (prj.milestones && prj.milestones.length > 0) ? prj.milestones : defaultMilestones;
+        const updatedMilestones = prjMs.map((m) =>
+          m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId
             ? { ...m, completed: willBeCompleted, status: willBeCompleted ? 'Completed' : 'Pending', progressPercentage: willBeCompleted ? 100 : 0 }
             : m
         );

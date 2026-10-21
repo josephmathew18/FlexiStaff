@@ -27,7 +27,7 @@ export const ClientMessages = () => {
       list.push({
         id: `mgr-${assignedManager.id}`,
         name: `${assignedManager.name} (HR Manager)`,
-        role: assignedManager.jobTitle || 'HR Delivery Lead',
+        role: assignedManager.jobTitle || 'HR Manager',
         avatar: assignedManager.avatar || '',
         online: true,
         lastMessage: 'Direct communication channel with your assigned FlexiStaff Manager.',

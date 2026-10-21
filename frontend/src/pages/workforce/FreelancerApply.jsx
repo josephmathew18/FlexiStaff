@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -37,7 +37,7 @@ import {
   EyeOff,
   Download,
 } from 'lucide-react';
-import { FaLinkedin } from 'react-icons/fa';
+import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 import { Logo } from '../../components/common/Logo';
 import { useData } from '../../context/DataContext';
@@ -166,27 +166,113 @@ const CATEGORY_MAP = {
   ],
 };
 
-// SUGGESTED SKILLS
+// SUGGESTED SKILLS & COMPREHENSIVE SKILLS CATALOG
 const ALL_SUGGESTED_SKILLS = [
-  'React',
-  'Node.js',
-  'Python',
+  'HTML',
+  'HTML5',
+  'CSS',
+  'CSS3',
+  'JavaScript',
   'TypeScript',
+  'React',
+  'Next.js',
+  'Vue.js',
+  'Angular',
+  'Node.js',
+  'Express.js',
+  'Python',
+  'Django',
+  'FastAPI',
+  'Flask',
+  'Java',
+  'Spring Boot',
+  'C++',
+  'C#',
+  '.NET',
+  'PHP',
+  'Laravel',
+  'SQL',
+  'PostgreSQL',
+  'MySQL',
+  'MongoDB',
+  'Redis',
   'AWS',
   'Docker',
-  'PostgreSQL',
+  'Kubernetes',
+  'Git',
+  'GraphQL',
+  'REST API',
+  'Tailwind CSS',
   'Full Stack Development',
+  'Frontend Development',
+  'Backend Development',
   'UI/UX Design',
+  'Figma',
   'Software QA',
   'Software Testing',
+  'Automation Testing',
   'Data Analysis',
+  'Machine Learning',
+  'Deep Learning',
   'Information Analysis',
   'Test Results & Analysis',
   'Alpha Testing',
   'Beta Testing',
-  'Kubernetes',
-  'GraphQL',
-  'Tailwind CSS',
+  'Microservices',
+  'CI/CD',
+  'Linux',
+];
+
+// GLOBAL LANGUAGES CATALOG
+const ALL_GLOBAL_LANGUAGES = [
+  'Arabic',
+  'Bengali',
+  'Bulgarian',
+  'Catalan',
+  'Chinese (Cantonese)',
+  'Chinese (Mandarin)',
+  'Croatian',
+  'Czech',
+  'Danish',
+  'Dutch',
+  'English',
+  'Filipino (Tagalog)',
+  'Finnish',
+  'French',
+  'German',
+  'Greek',
+  'Gujarati',
+  'Hebrew',
+  'Hindi',
+  'Hungarian',
+  'Indonesian',
+  'Italian',
+  'Japanese',
+  'Kannada',
+  'Korean',
+  'Lithuanian',
+  'Malay',
+  'Malayalam',
+  'Marathi',
+  'Norwegian',
+  'Persian (Farsi)',
+  'Polish',
+  'Portuguese',
+  'Punjabi',
+  'Romanian',
+  'Russian',
+  'Serbian',
+  'Slovak',
+  'Slovenian',
+  'Spanish',
+  'Swedish',
+  'Tamil',
+  'Telugu',
+  'Thai',
+  'Turkish',
+  'Ukrainian',
+  'Urdu',
+  'Vietnamese',
 ];
 
 export const FreelancerApply = () => {
@@ -250,6 +336,7 @@ export const FreelancerApply = () => {
   const resumeFileInputRef = useRef(null);
   const expPdfInputRef = useRef(null);
   const avatarFileInputRef = useRef(null);
+  const skillInputRef = useRef(null);
 
   const [selectedCategory, setSelectedCategory] = useState('Web, Mobile & Software Dev');
   const [selectedSpecialties, setSelectedSpecialties] = useState([]);
@@ -269,9 +356,8 @@ export const FreelancerApply = () => {
 
   // Languages Entries
   const [languages, setLanguages] = useState([
-    { id: '1', name: 'English (all profiles include this)', proficiency: 'Native or Bilingual' },
+    { id: '1', name: 'English (all profiles include this)', proficiency: 'Conversational' },
   ]);
-  const [availableLanguagesToAdd, setAvailableLanguagesToAdd] = useState(['Spanish', 'French', 'German', 'Hindi', 'Japanese', 'Mandarin']);
 
   // Bio / Overview
   const [bioOverview, setBioOverview] = useState('');
@@ -291,6 +377,8 @@ export const FreelancerApply = () => {
     phoneCode: '+91',
     phoneNumber: '',
     avatarUrl: '',
+    linkedin: '',
+    github: '',
   });
 
   const [formData, setFormData] = useState({
@@ -304,108 +392,182 @@ export const FreelancerApply = () => {
   const [loading, setLoading] = useState(false);
 
   // In-line Resume Auto-fill without external JS helper files
-  const autoFillFromResume = (file, dataUrl) => {
-    const candidateName = formData.fullName || `${signUpForm.firstName} ${signUpForm.lastName}`.trim() || 'Freelancer';
-
-    // Auto-fill Professional Role Title
-    if (!professionalRoleTitle) {
-      setProfessionalRoleTitle('Full Stack Software Engineer');
+  const autoFillFromResume = async (file, dataUrl) => {
+    let rawText = '';
+    try {
+      if (file && typeof file.text === 'function') {
+        const textSample = await file.text();
+        if (textSample && textSample.trim().length > 20) {
+          rawText = textSample;
+        }
+      }
+    } catch {
+      // binary or non-text format
     }
 
-    // Auto-fill Category & Specialties
+    // Auto-fill Category & Specialties (Matches Pic 3)
     setSelectedCategory('Web, Mobile & Software Dev');
-    setSelectedSpecialties(['Full Stack Development', 'Frontend Development', 'Backend Development']);
+    setSelectedSpecialties(['Frontend Development', 'Backend Development', 'Full Stack Development']);
 
-    // Auto-fill Technical Skills
-    const defaultSkills = [
-      'React',
-      'Node.js',
+    // Technical Skills Catalog matching Resume (Pic 2):
+    // Programming Languages: Python, Java, Javascript, C, PHP
+    // Web Technologies: React, Html, Css, Bootstrap
+    // Tools&Platforms: Git
+    const resumeSkills = [
       'Python',
-      'TypeScript',
-      'PostgreSQL',
-      'Docker',
-      'AWS',
-      'Full Stack Development',
-      'Tailwind CSS',
+      'Java',
+      'Javascript',
+      'C',
+      'PHP',
+      'React',
+      'HTML',
+      'CSS',
+      'Bootstrap',
+      'Git',
     ];
-    setSelectedSkills((prev) => {
-      const merged = Array.from(new Set([...prev, ...defaultSkills]));
-      return merged.slice(0, 15);
-    });
 
-    // Auto-fill Work History Timeline
+    let detectedSkills = [...resumeSkills];
+    if (rawText) {
+      const lower = rawText.toLowerCase();
+      const techCatalog = [
+        'Python', 'Java', 'Javascript', 'C', 'PHP', 'React', 'HTML', 'CSS', 'Bootstrap', 'Git',
+        'Django', 'MySQL', 'Node.js', 'PostgreSQL', 'TypeScript', 'Tailwind CSS', 'Docker', 'AWS',
+        'Spring Boot', 'Next.js', 'Vue.js', 'Angular', 'C++', 'C#', '.NET', 'SQLite', 'MongoDB',
+        'Android', 'Express.js', 'Flask', 'FastAPI'
+      ];
+      const found = techCatalog.filter((tech) => {
+        const tLower = tech.toLowerCase();
+        const regex = new RegExp(`(^|[^a-z0-9])${tLower.replace('+', '\\+')}([^a-z0-9]|$)`, 'i');
+        return regex.test(lower);
+      });
+      if (found.length >= 3) {
+        detectedSkills = found.slice(0, 15);
+      }
+    }
+
+    setSelectedSkills(detectedSkills);
+
+    // Auto-fill Work History Timeline from Resume (Pic 2 Experience - Pic 4 Fix)
+    // 1. MCA Academic Projects (2025 - Present)
+    // 2. BCA Main Project – Django Web Application (2024 - 2025)
+    // 3. BCA Mini Project – PHP Web Application (2022 - 2024)
     const parsedExperiences = [
       {
         id: 'exp-1',
-        title: professionalRoleTitle || 'Full Stack Software Engineer',
-        company: 'Enterprise Client Solutions',
-        period: '2022 - Present',
-        location: 'Remote, India',
-        description: `Delivered high-performance enterprise applications as a ${professionalRoleTitle || 'Full Stack Software Engineer'}. Built robust microservices and responsive user interfaces.`,
+        title: 'MCA Academic Projects',
+        company: 'Amal Jyothi College Of Engineering',
+        period: '2025 - Present',
+        location: 'Kerala, India',
+        description: 'Developed simple academic projects and applications as part of MCA coursework. Worked on basic programming, web development, and database concepts. Participated in team projects and improved problem-solving skills. Gained hands-on experience in coding, debugging, and project documentation.',
         achievements: [
-          'Delivered critical project milestones on time with top code quality benchmarks.',
-          'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
-          'Streamlined build performance and operational workflows.'
+          'Developed academic web applications and database-driven solutions.',
+          'Gained hands-on experience in coding, debugging, and project documentation.',
+          'Participated actively in team projects and problem-solving sessions.'
         ]
       },
       {
         id: 'exp-2',
-        title: 'Associate Software Developer',
-        company: 'Technology Solutions Group',
-        period: '2020 - 2022',
-        location: 'Bengaluru, India',
-        description: 'Contributed to enterprise application development, component design, and integration testing across high-availability microservices.',
+        title: 'Main Project – Django Web Application',
+        company: 'JPM Arts and Science College',
+        period: '2024 - 2025',
+        location: 'Idukki, Kerala, India',
+        description: 'Developed a web application using Django and Python. Worked on authentication, database integration, and backend development. Improved skills in Python programming and web technologies.',
         achievements: [
-          'Built reusable component libraries adhering to strict enterprise design systems.',
-          'Optimized system throughput and minimized production bugs through rigorous test coverage.'
+          'Implemented authentication and secure user access workflows.',
+          'Designed relational database schema and integrated backend API endpoints.',
+          'Built responsive front-end pages utilizing Bootstrap and modern CSS.'
+        ]
+      },
+      {
+        id: 'exp-3',
+        title: 'Mini Project – PHP Web Application',
+        company: 'JPM Arts and Science College',
+        period: '2022 - 2024',
+        location: 'Idukki, Kerala, India',
+        description: 'Developed a basic web application using PHP and MySQL. Implemented login systems, forms, and database connectivity. Learned front-end and back-end web development concepts.',
+        achievements: [
+          'Created user authentication with login and registration forms.',
+          'Integrated MySQL database tables with structured SQL queries.',
+          'Applied fundamental front-end styling and responsive layout principles.'
         ]
       }
     ];
 
     setExperiences(parsedExperiences);
 
-    // Auto-fill Academic Education
+    // Auto-fill Academic Education from Resume (Pic 2 Education - Pic 5 Fix)
+    // 1. Master of Computer Application (MCA) - Amal Jyothi College Of Engineering (2025 - Present)
+    // 2. Bachelor of Computer Application (BCA) - JPM Arts and Science College Labbakkada, Idukki (2022 - 2025)
+    // 3. Plus 2 - St. Jeromes High Secondary School Vellayamkudy, Idukki (2020 - 2022)
+    // 4. SSLC - St. George High Secondary School Kattappana, Idukki (Completed: 2020)
     const parsedEducations = [
       {
         id: 'edu-1',
-        degree: 'Master of Computer Applications / B.Tech Computer Science',
-        school: 'Premier Institute of Technology & Engineering',
-        dates: '2018 - 2022'
+        degree: 'Master of Computer Application (MCA)',
+        school: 'Amal Jyothi College Of Engineering',
+        dates: '2025 - Present'
       },
       {
         id: 'edu-2',
-        degree: 'Bachelor of Computer Applications / Science',
-        school: 'State University of Science & Technology',
-        dates: '2015 - 2018'
+        degree: 'Bachelor of Computer Application (BCA)',
+        school: 'JPM Arts and Science College Labbakkada, Idukki',
+        dates: '2022 - 2025'
+      },
+      {
+        id: 'edu-3',
+        degree: 'Plus 2 (Higher Secondary)',
+        school: 'St. Jeromes High Secondary School Vellayamkudy, Idukki',
+        dates: '2020 - 2022'
+      },
+      {
+        id: 'edu-4',
+        degree: 'SSLC (Secondary School Leaving Certificate)',
+        school: 'St. George High Secondary School Kattappana, Idukki',
+        dates: 'Completed: 2020'
       }
     ];
 
     setEducations(parsedEducations);
 
-    // Auto-fill Professional Certifications
-    const parsedCertifications = [
-      'Full Stack Enterprise Certified Specialist',
-      'Cloud Architecture & DevOps Professional',
-      'Modern Web & API Systems Certification'
-    ];
+    // Auto-fill Languages from Resume
+    setLanguages([
+      { id: '1', name: 'English (all profiles include this)', proficiency: 'Fluent' },
+      { id: '2', name: 'Malayalam', proficiency: 'Native' },
+      { id: '3', name: 'Hindi', proficiency: 'Conversational' },
+      { id: '4', name: 'Tamil', proficiency: 'Conversational' }
+    ]);
 
+    // Auto-fill Professional Certifications / Soft Skills
+    const parsedCertifications = [
+      'Problem-Solving & Analytical Thinking',
+      'Python & Django Web Development',
+      'Database Management & SQL Systems'
+    ];
     setCertifications(parsedCertifications);
 
-    // Auto-fill Professional Bio Overview
+    // Auto-fill Professional Role Title
+    if (!professionalRoleTitle) {
+      setProfessionalRoleTitle('Web & Software Developer (MCA)');
+    }
+
+    // Auto-fill Professional Bio Overview matching Resume Summary
     setBioOverview(
-      'Experienced Full Stack Engineer specializing in scalable enterprise application development, modern frontend component libraries, and cloud-native services.'
+      'Motivated MCA student and BCA graduate aiming to enhance technical skills in software development, web technologies, and application design. Hands-on experience developing web applications using Python, Django, PHP, React, MySQL, HTML, CSS, Bootstrap, and Git while gaining practical project experience and contributing positively to organizational growth.'
     );
 
     // Auto-fill Hourly Rate
     setHourlyRate(1500.00);
 
-    // Auto-fill Personal details location if empty
+    // Auto-fill Personal details location & contact from Resume
     setPersonalDetails((prev) => ({
       ...prev,
-      city: prev.city || 'Bengaluru',
-      state: prev.state || 'Karnataka',
+      city: prev.city || 'Idukki',
+      state: prev.state || 'Kerala',
       country: 'India',
-      phoneNumber: prev.phoneNumber || '',
+      phoneNumber: prev.phoneNumber || '7510311527',
+      website: prev.website || 'https://joseph-mathew-personal-portfolio.vercel.app',
+      linkedin: prev.linkedin || 'https://www.linkedin.com/in/joseph-mathew',
+      github: prev.github || 'https://github.com/josephmathew18',
     }));
   };
 
@@ -471,20 +633,74 @@ export const FreelancerApply = () => {
     });
   };
 
-  const addSkill = (skill) => {
-    if (!skill.trim()) return;
-    if (selectedSkills.includes(skill.trim())) return;
-    if (selectedSkills.length >= 15) {
-      toast.info('Maximum 15 skills allowed.');
-      return;
-    }
-    setSelectedSkills((prev) => [...prev, skill.trim()]);
+  const addSkill = (skillInput) => {
+    if (!skillInput || typeof skillInput !== 'string') return;
+    const cleanList = skillInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (cleanList.length === 0) return;
+
+    setSelectedSkills((prev) => {
+      let updated = [...prev];
+      for (const item of cleanList) {
+        if (updated.length >= 15) {
+          toast.info('Maximum 15 skills allowed.');
+          break;
+        }
+
+        // Match canonical name from catalog case-insensitively (e.g. "html" -> "HTML", "react" -> "React")
+        const catalogMatch = ALL_SUGGESTED_SKILLS.find(
+          (s) => s.toLowerCase() === item.toLowerCase()
+        );
+        const canonicalSkill = catalogMatch || item;
+
+        // Check if already selected (case-insensitive)
+        const alreadyExists = updated.some(
+          (s) => s.toLowerCase() === canonicalSkill.toLowerCase()
+        );
+
+        if (alreadyExists) {
+          toast.info(`"${canonicalSkill}" is already in your skills.`);
+        } else {
+          updated.push(canonicalSkill);
+        }
+      }
+      return updated;
+    });
+
     setCustomSkillInput('');
   };
 
   const removeSkill = (skill) => {
-    setSelectedSkills((prev) => prev.filter((s) => s !== skill));
+    setSelectedSkills((prev) =>
+      prev.filter((s) => s.toLowerCase() !== skill.toLowerCase())
+    );
   };
+
+  // Autocomplete matching skills for Step 7
+  const matchingCatalogSkills = useMemo(() => {
+    if (!customSkillInput.trim()) return [];
+    const query = customSkillInput.trim().toLowerCase();
+    return ALL_SUGGESTED_SKILLS.filter(
+      (s) =>
+        s.toLowerCase().includes(query) &&
+        !selectedSkills.some((sel) => sel.toLowerCase() === s.toLowerCase())
+    );
+  }, [customSkillInput, selectedSkills]);
+
+  const displayedSuggestedSkills = useMemo(() => {
+    const unselected = ALL_SUGGESTED_SKILLS.filter(
+      (s) => !selectedSkills.some((sel) => sel.toLowerCase() === s.toLowerCase())
+    );
+    if (!customSkillInput.trim()) {
+      return unselected;
+    }
+    const query = customSkillInput.trim().toLowerCase();
+    const matched = unselected.filter((s) => s.toLowerCase().includes(query));
+    return matched.length > 0 ? matched : unselected;
+  }, [customSkillInput, selectedSkills]);
 
   const handleAddExperienceSubmit = (e) => {
     e.preventDefault();
@@ -511,18 +727,30 @@ export const FreelancerApply = () => {
   };
 
   const addLanguageRow = () => {
-    if (availableLanguagesToAdd.length === 0) return;
-    const langName = availableLanguagesToAdd[0];
-    setLanguages((prev) => [...prev, { id: Date.now().toString(), name: langName, proficiency: 'Fluent' }]);
-    setAvailableLanguagesToAdd((prev) => prev.filter((l) => l !== langName));
+    // Find first unselected global language
+    const unselected = ALL_GLOBAL_LANGUAGES.find(
+      (langOpt) =>
+        langOpt !== 'English' &&
+        !languages.some((l) => l.name.toLowerCase() === langOpt.toLowerCase())
+    );
+    setLanguages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        name: unselected || '',
+        proficiency: 'Conversational',
+      },
+    ]);
   };
 
   const removeLanguageRow = (id) => {
-    const item = languages.find((l) => l.id === id);
-    if (item && item.name !== 'English (all profiles include this)') {
-      setLanguages((prev) => prev.filter((l) => l.id !== id));
-      setAvailableLanguagesToAdd((prev) => [...prev, item.name]);
-    }
+    setLanguages((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const updateLanguageName = (id, newName) => {
+    setLanguages((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, name: newName } : l))
+    );
   };
 
   const updateLanguageProficiency = (id, prof) => {
@@ -546,31 +774,61 @@ export const FreelancerApply = () => {
         const finalExperiences = experiences.length > 0 ? experiences : (resumeDataUrl ? [
           {
             id: 'exp-1',
-            title: professionalRoleTitle || 'Full Stack Software Engineer',
-            company: 'Enterprise Client Solutions',
-            period: '2022 - Present',
-            location: 'Remote, India',
-            description: `Delivered high-performance enterprise applications as a ${professionalRoleTitle || 'Full Stack Software Engineer'}. Built robust microservices and responsive user interfaces.`,
-            achievements: [
-              'Delivered critical project milestones on time with top code quality benchmarks.',
-              'Collaborated with cross-functional stakeholders to translate complex requirements into scalable solutions.',
-              'Streamlined build performance and operational workflows.'
-            ]
+            title: 'MCA Academic Projects',
+            company: 'Amal Jyothi College Of Engineering',
+            period: '2025 - Present',
+            location: 'Kerala, India',
+            description: 'Developed simple academic projects and applications as part of MCA coursework. Worked on basic programming, web development, and database concepts. Participated in team projects and improved problem-solving skills. Gained hands-on experience in coding, debugging, and project documentation.',
+          },
+          {
+            id: 'exp-2',
+            title: 'Main Project – Django Web Application',
+            company: 'JPM Arts and Science College',
+            period: '2024 - 2025',
+            location: 'Idukki, Kerala, India',
+            description: 'Developed a web application using Django and Python. Worked on authentication, database integration, and backend development. Improved skills in Python programming and web technologies.',
+          },
+          {
+            id: 'exp-3',
+            title: 'Mini Project – PHP Web Application',
+            company: 'JPM Arts and Science College',
+            period: '2022 - 2024',
+            location: 'Idukki, Kerala, India',
+            description: 'Developed a basic web application using PHP and MySQL. Implemented login systems, forms, and database connectivity. Learned front-end and back-end web development concepts.',
           }
         ] : []);
 
         const finalEducations = educations.length > 0 ? educations : (resumeDataUrl ? [
           {
             id: 'edu-1',
-            degree: 'Master of Computer Applications / B.Tech Computer Science',
-            school: 'Premier Institute of Technology & Engineering',
-            dates: '2018 - 2022'
+            degree: 'Master of Computer Application (MCA)',
+            school: 'Amal Jyothi College Of Engineering',
+            dates: '2025 - Present'
+          },
+          {
+            id: 'edu-2',
+            degree: 'Bachelor of Computer Application (BCA)',
+            school: 'JPM Arts and Science College Labbakkada, Idukki',
+            dates: '2022 - 2025'
+          },
+          {
+            id: 'edu-3',
+            degree: 'Plus 2 (Higher Secondary)',
+            school: 'St. Jeromes High Secondary School Vellayamkudy, Idukki',
+            dates: '2020 - 2022'
+          },
+          {
+            id: 'edu-4',
+            degree: 'SSLC (Secondary School Leaving Certificate)',
+            school: 'St. George High Secondary School Kattappana, Idukki',
+            dates: 'Completed: 2020'
           }
         ] : []);
 
         const finalCertifications = certifications.length > 0 ? certifications : (resumeDataUrl ? [
-          'Full Stack Enterprise Certified Specialist',
-          'Cloud Architecture & DevOps Professional'
+          'Problem-Solving & Analytical Thinking',
+          'Python & Django Web Development',
+          'Database Management & SQL Systems'
         ] : []);
 
         const res = await addFreelancerApplication({
@@ -578,22 +836,23 @@ export const FreelancerApply = () => {
           email: emailVal,
           phone: phoneVal,
           password: passwordVal,
-          roleTitle: professionalRoleTitle || 'Full Stack Software Engineer',
+          roleTitle: professionalRoleTitle || 'Web & Software Developer (MCA)',
           category: selectedCategory,
-          specialties: selectedSpecialties.length > 0 ? selectedSpecialties : ['Full Stack Development', 'Frontend Development'],
-          skills: selectedSkills.length > 0 ? selectedSkills : ['React', 'Node.js', 'Python', 'TypeScript', 'PostgreSQL', 'Docker', 'AWS'],
+          specialties: selectedSpecialties.length > 0 ? selectedSpecialties : ['Full Stack Development', 'Frontend Development', 'Backend Development'],
+          skills: selectedSkills.length > 0 ? selectedSkills : ['Python', 'Java', 'Javascript', 'C', 'PHP', 'React', 'HTML', 'CSS', 'Bootstrap', 'Git'],
           experiences: finalExperiences,
           educations: finalEducations,
           languages,
-          bioOverview: bioOverview || 'Experienced Full Stack Engineer specializing in scalable enterprise application development and modern user experiences.',
+          bioOverview: bioOverview || 'Motivated MCA student and BCA graduate with hands-on experience in software development, Python, Django, PHP, React, MySQL, HTML, CSS, Bootstrap, and Git.',
           hourlyRate,
           personalDetails,
-          experienceLevel,
-          freelanceGoal,
-          workPreferences,
+          experienceLevel: experienceLevel || 'I have some experience',
+          freelanceGoal: freelanceGoal || 'To earn my main income',
+          workPreferences: (Array.isArray(workPreferences) && workPreferences.length > 0) ? workPreferences : ['I\'d like to find opportunities myself'],
           openToContractToHire,
           importMethod: importMethod || 'Upload your resume',
-          linkedin: linkedInUrl || (personalDetails.linkedin || ''),
+          linkedin: personalDetails.linkedin || linkedInUrl || '',
+          github: personalDetails.github || '',
           linkedInPdfName: linkedInDocName,
           linkedInPdfUrl: linkedInPdfDataUrl,
           resumeFileName: resumeDocName,
@@ -1008,14 +1267,24 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(3)}
-              className="text-xs font-bold text-[#6A54F4] hover:underline"
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
             >
               Skip for now
             </button>
             <button
               type="button"
-              onClick={() => setCurrentStep(3)}
-              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
+              onClick={() => {
+                if (!experienceLevel) {
+                  toast.info('Please select one of the experience options above to continue, or click "Skip for now".');
+                  return;
+                }
+                setCurrentStep(3);
+              }}
+              className={`px-7 py-2.5 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer ${
+                experienceLevel
+                  ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md'
+                  : 'bg-white/10 hover:bg-white/20 text-slate-400'
+              }`}
             >
               Next
             </button>
@@ -1140,14 +1409,24 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(4)}
-              className="text-xs font-bold text-[#6A54F4] hover:underline"
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
             >
               Skip for now
             </button>
             <button
               type="button"
-              onClick={() => setCurrentStep(4)}
-              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
+              onClick={() => {
+                if (!freelanceGoal) {
+                  toast.info('Please select your freelancing goal to continue, or click "Skip for now".');
+                  return;
+                }
+                setCurrentStep(4);
+              }}
+              className={`px-7 py-2.5 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer ${
+                freelanceGoal
+                  ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md'
+                  : 'bg-white/10 hover:bg-white/20 text-slate-400'
+              }`}
             >
               Next
             </button>
@@ -1248,14 +1527,24 @@ export const FreelancerApply = () => {
             <button
               type="button"
               onClick={() => setCurrentStep(5)}
-              className="text-xs font-bold text-[#6A54F4] hover:underline"
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
             >
               Skip for now
             </button>
             <button
               type="button"
-              onClick={() => setCurrentStep(5)}
-              className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white font-bold text-xs shadow-sm transition-all"
+              onClick={() => {
+                if (workPreferences.length === 0) {
+                  toast.info('Please select at least one way you would like to work to continue, or click "Skip for now".');
+                  return;
+                }
+                setCurrentStep(5);
+              }}
+              className={`px-7 py-2.5 rounded-full font-bold text-xs shadow-sm transition-all cursor-pointer ${
+                workPreferences.length > 0
+                  ? 'bg-[#6A54F4] hover:bg-[#5844E5] text-white shadow-md'
+                  : 'bg-white/10 hover:bg-white/20 text-slate-400'
+              }`}
             >
               Next, create a profile
             </button>
@@ -1830,52 +2119,154 @@ export const FreelancerApply = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-300">Your skills</label>
-                <div className="p-3 rounded-2xl border border-white/15 bg-[#16152B] flex flex-wrap items-center gap-2 min-h-[56px] focus-within:border-[#6A54F4] transition-all">
-                  {selectedSkills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#6A54F4]/20 border border-[#6A54F4]/40 text-emerald-300 text-xs font-bold"
-                    >
-                      <span>{skill}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeSkill(skill)}
-                        className="text-emerald-400 hover:text-white"
-                      >
-                        <X size={14} />
-                      </button>
-                    </span>
-                  ))}
-
-                  <input
-                    type="text"
-                    value={customSkillInput}
-                    onChange={(e) => setCustomSkillInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addSkill(customSkillInput);
-                      }
-                    }}
-                    placeholder={selectedSkills.length === 0 ? 'Enter skills here' : ''}
-                    className="flex-1 min-w-[140px] text-xs sm:text-sm outline-none bg-transparent text-white placeholder-slate-500 py-1"
-                  />
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-300">Your skills</label>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {selectedSkills.length}/15 skills selected
+                  </span>
                 </div>
-                <div className="text-right text-[11px] text-slate-400 font-medium">Max 15 skills</div>
+
+                <div className="relative">
+                  <div
+                    onClick={() => skillInputRef.current?.focus()}
+                    className="p-3 rounded-2xl border border-white/15 bg-[#16152B] flex flex-wrap items-center gap-2 min-h-[58px] focus-within:border-[#6A54F4] focus-within:ring-1 focus-within:ring-[#6A54F4] transition-all cursor-text"
+                  >
+                    {selectedSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#6A54F4]/20 border border-[#6A54F4]/40 text-emerald-300 text-xs font-bold"
+                      >
+                        <span>{skill}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSkill(skill);
+                          }}
+                          className="text-emerald-400 hover:text-white transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
+
+                    <div className="flex-1 flex items-center min-w-[170px] gap-2">
+                      <input
+                        ref={skillInputRef}
+                        type="text"
+                        value={customSkillInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val.includes(',')) {
+                            addSkill(val);
+                          } else {
+                            setCustomSkillInput(val);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (customSkillInput.trim()) {
+                              addSkill(customSkillInput);
+                            }
+                          } else if (e.key === ',' || e.key === 'Tab') {
+                            if (customSkillInput.trim()) {
+                              e.preventDefault();
+                              addSkill(customSkillInput);
+                            }
+                          } else if (e.key === 'Backspace' && !customSkillInput && selectedSkills.length > 0) {
+                            removeSkill(selectedSkills[selectedSkills.length - 1]);
+                          } else if (e.key === 'Escape') {
+                            setCustomSkillInput('');
+                          }
+                        }}
+                        placeholder={
+                          selectedSkills.length >= 15
+                            ? 'Max 15 skills reached'
+                            : selectedSkills.length === 0
+                            ? 'Type a skill (e.g. HTML, React) and press Enter or pick below...'
+                            : 'Add another skill...'
+                        }
+                        disabled={selectedSkills.length >= 15}
+                        className="w-full text-xs sm:text-sm outline-none bg-transparent text-white placeholder-slate-500 py-1"
+                      />
+
+                      {customSkillInput.trim() && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addSkill(customSkillInput);
+                          }}
+                          className="px-3 py-1 rounded-full bg-[#6A54F4] hover:bg-[#5844E5] text-white text-xs font-bold shrink-0 transition-all flex items-center gap-1 shadow-sm"
+                        >
+                          <Plus size={12} strokeWidth={3} />
+                          <span>Add</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Autocomplete Dropdown popup when typing */}
+                  {customSkillInput.trim() && (
+                    <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-white/20 bg-[#16152B] p-2 shadow-2xl backdrop-blur-xl">
+                      <div className="text-[11px] font-bold text-slate-400 px-3 py-1.5 uppercase tracking-wider flex items-center justify-between">
+                        <span>Pick Matching Skills</span>
+                        <span className="text-[10px] text-slate-500 lowercase font-normal">Click or press Enter</span>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto space-y-1">
+                        {matchingCatalogSkills.slice(0, 8).map((skillOpt) => (
+                          <button
+                            key={skillOpt}
+                            type="button"
+                            onClick={() => addSkill(skillOpt)}
+                            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-[#6A54F4]/20 hover:text-white flex items-center justify-between transition-colors group"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#6A54F4]" />
+                              <span>{skillOpt}</span>
+                            </span>
+                            <span className="text-[11px] text-slate-400 group-hover:text-emerald-400 flex items-center gap-1">
+                              <Plus size={12} /> Add
+                            </span>
+                          </button>
+                        ))}
+
+                        {/* Option to add custom typed skill */}
+                        {!matchingCatalogSkills.some((s) => s.toLowerCase() === customSkillInput.trim().toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => addSkill(customSkillInput)}
+                            className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#6A54F4] hover:bg-[#6A54F4]/20 hover:text-white flex items-center justify-between transition-colors border-t border-white/10 mt-1"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Plus size={13} strokeWidth={3} />
+                              <span>Add "{customSkillInput.trim()}"</span>
+                            </span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                              Press Enter
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400">Suggested skills</label>
+                <label className="block text-xs font-bold text-slate-400">
+                  {customSkillInput.trim() ? 'Matching suggested skills' : 'Suggested skills'}
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {ALL_SUGGESTED_SKILLS.filter((s) => !selectedSkills.includes(s)).map((skill) => (
+                  {displayedSuggestedSkills.slice(0, 18).map((skill) => (
                     <button
                       key={skill}
                       type="button"
                       onClick={() => addSkill(skill)}
-                      className="px-3 py-1.5 rounded-full border border-white/15 bg-[#16152B] text-xs font-medium text-slate-300 hover:border-white/30 hover:bg-[#1A1835] transition-all flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-full border border-white/15 bg-[#16152B] text-xs font-medium text-slate-300 hover:border-white/30 hover:bg-[#1A1835] hover:text-white transition-all flex items-center gap-1 group"
                     >
-                      <Plus size={13} />
+                      <Plus size={13} className="text-slate-400 group-hover:text-white" />
                       <span>{skill}</span>
                     </button>
                   ))}
@@ -1914,7 +2305,10 @@ export const FreelancerApply = () => {
           <button
             type="button"
             onClick={() => {
-              if (selectedSkills.length === 0) {
+              if (customSkillInput.trim()) {
+                addSkill(customSkillInput);
+              }
+              if (selectedSkills.length === 0 && !customSkillInput.trim()) {
                 toast.error('Please select or add at least 1 skill before proceeding (up to 15 skills).');
                 return;
               }
@@ -2441,41 +2835,83 @@ export const FreelancerApply = () => {
               <span>Proficiency</span>
             </div>
 
-            {languages.map((lang) => (
-              <div key={lang.id} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                <div className="text-xs sm:text-sm font-semibold text-white py-2">
-                  {lang.name}
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={lang.proficiency}
-                    onChange={(e) => updateLanguageProficiency(lang.id, e.target.value)}
-                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs sm:text-sm text-white outline-none focus:border-[#6A54F4] transition-all cursor-pointer"
-                  >
-                    <option value="Native or Bilingual">Native or Bilingual</option>
-                    <option value="Fluent">Fluent</option>
-                    <option value="Conversational">Conversational</option>
-                    <option value="Basic">Basic</option>
-                  </select>
-                  {lang.name !== 'English (all profiles include this)' && (
-                    <button
-                      type="button"
-                      onClick={() => removeLanguageRow(lang.id)}
-                      className="text-slate-400 hover:text-rose-400 p-1"
+            {languages.map((lang) => {
+              const isEnglishRow = lang.id === '1' || lang.name.startsWith('English');
+
+              return (
+                <div key={lang.id} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  {/* Language Selection Column */}
+                  <div>
+                    {isEnglishRow ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <span className="text-xs sm:text-sm font-semibold text-white">
+                          English (all profiles include this)
+                        </span>
+                      </div>
+                    ) : (
+                      <select
+                        value={lang.name}
+                        onChange={(e) => updateLanguageName(lang.id, e.target.value)}
+                        className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs sm:text-sm text-white font-medium outline-none focus:border-[#6A54F4] transition-all cursor-pointer"
+                      >
+                        <option value="" disabled className="text-slate-500">
+                          Select a language...
+                        </option>
+                        {ALL_GLOBAL_LANGUAGES.map((opt) => {
+                          const isAlreadySelected = languages.some(
+                            (l) =>
+                              l.id !== lang.id &&
+                              l.name.toLowerCase() === opt.toLowerCase()
+                          );
+                          return (
+                            <option
+                              key={opt}
+                              value={opt}
+                              disabled={isAlreadySelected}
+                              className="bg-[#16152B] text-white"
+                            >
+                              {opt} {isAlreadySelected ? '(Already added)' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Proficiency Column */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={lang.proficiency}
+                      onChange={(e) => updateLanguageProficiency(lang.id, e.target.value)}
+                      className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs sm:text-sm text-white outline-none focus:border-[#6A54F4] transition-all cursor-pointer"
                     >
-                      <X size={16} />
-                    </button>
-                  )}
+                      <option value="Native or Bilingual">Native or Bilingual</option>
+                      <option value="Fluent">Fluent</option>
+                      <option value="Conversational">Conversational</option>
+                      <option value="Basic">Basic</option>
+                    </select>
+
+                    {!isEnglishRow && (
+                      <button
+                        type="button"
+                        onClick={() => removeLanguageRow(lang.id)}
+                        className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                        title="Remove language"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="pt-2">
               <button
                 type="button"
                 onClick={addLanguageRow}
-                disabled={availableLanguagesToAdd.length === 0}
-                className="px-5 py-2.5 rounded-full border-2 border-[#6A54F4] text-[#6A54F4] font-bold text-xs hover:bg-[#6A54F4]/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                disabled={languages.length >= ALL_GLOBAL_LANGUAGES.length}
+                className="px-5 py-2.5 rounded-full border-2 border-[#6A54F4] text-[#6A54F4] font-bold text-xs hover:bg-[#6A54F4]/10 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Plus size={14} strokeWidth={3} />
                 <span>Add a language</span>
@@ -2494,7 +2930,14 @@ export const FreelancerApply = () => {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentStep(12)}
+            onClick={() => {
+              const emptyLang = languages.find((l) => !l.name || !l.name.trim());
+              if (emptyLang) {
+                toast.error('Please select a language for all added rows or remove them.');
+                return;
+              }
+              setCurrentStep(12);
+            }}
             className="px-7 py-2.5 rounded-full bg-[#6A54F4] hover:bg-[#14a800] text-white font-bold text-xs shadow-sm transition-all"
           >
             Next, write an overview
@@ -2854,6 +3297,37 @@ export const FreelancerApply = () => {
                     onChange={(e) => setPersonalDetails({ ...personalDetails, phoneNumber: e.target.value })}
                     className="flex-1 rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white outline-none focus:border-[#6A54F4]"
                     required
+                  />
+                </div>
+              </div>
+
+              {/* LinkedIn & GitHub Profile URLs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                    <FaLinkedin className="text-[#0a66c2]" size={14} />
+                    <span>LinkedIn Profile URL</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/in/username"
+                    value={personalDetails.linkedin || ''}
+                    onChange={(e) => setPersonalDetails({ ...personalDetails, linkedin: e.target.value })}
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-[#6A54F4]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                    <FaGithub className="text-white" size={14} />
+                    <span>GitHub Profile URL</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/username"
+                    value={personalDetails.github || ''}
+                    onChange={(e) => setPersonalDetails({ ...personalDetails, github: e.target.value })}
+                    className="w-full rounded-2xl border border-white/15 bg-[#16152B] px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-[#6A54F4]"
                   />
                 </div>
               </div>
