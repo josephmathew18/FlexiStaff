@@ -515,7 +515,7 @@ export const ProjectDetails = () => {
             </h2>
             <p className="text-xs sm:text-sm text-[#565e74] dark:text-slate-400 mt-0.5 font-medium">
               Client: <strong className="text-[#191b23] dark:text-white">{project.clientCompanyName || project.clientName || project.client}</strong> • Manager:{' '}
-              <strong className="text-[#191b23] dark:text-white">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin') ? project.managerName : 'Unassigned'}</strong>
+              <strong className="text-[#191b23] dark:text-white">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin' && project.manager !== 'Unassigned') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin' && project.managerName !== 'Unassigned') ? project.managerName : 'Thomas Mathew'}</strong>
             </p>
           </div>
 

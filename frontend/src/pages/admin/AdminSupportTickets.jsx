@@ -16,9 +16,13 @@ import {
   X,
   Send,
   Sparkles,
+  Star,
+  Award,
+  RefreshCw,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
+import feedbackApi from '../../services/feedbackApi';
 
 export const AdminSupportTickets = () => {
   const {
@@ -29,12 +33,45 @@ export const AdminSupportTickets = () => {
     clearAllTicketStatuses,
   } = useData() || {};
 
+  const [activeMainTab, setActiveMainTab] = useState('feedback'); // 'feedback' | 'tickets'
+  const [companyFeedbacks, setCompanyFeedbacks] = useState([]);
+  const [feedbackSummary, setFeedbackSummary] = useState(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'Client' | 'Manager' | 'Partner' | 'Workforce'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'Open' | 'Pending Admin Review' | 'In Progress' | 'Resolved'
   const [searchQuery, setSearchQuery] = useState('');
   const [replyDrafts, setReplyDrafts] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+
+  const loadCompanyFeedback = async () => {
+    try {
+      setLoadingFeedback(true);
+      const [sumRes, compRes] = await Promise.all([
+        feedbackApi.getAdminSummary(),
+        feedbackApi.getAllCompanyFeedbacks(),
+      ]);
+      const summaryData = sumRes?.data || sumRes;
+      if (summaryData) {
+        setFeedbackSummary(summaryData);
+      }
+      const list = Array.isArray(compRes?.data)
+        ? compRes.data
+        : Array.isArray(compRes)
+        ? compRes
+        : (summaryData?.companyFeedbacks || []);
+      setCompanyFeedbacks(list);
+    } catch (err) {
+      console.warn('Could not load company feedback:', err);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadCompanyFeedback();
+  }, []);
 
   // Filtered support tickets
   const filteredTickets = useMemo(() => {
@@ -121,7 +158,7 @@ export const AdminSupportTickets = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Review full-detail support reports, SLA feedback, and technical inquiries saved in PostgreSQL across all 4 portal roles.
+            Review FlexiStaff AI company feedback & ratings, SLA satisfaction, and technical inquiries saved in PostgreSQL.
           </p>
         </div>
 
@@ -139,7 +176,7 @@ export const AdminSupportTickets = () => {
                 toast.error('Failed to reset ticket statuses. Please try again.');
               }
             }}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold border border-amber-600 flex items-center gap-1.5 transition-all shadow-xs"
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold border border-amber-600 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             title="Reset all ticket statuses to Pending Admin Review"
           >
             <Clock size={14} />
@@ -147,6 +184,138 @@ export const AdminSupportTickets = () => {
           </button>
         </div>
       </div>
+
+      {/* Main Tab Navigation: Company Feedback & Ratings vs Support Reports */}
+      <div className="flex border-b border-slate-200 dark:border-white/10 gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('feedback')}
+          className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeMainTab === 'feedback'
+              ? 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/20 font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Star size={15} className="fill-amber-400 text-amber-400" />
+          <span>FlexiStaff AI Company Ratings & Feedback ({companyFeedbacks.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('tickets')}
+          className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeMainTab === 'tickets'
+              ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-950/20 font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <LifeBuoy size={15} />
+          <span>Support Reports & Technical Inquiries ({(supportTickets || []).length})</span>
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* VIEW 1: FLEXISTAFF AI COMPANY RATINGS & FEEDBACK VIEW (Pic 1) */}
+      {/* ========================================================================= */}
+      {activeMainTab === 'feedback' && (
+        <div className="space-y-6">
+          {/* Total Client Evaluations Card */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-[#14132b] border border-slate-200 dark:border-white/10 flex items-center justify-between max-w-sm shadow-xs">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Total Client Evaluations
+              </span>
+              <p className="text-3xl font-black text-slate-900 dark:text-white mt-1">
+                {companyFeedbacks.length}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Building2 size={24} />
+            </div>
+          </div>
+
+          {/* Company Feedback Reviews List */}
+          <div className="bg-white dark:bg-[#14132b] p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Client Written Feedback & Star Evaluations
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Detailed corporate feedback given by clients upon project completion
+                </p>
+              </div>
+            </div>
+
+            {companyFeedbacks.length === 0 ? (
+              <div className="py-12 text-center text-slate-400">
+                <Building2 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Company Feedback Recorded Yet</p>
+                <p className="text-[11px] text-slate-400">
+                  Ratings submitted by clients for FlexiStaff AI will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {companyFeedbacks.map((fb) => (
+                  <div
+                    key={fb.id}
+                    className="p-4 rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-950/10 space-y-2.5 hover:shadow-xs transition-all"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                          Project: <span className="text-blue-600 dark:text-blue-400 font-extrabold">{fb.projectTitle}</span>
+                        </h4>
+                        <span className="text-[10px] font-mono text-slate-400">#{fb.projectId}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 self-start sm:self-auto">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            size={14}
+                            className={
+                              star <= fb.rating
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-slate-200 dark:text-slate-700'
+                            }
+                          />
+                        ))}
+                        <span className="ml-1 text-xs font-bold text-slate-800 dark:text-white">
+                          {fb.rating}.0 / 5.0
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-white dark:bg-[#1c1a36] border border-slate-200/80 dark:border-white/10">
+                      <p className="text-xs text-slate-800 dark:text-slate-200 italic leading-relaxed">
+                        "{fb.comment || 'Client left star rating without additional comment.'}"
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <span>
+                        Client: <strong className="text-slate-700 dark:text-slate-300">{fb.clientName || 'Enterprise Client'}</strong>
+                        {fb.clientCompanyName && ` (${fb.clientCompanyName})`}
+                      </span>
+                      <span className="font-mono">
+                        {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : 'Recorded'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW 2: SUPPORT & TECHNICAL INQUIRIES DESK */}
+      {/* ========================================================================= */}
+      {activeMainTab === 'tickets' && (
+        <>
 
       {/* Filter Bar */}
       <div className="bg-white dark:bg-[#14132b] p-4 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
@@ -376,8 +545,10 @@ export const AdminSupportTickets = () => {
           })}
         </div>
       )}
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 };
 
 export default AdminSupportTickets;

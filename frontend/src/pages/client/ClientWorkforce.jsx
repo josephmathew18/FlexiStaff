@@ -325,10 +325,10 @@ export const ClientWorkforce = () => {
             <UserCheck size={16} className="text-purple-600" />
           </div>
           <p className="text-2xl font-black text-slate-900">
-            {clientProjects.find((p) => p.manager)?.manager || "Unassigned"}
+            {clientProjects.find((p) => p.manager && p.manager !== 'Unassigned')?.manager || "Thomas Mathew"}
           </p>
           <p className="text-[11px] text-slate-500 font-medium mt-1">
-            {clientProjects.find((p) => p.manager)?.manager ? "Lead Project Manager" : "No manager assigned"}
+            Lead Staffing Manager
           </p>
         </div>
       </div>

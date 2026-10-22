@@ -36,7 +36,8 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
                 "projects",
                 "milestones",
                 "workforce_allocations",
-                "hr_managers"
+                "hr_managers",
+                "feedback"
         );
 
         for (String table : tables) {

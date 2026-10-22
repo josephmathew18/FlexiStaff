@@ -35,6 +35,7 @@ import {
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
+import PartnerFeedbackSection from '../../components/feedback/PartnerFeedbackSection';
 
 // Reusable Inline StatusBadge for Partner
 const StatusBadge = ({ status = 'Active', size = 'sm' }) => {
@@ -523,6 +524,9 @@ export const PartnerDashboard = () => {
           </table>
         </div>
       </div>
+
+      {/* Specialist Ratings & Client Feedback (Exclusive for this Partner's Employees) */}
+      <PartnerFeedbackSection />
     </div>
   );
 };

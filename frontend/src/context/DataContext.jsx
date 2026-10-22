@@ -312,17 +312,29 @@ export const mapBackendProjectToFrontend = (p) => {
     clientCompanyName: clientOrg,
     companyName: clientOrg,
     contactPerson: clientContact,
-    manager: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin') ? p.manager : 'Unassigned',
-    managerName: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin') ? p.manager : 'Unassigned',
+    manager: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin' && p.managerName !== 'Unassigned') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin' && p.manager !== 'Unassigned') ? p.manager : 'Thomas Mathew',
+    managerName: (p.managerName && p.managerName !== 'System Administrator' && p.managerName !== 'System Admin' && p.managerName !== 'Unassigned') ? p.managerName : (p.manager && p.manager !== 'System Administrator' && p.manager !== 'System Admin' && p.manager !== 'Unassigned') ? p.manager : 'Thomas Mathew',
     managerId: p.managerId || null,
     managerEmail: p.managerEmail || null,
     managerPhone: p.managerPhone || null,
-    status: computedProgress >= 100 ? 'Completed' : formattedStatus,
-    stage: computedProgress >= 100 ? 'Completed' : formattedStatus,
+    status: computedProgress >= 100 ? 'Completed' : (formattedStatus === 'Completed' ? 'In Progress' : formattedStatus),
+    stage: computedProgress >= 100 ? 'Completed' : (formattedStatus === 'Completed' ? 'In Progress' : formattedStatus),
     progress: computedProgress,
     progressPercentage: computedProgress,
-    workforceRequired: Number(p.workforceRequired) || (Array.isArray(skillsArr) && skillsArr.length > 0 ? skillsArr.length : 4),
-    workforceAssigned: assignedResources.length,
+    workforceRequired: Number(p.workforceRequired) || (Array.isArray(skillsArr) && skillsArr.length > 0 ? skillsArr.length : 2),
+    headcount: Number(p.workforceRequired) || (Array.isArray(skillsArr) && skillsArr.length > 0 ? skillsArr.length : 2),
+    workforceAssigned: assignedResources.filter((a) => {
+      const st = String(a.status || '').toUpperCase().trim();
+      return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+    }).length,
+    activeWorkforceCount: assignedResources.filter((a) => {
+      const st = String(a.status || '').toUpperCase().trim();
+      return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+    }).length,
+    pendingWorkforceCount: assignedResources.filter((a) => {
+      const st = String(a.status || '').toUpperCase().trim();
+      return st !== 'ACTIVE' && st !== 'ACCEPTED' && st !== 'WORKING' && st !== 'APPROVED';
+    }).length,
     assignedResources,
     allocations: p.allocations || [],
     startDate: p.startDate,
@@ -7530,6 +7542,13 @@ export const DataProvider = ({ children }) => {
         const computedProgress = calculateOverallCompletionProgress(completedCount);
         const isCompleted = computedProgress === 100;
         const isProgressing = computedProgress > 0 && computedProgress < 100;
+
+        const numProjId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
+        if (numProjId && !isNaN(numProjId) && api?.projects?.update) {
+          api.projects.update(numProjId, {
+            status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
+          }).catch((err) => console.warn('Could not sync project completion status to backend:', err));
+        }
 
         return {
           ...prj,

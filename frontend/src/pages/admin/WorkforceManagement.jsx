@@ -47,6 +47,7 @@ import {
 import { useData, getPartnerCompanyName } from '../../context/DataContext';
 import { FaLinkedin, FaGithub } from 'react-icons/fa';
 import UserAvatar from '../../components/common/UserAvatar';
+import feedbackApi from '../../services/feedbackApi';
 
 // ====================================================================
 // INLINE REUSABLE UI: StatusBadge
@@ -248,6 +249,29 @@ export const WorkforceManagement = () => {
   const [selectedSkill, setSelectedSkill] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
+  // Professional Feedbacks & Modal Tab State
+  const [professionalFeedbacks, setProfessionalFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
+  const [talentModalTab, setTalentModalTab] = useState('details'); // 'details' | 'reviews'
+
+  const loadProfessionalFeedbacks = async () => {
+    try {
+      setLoadingFeedbacks(true);
+      const res = await feedbackApi.getAllProfessionalFeedbacks();
+      if (res && res.data) {
+        setProfessionalFeedbacks(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to load professional feedbacks in workforce:', err);
+    } finally {
+      setLoadingFeedbacks(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadProfessionalFeedbacks();
+  }, []);
+
   // Modals state
   const [selectedTalent, setSelectedTalent] = useState(null);
   const [viewingAppModal, setViewingAppModal] = useState(null);
@@ -258,14 +282,30 @@ export const WorkforceManagement = () => {
   // Enriched talent detail opener (merges freelancer application verification data if available)
   const handleOpenTalentDetails = (talent) => {
     if (!talent) return;
-    const matchingApp = (freelancerApplications || []).find(
-      (a) =>
-        (a.email && talent.email && a.email.toLowerCase() === talent.email.toLowerCase()) ||
-        a.id === talent.id ||
-        a.numericId === talent.numericId ||
-        a.id === talent.freelancerId ||
-        (a.fullName && talent.name && a.fullName.toLowerCase() === talent.name.toLowerCase())
+
+    // Detect if this person is an employee of a partner company
+    const isPartnerStaff = Boolean(
+      talent.roleType === 'Employee' ||
+      talent.source === 'Partner Company' ||
+      talent.professionalType === 'PARTNER_EMPLOYEE' ||
+      talent.partnerCompanyId ||
+      talent.partnerCompany ||
+      talent.partnerName ||
+      talent.companyId ||
+      getPartnerCompanyName(talent, partners, clients)
     );
+
+    // Matching freelancer application is strictly for independent freelancers, NEVER partner company employees
+    const matchingApp = !isPartnerStaff
+      ? (freelancerApplications || []).find(
+          (a) =>
+            (a.email && talent.email && a.email.toLowerCase() === talent.email.toLowerCase()) ||
+            a.id === talent.id ||
+            a.numericId === talent.numericId ||
+            a.id === talent.freelancerId ||
+            (a.fullName && talent.name && a.fullName.toLowerCase() === talent.name.toLowerCase())
+        )
+      : null;
 
     const merged = matchingApp
       ? {
@@ -289,12 +329,12 @@ export const WorkforceManagement = () => {
           specialties: (talent.specialties && talent.specialties.length > 0)
             ? talent.specialties
             : (matchingApp.specialties || []),
-          experienceLevel: talent.experienceLevel || matchingApp.experienceLevel || 'I have some experience',
-          freelanceGoal: talent.freelanceGoal || matchingApp.freelanceGoal || 'To earn my main income',
+          experienceLevel: talent.experienceLevel || matchingApp.experienceLevel || null,
+          freelanceGoal: talent.freelanceGoal || matchingApp.freelanceGoal || null,
           workPreferences: (Array.isArray(talent.workPreferences) && talent.workPreferences.length > 0)
             ? talent.workPreferences
-            : ((Array.isArray(matchingApp.workPreferences) && matchingApp.workPreferences.length > 0) ? matchingApp.workPreferences : ['I\'d like to find opportunities myself']),
-          openToContractToHire: talent.openToContractToHire ?? matchingApp.openToContractToHire ?? true,
+            : ((Array.isArray(matchingApp.workPreferences) && matchingApp.workPreferences.length > 0) ? matchingApp.workPreferences : []),
+          openToContractToHire: talent.openToContractToHire ?? matchingApp.openToContractToHire ?? null,
           resumeUrl: talent.resumeUrl || talent.resume || matchingApp.resumeUrl || matchingApp.resume || '',
           resumeName: talent.resumeName || talent.resumeFileName || matchingApp.resumeFileName || matchingApp.resumeName || '',
           linkedInPdfUrl: talent.linkedInPdfUrl || matchingApp.linkedInPdfUrl || '',
@@ -304,6 +344,7 @@ export const WorkforceManagement = () => {
         }
       : talent;
 
+    setTalentModalTab('details');
     setSelectedTalent(merged);
   };
 
@@ -1698,13 +1739,40 @@ export const WorkforceManagement = () => {
             selectedTalent.status === 'Pending Admin Review' ||
             selectedTalent.accountStatus === 'Pending Review';
 
-          const isFreelancer =
+          const isPartnerEmployee = Boolean(
+            selectedTalent.roleType === 'Employee' ||
+            selectedTalent.source === 'Partner Company' ||
+            selectedTalent.professionalType === 'PARTNER_EMPLOYEE' ||
+            selectedTalent.partnerCompanyId ||
+            selectedTalent.partnerCompany ||
+            selectedTalent.partnerName ||
+            selectedTalent.companyId ||
+            getPartnerCompanyName(selectedTalent, partners, clients)
+          );
+
+          const isFreelancer = !isPartnerEmployee && Boolean(
             selectedTalent.roleType === 'Freelancer' ||
             selectedTalent.source === 'Freelancer' ||
             selectedTalent.source === 'Freelancer Registration' ||
             selectedTalent.source === 'Independent Freelancer' ||
             selectedTalent.professionalType === 'FREELANCER' ||
-            (!selectedTalent.partnerCompanyId && !selectedTalent.partnerCompany && selectedTalent.source !== 'Partner Company');
+            selectedTalent.isFreelancer
+          );
+
+          const talentFeedbacks = (professionalFeedbacks || []).filter((fb) => {
+            if (!fb) return false;
+            const tId = String(selectedTalent.id || selectedTalent.numericId || selectedTalent.userId || '');
+            const tName = String(selectedTalent.name || selectedTalent.fullName || '').toLowerCase().trim();
+            const fbProfId = String(fb.professionalId || '');
+            const fbName = String(fb.professionalName || '').toLowerCase().trim();
+            if (tId && fbProfId && tId === fbProfId) return true;
+            if (tName && fbName && tName === fbName) return true;
+            return false;
+          });
+
+          const avgScore = talentFeedbacks.length > 0
+            ? (talentFeedbacks.reduce((sum, f) => sum + (Number(f.rating) || 0), 0) / talentFeedbacks.length).toFixed(1)
+            : null;
 
           return (
             <div className="space-y-5">
@@ -1736,6 +1804,102 @@ export const WorkforceManagement = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Modal Sub-Tabs: Profile Details vs Client Feedback */}
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setTalentModalTab('details')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    talentModalTab === 'details'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <UserCheck size={14} />
+                  <span>Candidate Profile & Full Verification</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTalentModalTab('reviews')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    talentModalTab === 'reviews'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : talentFeedbacks.length > 0
+                        ? 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800/50'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <Star size={14} className={talentModalTab === 'reviews' ? 'fill-white text-white' : talentFeedbacks.length > 0 ? 'fill-amber-400 text-amber-400' : 'text-slate-400'} />
+                  <span>Client Ratings & Project Feedback ({talentFeedbacks.length})</span>
+                </button>
+              </div>
+
+              {talentModalTab === 'reviews' ? (
+                <div className="space-y-4">
+                  {/* List of Reviews */}
+                  {talentFeedbacks.length === 0 ? (
+                    <div className="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-white/10 text-center space-y-2">
+                      <Star size={28} className="mx-auto text-slate-300 dark:text-slate-600" />
+                      <h5 className="text-xs font-bold text-slate-800 dark:text-white">No Client Reviews Recorded Yet</h5>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        Ratings and written feedback from enterprise clients will automatically appear here once projects assigned to this specialist reach Completed status.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {talentFeedbacks.map((fb) => (
+                        <div
+                          key={fb.id}
+                          className="p-4 rounded-2xl bg-slate-50/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 space-y-2.5 hover:border-amber-300 dark:hover:border-amber-600/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1 text-amber-400">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  size={14}
+                                  className={s <= Math.round(Number(fb.rating || 0)) ? 'fill-amber-400 text-amber-400' : 'text-slate-300 dark:text-slate-700'}
+                                />
+                              ))}
+                              <span className="text-xs font-black text-slate-900 dark:text-white ml-1">
+                                {Number(fb.rating || 0).toFixed(1)} / 5.0
+                              </span>
+                            </div>
+
+                            <span className="text-[11px] font-semibold text-slate-400">
+                              {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : 'Recorded'}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <FolderKanban size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                            <span>Project: {fb.projectTitle || (fb.projectId ? `Project #${fb.projectId}` : 'Assigned Project')}</span>
+                          </div>
+
+                          {fb.comment && (
+                            <p className="text-xs text-slate-700 dark:text-slate-300 bg-white dark:bg-[#16152B] p-3 rounded-xl border border-slate-100 dark:border-white/10 leading-relaxed italic">
+                              "{fb.comment}"
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100 dark:border-white/10">
+                            <span>
+                              Client: <strong className="text-slate-700 dark:text-slate-300">{fb.clientName || 'Client'}</strong>
+                              {fb.clientCompanyName && ` (${fb.clientCompanyName})`}
+                            </span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                              <CheckCircle2 size={12} />
+                              Verified Delivery Review
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
 
               {/* Personal & Contact Details Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -1805,8 +1969,8 @@ export const WorkforceManagement = () => {
                 </div>
               )}
 
-              {/* Quick Onboarding Responses & Freelancer Preferences */}
-              {(selectedTalent.experienceLevel || selectedTalent.freelanceGoal || (Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0) || selectedTalent.openToContractToHire !== undefined) && (
+              {/* Quick Onboarding Responses & Freelancer Preferences (Only for registered independent freelancers BEFORE acceptance/approval, never for partner employees or accepted professionals) */}
+              {isFreelancer && !isPartnerEmployee && isPendingDecision && Boolean(selectedTalent.experienceLevel || selectedTalent.freelanceGoal || (Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0)) && (
                 <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/40 space-y-3">
                   <div className="flex items-center justify-between">
                     <h5 className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-2">
@@ -1820,50 +1984,54 @@ export const WorkforceManagement = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     {/* 1. Prior Freelancing Experience */}
-                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 block">1. Prior Freelancing Experience</span>
-                      <div className="flex items-center gap-2">
-                        <Briefcase size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                        <span className="font-bold text-slate-800 dark:text-slate-100">
-                          {selectedTalent.experienceLevel || 'I have some experience'}
-                        </span>
+                    {selectedTalent.experienceLevel && (
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">1. Prior Freelancing Experience</span>
+                        <div className="flex items-center gap-2">
+                          <Briefcase size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-100">
+                            {selectedTalent.experienceLevel}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* 2. Primary Freelance Goal */}
-                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 block">2. Primary Freelancing Goal</span>
-                      <div className="flex items-center gap-2">
-                        <Star size={14} className="text-amber-500 shrink-0" />
-                        <span className="font-bold text-slate-800 dark:text-slate-100">
-                          {selectedTalent.freelanceGoal || 'To earn my main income'}
-                        </span>
+                    {selectedTalent.freelanceGoal && (
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">2. Primary Freelancing Goal</span>
+                        <div className="flex items-center gap-2">
+                          <Star size={14} className="text-amber-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-100">
+                            {selectedTalent.freelanceGoal}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* 3. Work Preferences */}
-                    <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1 sm:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">3. Preferred Ways of Working & Contracting</span>
-                        {selectedTalent.openToContractToHire !== false && (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
-                            Open to Contract-to-Hire
-                          </span>
+                    {((Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0) || selectedTalent.openToContractToHire === true) && (
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#16152B] border border-indigo-100 dark:border-white/10 space-y-1 sm:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 block">3. Preferred Ways of Working & Contracting</span>
+                          {selectedTalent.openToContractToHire === true && (
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/40">
+                              Open to Contract-to-Hire
+                            </span>
+                          )}
+                        </div>
+                        {Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {selectedTalent.workPreferences.map((pref, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-100/70 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs font-bold border border-indigo-200 dark:border-indigo-800/40">
+                                <CheckCircle2 size={12} className="text-indigo-600 dark:text-indigo-400" />
+                                <span>{pref}</span>
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {Array.isArray(selectedTalent.workPreferences) && selectedTalent.workPreferences.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {selectedTalent.workPreferences.map((pref, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-100/70 dark:bg-indigo-900/60 text-indigo-900 dark:text-indigo-200 text-xs font-bold border border-indigo-200 dark:border-indigo-800/40">
-                              <CheckCircle2 size={12} className="text-indigo-600 dark:text-indigo-400" />
-                              <span>{pref}</span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-500 italic font-medium">Standard Talent Marketplace bidding</span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2145,23 +2313,54 @@ export const WorkforceManagement = () => {
                 </div>
               )}
 
-              {/* Languages & Fluency */}
-              {Array.isArray(selectedTalent.languages) && selectedTalent.languages.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Languages & Fluency
-                  </h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {selectedTalent.languages.map((lang, idx) => (
-                      <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">{lang.name}</span>
-                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
-                          {lang.proficiency}
-                        </span>
+                  {/* Languages & Fluency */}
+                  {Array.isArray(selectedTalent.languages) && selectedTalent.languages.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Languages & Fluency
+                      </h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {selectedTalent.languages.map((lang, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/70 dark:border-white/10 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800 dark:text-white">{lang.name}</span>
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                              {lang.proficiency}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  )}
+
+                  {/* Compact Review Teaser Banner at bottom of details view (only if reviews exist) */}
+                  {talentFeedbacks.length > 0 && (
+                    <div
+                      onClick={() => setTalentModalTab('reviews')}
+                      className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/40 flex items-center justify-between cursor-pointer hover:bg-amber-100/70 dark:hover:bg-amber-900/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                          <Star size={16} className="fill-amber-400 text-amber-400" />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-bold text-slate-900 dark:text-white">
+                            Client Performance Ratings & Project Feedback
+                          </h5>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Average score: <strong className="text-amber-600 dark:text-amber-400">{avgScore} / 5.0</strong> ({talentFeedbacks.length} {talentFeedbacks.length === 1 ? 'evaluation' : 'evaluations'})
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 shadow-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>View Feedback</span>
+                        <ExternalLink size={12} />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Admin Decision Action Banner when candidate is pending */}
@@ -2608,18 +2807,20 @@ export const WorkforceManagement = () => {
                 </div>
                 <div>
                   <span className="text-slate-400 font-bold text-[10px] block">Experience Level & Goal</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{viewingAppModal.experienceLevel || 'Expert'} • {viewingAppModal.freelanceGoal || 'Freelance'}</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {[viewingAppModal.experienceLevel, viewingAppModal.freelanceGoal].filter(Boolean).join(' • ') || 'Not specified'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-bold text-[10px] block">Street Address</span>
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {viewingAppModal.personalDetails?.streetAddress || ''} {viewingAppModal.personalDetails?.aptSuite || ''}
+                    {[viewingAppModal.personalDetails?.streetAddress, viewingAppModal.personalDetails?.aptSuite].filter(Boolean).join(', ') || 'Not specified'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 font-bold text-[10px] block">City, State, Country & Zip</span>
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {viewingAppModal.personalDetails?.city || viewingAppModal.place || 'Bengaluru'}, {viewingAppModal.personalDetails?.state || ''} {viewingAppModal.personalDetails?.country || 'India'} ({viewingAppModal.personalDetails?.zipCode || ''})
+                    {[viewingAppModal.personalDetails?.city || viewingAppModal.place, viewingAppModal.personalDetails?.state, viewingAppModal.personalDetails?.country].filter(Boolean).join(', ')} {viewingAppModal.personalDetails?.zipCode ? `(${viewingAppModal.personalDetails?.zipCode})` : ''}
                   </span>
                 </div>
               </div>

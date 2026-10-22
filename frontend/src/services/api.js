@@ -1,5 +1,6 @@
 // FlexiStaff API Client Service
 // Handles REST communications between FlexiStaff-Frontend and FlexiStaff-Backend (Spring Boot REST API)
+import feedbackApi from './feedbackApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
@@ -262,11 +263,11 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ status, adminResponse }),
       }),
-    clearAllStatuses: () =>
-      request('/support/tickets/clear-status', {
-        method: 'POST',
-      }),
   },
+  
+  // Rating & Feedback API endpoints (Axios Client)
+  feedback: feedbackApi,
 };
 
+export { feedbackApi };
 export default api;

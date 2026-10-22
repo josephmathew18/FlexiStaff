@@ -44,6 +44,7 @@ import {
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import AdminFeedbackSection from '../../components/feedback/AdminFeedbackSection';
 
 // --- INLINE REUSABLE COMPONENTS ---
 const StatusBadge = ({ status = 'Active', size = 'md' }) => {
@@ -652,6 +653,9 @@ export const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Client Ratings & Feedback Intelligence Section */}
+      <AdminFeedbackSection />
     </div>
   );
 };

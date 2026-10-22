@@ -39,6 +39,21 @@ export const ProjectProgress = ({
       ];
 
   const assignedResources = project.assignedResources || [];
+  const activeResources = assignedResources.filter((r) => {
+    const st = String(r.status || r.rawStatus || '').toUpperCase().trim();
+    return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+  });
+  const pendingResources = assignedResources.filter((r) => {
+    const st = String(r.status || r.rawStatus || '').toUpperCase().trim();
+    return st !== 'ACTIVE' && st !== 'ACCEPTED' && st !== 'WORKING' && st !== 'APPROVED';
+  });
+  const targetHeadcount = Number(
+    project.workforceRequired ||
+    project.headcount ||
+    project.teamHeadcount ||
+    project.requiredHeadcount ||
+    (assignedResources.length > 0 ? assignedResources.length : 2)
+  ) || 2;
 
   const progress = project.progress !== undefined ? project.progress : 0;
 
@@ -58,7 +73,7 @@ export const ProjectProgress = ({
               {project.name || project.title}
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Client: <strong className="text-slate-800">{project.client || (project.clientCompanyName && project.clientName ? `${project.clientCompanyName} (${project.clientName})` : project.clientCompanyName || project.clientName || '')}</strong> | Manager: <strong className="text-slate-800">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin') ? project.managerName : 'HR Manager'}</strong>
+              Client: <strong className="text-slate-800">{project.client || (project.clientCompanyName && project.clientName ? `${project.clientCompanyName} (${project.clientName})` : project.clientCompanyName || project.clientName || '')}</strong> | Manager: <strong className="text-slate-800">{(project.manager && project.manager !== 'System Administrator' && project.manager !== 'System Admin' && project.manager !== 'Unassigned') ? project.manager : (project.managerName && project.managerName !== 'System Administrator' && project.managerName !== 'System Admin' && project.managerName !== 'Unassigned') ? project.managerName : 'Thomas Mathew'}</strong>
             </p>
           </div>
 
@@ -164,11 +179,17 @@ export const ProjectProgress = ({
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
               <Users size={16} className="text-[#004ac6]" />
-              <span>Assigned Workforce ({assignedResources.length} / 3)</span>
+              <span>Assigned Workforce ({activeResources.length} / {targetHeadcount})</span>
             </h4>
-            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
-              Max 3 Limit
-            </span>
+            {pendingResources.length > 0 ? (
+              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">
+                {pendingResources.length} Staged Pending Sign-off
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
+                {targetHeadcount} Total Target
+              </span>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -196,9 +217,19 @@ export const ProjectProgress = ({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    Active
-                  </span>
+                  {(() => {
+                    const st = String(res.status || res.rawStatus || '').toUpperCase().trim();
+                    const isAct = st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+                    return isAct ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        Pending Sign-off
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

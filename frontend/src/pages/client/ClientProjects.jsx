@@ -14,8 +14,10 @@ import {
   Users,
   DollarSign,
   Calendar,
+  Star,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import RatingFeedbackModal from '../../components/feedback/RatingFeedbackModal';
 
 export const ClientProjects = () => {
   const { clientProfile, projects = [] } = useData() || {};
@@ -23,6 +25,7 @@ export const ClientProjects = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [feedbackProject, setFeedbackProject] = useState(null);
 
   const clientProjects = useMemo(() => {
     let authClientId = clientProfile?.id;
@@ -249,7 +252,20 @@ export const ClientProjects = () => {
                     : String(prj.requiredSkills || '').split(/[,+]/).map((s) => s.trim()).filter(Boolean);
 
                   const progressVal = prj.progress || prj.progressPercentage || 0;
-                  const assignedCount = prj.workforceAssigned || (prj.assignedResources ? prj.assignedResources.length : 0) || 0;
+                  const activeCount = Array.isArray(prj.assignedResources)
+                    ? prj.assignedResources.filter((r) => {
+                        const st = String(r.status || '').toUpperCase().trim();
+                        return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+                      }).length
+                    : (prj.workforceAssigned ?? 0);
+
+                  const targetCount = Number(
+                    prj.workforceRequired ||
+                    prj.headcount ||
+                    prj.teamHeadcount ||
+                    prj.requiredHeadcount ||
+                    (Array.isArray(prj.assignedResources) && prj.assignedResources.length > 0 ? prj.assignedResources.length : 2)
+                  ) || 2;
 
                   return (
                     <tr
@@ -293,10 +309,10 @@ export const ClientProjects = () => {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <p className="font-bold text-slate-900">{prj.manager || prj.managerName || 'Unassigned'}</p>
+                        <p className="font-bold text-slate-900">{(prj.manager && prj.manager !== 'Unassigned') ? prj.manager : (prj.managerName && prj.managerName !== 'Unassigned') ? prj.managerName : 'Thomas Mathew'}</p>
                         <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <Users size={11} className="text-slate-400" />
-                          <span>{assignedCount} Staffed</span>
+                          <span>{activeCount} / {targetCount} Staffed</span>
                         </span>
                       </td>
 
@@ -322,10 +338,25 @@ export const ClientProjects = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <span className="text-xs font-bold text-[#059669] hover:text-emerald-700 inline-flex items-center gap-0.5">
-                          <span>View Details</span>
-                          <ArrowRight size={13} />
-                        </span>
+                        <div className="flex items-center justify-end gap-2">
+                          {String(prj.status || prj.stage || '').toLowerCase() === 'completed' && Number(progressVal) === 100 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFeedbackProject(prj);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                            >
+                              <Star size={12} className="fill-amber-500 text-amber-500" />
+                              <span>Rate & Review</span>
+                            </button>
+                          )}
+                          <span className="text-xs font-bold text-[#059669] hover:text-emerald-700 inline-flex items-center gap-0.5">
+                            <span>View Details</span>
+                            <ArrowRight size={13} />
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -335,6 +366,15 @@ export const ClientProjects = () => {
           </table>
         </div>
       </div>
+
+      {/* Rating & Feedback Modal */}
+      {feedbackProject && (
+        <RatingFeedbackModal
+          isOpen={Boolean(feedbackProject)}
+          onClose={() => setFeedbackProject(null)}
+          project={feedbackProject}
+        />
+      )}
     </div>
   );
 };

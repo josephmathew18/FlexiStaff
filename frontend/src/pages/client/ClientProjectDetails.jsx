@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   FolderKanban,
@@ -15,14 +15,18 @@ import {
   FileText,
   DollarSign,
   AlertCircle,
+  Star,
+  Sparkles,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { StatusBadge, ProjectProgress } from '../../components/workflow';
+import RatingFeedbackModal from '../../components/feedback/RatingFeedbackModal';
 
 export const ClientProjectDetails = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects = [], managerAssignments = [], toggleMilestone } = useData() || {};
+  const [isFeedbackOpen, setIsFeedbackOpen] = React.useState(false);
 
   const decodedId = decodeURIComponent(projectId || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
@@ -72,7 +76,7 @@ export const ClientProjectDetails = () => {
         skills: Array.isArray(r.skills) ? r.skills : (r.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
         hourlyRate: r.hourlyRate || '$95/hr',
         weeklyHours: r.weeklyHours || r.hoursPerWeek || 40,
-        status: isWorking ? 'Active' : 'Staged',
+        status: isWorking ? 'Active' : 'Pending Sign-off',
         rawStatus: r.status,
         workforceType: wfType,
         partnerCompany: pComp,
@@ -105,7 +109,7 @@ export const ClientProjectDetails = () => {
         const key = makeKey(a.professionalName || a.name, a.professionalId || a.id);
         const existing = rosterMap.get(key);
 
-        if (!existing || (!existing.status === 'Active' && isWorking)) {
+        if (!existing || (existing.status !== 'Active' && isWorking)) {
           rosterMap.set(key, {
             id: a.professionalId || a.id,
             professionalId: a.professionalId || a.id,
@@ -115,7 +119,7 @@ export const ClientProjectDetails = () => {
             skills: Array.isArray(a.skills) ? a.skills : (a.skills || '').split(',').map((s) => s.trim()).filter(Boolean),
             hourlyRate: a.hourlyRate || '$95/hr',
             weeklyHours: a.workload || a.weeklyHours || 40,
-            status: isWorking ? 'Active' : 'Staged',
+            status: isWorking ? 'Active' : 'Pending Sign-off',
             rawStatus: a.status,
             workforceType: wfType,
             partnerCompany: pComp,
@@ -127,6 +131,39 @@ export const ClientProjectDetails = () => {
 
     return Array.from(rosterMap.values());
   }, [project, managerAssignments]);
+
+  const activeSquad = useMemo(() => {
+    return (assignedSquad || []).filter((m) => {
+      const st = String(m.rawStatus || m.status || '').toUpperCase().trim();
+      return st === 'ACTIVE' || st === 'ACCEPTED' || st === 'WORKING' || st === 'APPROVED';
+    });
+  }, [assignedSquad]);
+
+  const pendingSquad = useMemo(() => {
+    return (assignedSquad || []).filter((m) => {
+      const st = String(m.rawStatus || m.status || '').toUpperCase().trim();
+      return st !== 'ACTIVE' && st !== 'ACCEPTED' && st !== 'WORKING' && st !== 'APPROVED';
+    });
+  }, [assignedSquad]);
+
+  const requiredHeadcount = useMemo(() => {
+    if (!project) return 2;
+    const req = Number(
+      project.workforceRequired ||
+      project.headcount ||
+      project.teamHeadcount ||
+      project.requiredHeadcount ||
+      project.requiredProfessionals ||
+      project.workforceCount
+    );
+    if (req && req > 0) return req;
+    if (Array.isArray(project.requirements) && project.requirements.length > 0) {
+      const sum = project.requirements.reduce((acc, r) => acc + (Number(r.required || r.count || r.quantity) || 0), 0);
+      if (sum > 0) return sum;
+    }
+    if ((assignedSquad || []).length > 0) return assignedSquad.length;
+    return 2;
+  }, [project, assignedSquad]);
 
   if (!project) {
     return (
@@ -143,12 +180,11 @@ export const ClientProjectDetails = () => {
   }
 
   const isPending = project.status === 'Pending Admin Approval' || project.stage === 'Pending Admin Approval';
+  const progressVal = project.progress ?? project.progressPercentage ?? 0;
   const isApproved = project.status === 'Approved' || project.stage === 'Approved';
   const isInProgress = project.status === 'In Progress' || project.stage === 'In Progress';
   const isRejected = project.status === 'Rejected' || project.stage === 'Rejected';
-  const isCompleted = project.status === 'Completed' || project.stage === 'Completed';
-
-  const squadCount = Math.min(5, assignedSquad.length || project.workforceAssigned || 0);
+  const isCompleted = (project.status === 'Completed' || project.stage === 'Completed') && Number(progressVal) === 100;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 pb-16">
@@ -178,11 +214,26 @@ export const ClientProjectDetails = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {isCompleted && (
+              <button
+                type="button"
+                onClick={() => setIsFeedbackOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              >
+                <Star size={14} className="fill-white" />
+                <span>Rate & Review Project</span>
+              </button>
+            )}
             <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Workforce Squad</span>
               <p className="text-sm font-extrabold text-slate-900">
-                {squadCount} / 5 Assigned
+                {activeSquad.length} / {requiredHeadcount} Staffed
               </p>
+              {pendingSquad.length > 0 && (
+                <span className="text-[10px] font-bold text-amber-600 block mt-0.5">
+                  {pendingSquad.length} Staged Pending Sign-off
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -316,7 +367,12 @@ export const ClientProjectDetails = () => {
             <div className="flex flex-wrap gap-1.5">
               {(Array.isArray(project.requiredSkills)
                 ? project.requiredSkills
-                : (project.techStack || '').split(',')
+                : Array.isArray(project.techStack)
+                ? project.techStack
+                : String(project.requiredSkills || project.techStack || project.skills || '')
+                    .split(/[,+]/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
               ).map((sk, idx) => (
                 <span
                   key={idx}
@@ -336,7 +392,7 @@ export const ClientProjectDetails = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
               <span className="text-slate-500 font-medium">Assigned Manager:</span>
-              <span className="font-bold text-slate-900">{project.manager || 'Assigned Manager'}</span>
+              <span className="font-bold text-slate-900">{(project.manager && project.manager !== 'Unassigned') ? project.manager : (project.managerName && project.managerName !== 'Unassigned') ? project.managerName : 'Thomas Mathew'}</span>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
               <span className="text-slate-500 font-medium">Project Duration:</span>
@@ -363,8 +419,13 @@ export const ClientProjectDetails = () => {
               Assigned Engineering Squad
             </h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-[#004ac6] border border-blue-200">
-              {assignedSquad.length} / 5 Specialists
+              {activeSquad.length} / {requiredHeadcount} Staffed
             </span>
+            {pendingSquad.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                {pendingSquad.length} Staged Pending Sign-off
+              </span>
+            )}
           </div>
           <Link
             to="/client/workforce"
@@ -406,7 +467,7 @@ export const ClientProjectDetails = () => {
                               : 'bg-amber-100 text-amber-800 border border-amber-200'
                           }`}
                         >
-                          {member.status}
+                          {member.status === 'Active' ? 'Active' : 'Pending Sign-off'}
                         </span>
                       </div>
                       <p className="text-[11px] text-blue-700 font-bold truncate mt-0.5">{member.role}</p>
@@ -419,14 +480,14 @@ export const ClientProjectDetails = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {member.skills.slice(0, 3).map((s, sIdx) => (
+                    {(member.skills || []).slice(0, 3).map((s, sIdx) => (
                       <span key={sIdx} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
                         {s}
                       </span>
                     ))}
-                    {member.skills.length > 3 && (
+                    {(member.skills || []).length > 3 && (
                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white text-slate-400 border border-slate-200">
-                        +{member.skills.length - 3}
+                        +{(member.skills || []).length - 3}
                       </span>
                     )}
                   </div>
@@ -441,6 +502,15 @@ export const ClientProjectDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Project Rating & Feedback Modal */}
+      {isFeedbackOpen && (
+        <RatingFeedbackModal
+          isOpen={isFeedbackOpen}
+          onClose={() => setIsFeedbackOpen(false)}
+          project={project}
+        />
+      )}
     </div>
   );
 };
