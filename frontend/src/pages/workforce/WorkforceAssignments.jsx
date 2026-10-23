@@ -44,6 +44,7 @@ export const WorkforceAssignments = () => {
     projectMilestones = {},
     addMilestoneCommit,
     updateMilestoneStatus,
+    addMilestone,
   } = useData() || {};
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,6 +65,17 @@ export const WorkforceAssignments = () => {
     milestoneStatus: 'In Progress',
   });
   const [isSubmittingCommit, setIsSubmittingCommit] = useState(false);
+
+  // Add Milestone Modal states
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
+  const [targetAsgForMilestone, setTargetAsgForMilestone] = useState(null);
+  const [newMilestoneData, setNewMilestoneData] = useState({
+    title: '',
+    dueDate: '',
+    weightage: 20,
+    description: '',
+  });
+  const [isSubmittingMilestone, setIsSubmittingMilestone] = useState(false);
 
   // Find all assignments & requests for this talent
   const myAssignments = useMemo(() => {
@@ -345,21 +357,88 @@ export const WorkforceAssignments = () => {
     setDeclineReason('');
   };
 
-  const handleOpenCommitModal = (asg, milestoneId = 'ms-01') => {
+  const handleOpenCommitModal = (asg, milestoneId = null) => {
     if (!asg) return;
     const normProj = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
     if (rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st))) {
       toast.error('Cannot submit commit: This project has been rejected or cancelled.');
       return;
     }
+    const targetProj = (projects || []).find((p) => {
+      if (!p) return false;
+      const pIdStr = String(p.id || '').toLowerCase().trim();
+      const pNorm = pIdStr.replace(/[\s_]/g, '-');
+      const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+      const asgTitle = String(asg.projectName || '').toLowerCase().trim();
+      return (
+        (asg.projectId && (pIdStr === String(asg.projectId).toLowerCase() || pNorm === normProj)) ||
+        (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+      );
+    });
+    const resolvedPId = targetProj?.id || asg.projectId;
+    const msList = (projectMilestones && (projectMilestones[resolvedPId] || projectMilestones[asg.projectId])) || targetProj?.milestones || asg.milestones || [];
+    const firstMsId = msList.length > 0 ? (msList[0].id || msList[0].dbId) : 'ms-01';
+
     setSelectedAssignmentForCommit(asg);
     setCommitFormData({
-      milestoneId: milestoneId || 'ms-01',
+      milestoneId: milestoneId || firstMsId || 'ms-01',
       commitMessage: '',
       workCompleted: '',
       milestoneStatus: 'In Progress',
     });
     setIsCommitModalOpen(true);
+  };
+
+  const handleOpenAddMilestoneModal = (asg) => {
+    setTargetAsgForMilestone(asg);
+    setNewMilestoneData({
+      title: '',
+      dueDate: '',
+      weightage: 20,
+      description: '',
+    });
+    setIsAddMilestoneModalOpen(true);
+  };
+
+  const handleAddMilestoneSubmit = async (e) => {
+    e.preventDefault();
+    if (!targetAsgForMilestone || !newMilestoneData.title.trim()) {
+      toast.error('Please enter a milestone title');
+      return;
+    }
+    const normProj = String(targetAsgForMilestone.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const targetProj = (projects || []).find((p) => {
+      if (!p) return false;
+      const pIdStr = String(p.id || '').toLowerCase().trim();
+      const pNorm = pIdStr.replace(/[\s_]/g, '-');
+      const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+      const asgTitle = String(targetAsgForMilestone.projectName || '').toLowerCase().trim();
+      return (
+        (targetAsgForMilestone.projectId && (pIdStr === String(targetAsgForMilestone.projectId).toLowerCase() || pNorm === normProj)) ||
+        (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+      );
+    });
+    const resolvedPId = targetProj?.id || targetAsgForMilestone.projectId;
+
+    try {
+      setIsSubmittingMilestone(true);
+      if (addMilestone) {
+        await addMilestone(resolvedPId, {
+          title: newMilestoneData.title.trim(),
+          dueDate: newMilestoneData.dueDate || targetProj?.endDate || new Date().toISOString().split('T')[0],
+          weightage: Number(newMilestoneData.weightage) || 20,
+          description: newMilestoneData.description || '',
+          status: 'PENDING',
+        });
+      }
+      toast.success(`Milestone "${newMilestoneData.title}" added to project!`);
+      setIsAddMilestoneModalOpen(false);
+    } catch (err) {
+      console.error('Failed to add milestone from workforce:', err);
+      toast.error('Failed to add milestone: ' + (err.message || 'Error'));
+    } finally {
+      setIsSubmittingMilestone(false);
+    }
   };
 
   const handleCommitSubmit = (e) => {
@@ -377,13 +456,26 @@ export const WorkforceAssignments = () => {
     setIsSubmittingCommit(true);
 
     setTimeout(() => {
-      const pId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
+      const rawPId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
+      const normProj = String(rawPId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      const targetProj = (projects || []).find((p) => {
+        if (!p) return false;
+        const pIdStr = String(p.id || '').toLowerCase().trim();
+        const pNorm = pIdStr.replace(/[\s_]/g, '-');
+        const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+        const asgTitle = String(selectedAssignmentForCommit?.projectName || '').toLowerCase().trim();
+        return (
+          (rawPId && (pIdStr === String(rawPId).toLowerCase() || pNorm === normProj)) ||
+          (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+        );
+      });
+      const pId = targetProj?.id || rawPId;
 
       if (addMilestoneCommit) {
         const userRole = selectedAssignmentForCommit?.role || workforceUserProfile?.role || workforceUserProfile?.specialtyTitle || 'Specialist';
         const userSkills = selectedAssignmentForCommit?.skills || workforceUserProfile?.skills || [];
         const skillsFormatted = Array.isArray(userSkills) ? userSkills.join(', ') : String(userSkills);
-        const resolvedUserId = workforceUserProfile?.id || user?.id || null;
+        const resolvedUserId = workforceUserProfile?.id || null;
 
         addMilestoneCommit(pId, commitFormData.milestoneId, {
           workforceId: resolvedUserId,
@@ -394,7 +486,7 @@ export const WorkforceAssignments = () => {
           workSummary: commitFormData.workCompleted,
           milestoneStatus: commitFormData.milestoneStatus,
           status: commitFormData.milestoneStatus,
-          authorName: workforceUserProfile?.name || user?.name || 'Assigned Specialist',
+          authorName: workforceUserProfile?.name || 'Assigned Specialist',
           authorId: resolvedUserId,
           authorRole: userRole,
           role: userRole,
@@ -585,7 +677,33 @@ export const WorkforceAssignments = () => {
         ) : (
           activeAssignments.map((asg) => {
           const pId = asg.projectId;
-          const msList = (projectMilestones && projectMilestones[pId]) || asg.milestones || [];
+          const normProj = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const targetProj = (projects || []).find((p) => {
+            if (!p) return false;
+            const pIdStr = String(p.id || '').toLowerCase().trim();
+            const pNorm = pIdStr.replace(/[\s_]/g, '-');
+            const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+            const asgTitle = String(asg.projectName || '').toLowerCase().trim();
+            return (
+              (pId && (pIdStr === String(pId).toLowerCase() || pNorm === normProj)) ||
+              (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+            );
+          });
+          const resolvedPId = targetProj?.id || pId;
+          const pMsFromStore = (projectMilestones && (projectMilestones[resolvedPId] || projectMilestones[pId] || projectMilestones[normProj]));
+          const msList = (pMsFromStore && pMsFromStore.length > 0)
+            ? pMsFromStore
+            : (targetProj?.milestones && targetProj.milestones.length > 0)
+            ? targetProj.milestones
+            : (asg.milestones && asg.milestones.length > 0)
+            ? asg.milestones
+            : [
+                { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: targetProj?.startDate || '2026-10-15', commits: [] },
+                { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: targetProj?.startDate || '2026-11-01', commits: [] },
+                { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: targetProj?.endDate || '2026-12-15', commits: [] },
+                { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: targetProj?.endDate || '2027-01-20', commits: [] },
+                { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: targetProj?.endDate || '2027-02-28', commits: [] },
+              ];
 
           return (
             <div key={asg.id} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
@@ -594,23 +712,33 @@ export const WorkforceAssignments = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                      {asg.projectId}
+                      {resolvedPId || asg.projectId}
                     </span>
-                    <h3 className="text-base font-extrabold text-slate-900">{asg.projectName}</h3>
+                    <h3 className="text-base font-extrabold text-slate-900">{asg.projectName || targetProj?.title || targetProj?.name}</h3>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Assigned Role: <strong className="text-purple-700">{asg.role}</strong> • Client: {asg.client || 'Enterprise Client'}
+                    Assigned Role: <strong className="text-purple-700">{asg.role}</strong> • Client: {asg.client || targetProj?.client || 'Enterprise Client'}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenCommitModal(asg)}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 self-start sm:self-auto"
-                >
-                  <Plus size={14} />
-                  <span>Commit Work</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddMilestoneModal(asg)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Add Milestone</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCommitModal(asg)}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <GitCommit size={14} />
+                    <span>Commit Work</span>
+                  </button>
+                </div>
               </div>
 
               {/* Milestones & Commit Timelines */}
@@ -653,7 +781,7 @@ export const WorkforceAssignments = () => {
                               type="button"
                               onClick={() => {
                                 if (updateMilestoneStatus) {
-                                  updateMilestoneStatus(pId, ms.id, st);
+                                  updateMilestoneStatus(resolvedPId || pId, ms.id, st);
                                   toast.info(`Updated "${ms.title}" status to ${st}`);
                                 }
                               }}
@@ -982,7 +1110,7 @@ export const WorkforceAssignments = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8"
+              className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh] my-4"
             >
               <div className="flex items-center justify-between border-b border-slate-100 p-6 bg-slate-900 text-white">
                 <div className="flex items-center gap-2.5">
@@ -1017,53 +1145,38 @@ export const WorkforceAssignments = () => {
                     className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#7c3aed]"
                   >
                     {(() => {
-                      const pId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
-                      const normId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-                      const msList = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId])) || [
-                        { id: 'ms-01', title: 'Requirement Analysis', weight: 10, status: 'Pending' },
-                        { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, status: 'Pending' },
-                        { id: 'ms-03', title: 'Backend & Database Development', weight: 25, status: 'Pending' },
-                        { id: 'ms-04', title: 'Frontend & Integration', weight: 25, status: 'Pending' },
-                        { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, status: 'Pending' },
-                      ];
-
-                      const userRole = selectedAssignmentForCommit?.role || workforceUserProfile?.role || workforceUserProfile?.specialtyTitle;
-                      const rawSkills = selectedAssignmentForCommit?.skills || workforceUserProfile?.skills || [];
-                      const userSkillsList = Array.isArray(rawSkills) ? rawSkills : String(rawSkills).split(/[,+]/).map((s) => s.trim()).filter(Boolean);
-
-                      const roleLower = String(userRole || '').toLowerCase();
-                      const skillsStr = userSkillsList.join(' ').toLowerCase();
-
-                      const isFrontendCandidate = roleLower.includes('front') || roleLower.includes('ui') || roleLower.includes('react') || skillsStr.includes('react') || skillsStr.includes('html') || skillsStr.includes('css') || skillsStr.includes('javascript');
-                      const isBackendCandidate = roleLower.includes('back') || roleLower.includes('java') || roleLower.includes('spring') || roleLower.includes('python') || roleLower.includes('node') || skillsStr.includes('java') || skillsStr.includes('spring') || skillsStr.includes('postgre') || skillsStr.includes('python') || skillsStr.includes('node') || skillsStr.includes('sql');
-                      const isFullstackCandidate = roleLower.includes('full') || roleLower.includes('architect') || roleLower.includes('lead') || (isFrontendCandidate && isBackendCandidate);
-
-                      const filteredMsList = msList.filter((ms) => {
-                        const titleLower = String(ms.title || '').toLowerCase();
-                        const idLower = String(ms.id || '').toLowerCase();
-
-                        // Pure Backend Candidate: Cannot commit UI/UX or Frontend Integration
-                        if (isBackendCandidate && !isFrontendCandidate && !isFullstackCandidate) {
-                          if (idLower.includes('ms-02') || titleLower.includes('ui') || titleLower.includes('design') || idLower.includes('ms-04') || titleLower.includes('frontend')) {
-                            return false;
-                          }
-                        }
-
-                        // Pure Frontend Candidate: Cannot commit Backend & Database
-                        if (isFrontendCandidate && !isBackendCandidate && !isFullstackCandidate) {
-                          if (idLower.includes('ms-03') || titleLower.includes('backend') || titleLower.includes('database')) {
-                            return false;
-                          }
-                        }
-
-                        return true;
+                      const rawPId = selectedAssignmentForCommit?.projectId || selectedAssignmentForCommit?.id;
+                      const normId = String(rawPId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+                      const targetProj = (projects || []).find((p) => {
+                        if (!p) return false;
+                        const pIdStr = String(p.id || '').toLowerCase().trim();
+                        const pNorm = pIdStr.replace(/[\s_]/g, '-');
+                        const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+                        const asgTitle = String(selectedAssignmentForCommit?.projectName || '').toLowerCase().trim();
+                        return (
+                          (rawPId && (pIdStr === String(rawPId).toLowerCase() || pNorm === normId)) ||
+                          (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+                        );
                       });
+                      const pId = targetProj?.id || rawPId;
+                      const pMsFromStore = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId]));
+                      const msList = (pMsFromStore && pMsFromStore.length > 0)
+                        ? pMsFromStore
+                        : (targetProj?.milestones && targetProj.milestones.length > 0)
+                        ? targetProj.milestones
+                        : (selectedAssignmentForCommit?.milestones && selectedAssignmentForCommit.milestones.length > 0)
+                        ? selectedAssignmentForCommit.milestones
+                        : [
+                            { id: 'ms-01', title: 'Requirement Analysis', weight: 10, status: 'Pending' },
+                            { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, status: 'Pending' },
+                            { id: 'ms-03', title: 'Backend & Database Development', weight: 25, status: 'Pending' },
+                            { id: 'ms-04', title: 'Frontend & Integration', weight: 25, status: 'Pending' },
+                            { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, status: 'Pending' },
+                          ];
 
-                      const finalList = filteredMsList.length > 0 ? filteredMsList : msList;
-
-                      return finalList.map((ms) => (
-                        <option key={ms.id} value={ms.id}>
-                          {ms.title}
+                      return msList.map((ms) => (
+                        <option key={ms.id || ms.dbId} value={ms.id || ms.dbId}>
+                          {ms.title} ({ms.status || 'Pending'})
                         </option>
                       ));
                     })()}
@@ -1129,6 +1242,115 @@ export const WorkforceAssignments = () => {
                   >
                     <GitCommit size={15} />
                     <span>{isSubmittingCommit ? 'Recording Commit...' : 'Submit Commit Update'}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Project Milestone Modal */}
+      <AnimatePresence>
+        {isAddMilestoneModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh] my-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 p-5 bg-gradient-to-r from-slate-900 to-purple-950 text-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-white/10 text-purple-300">
+                    <Plus size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-white">Add Project Milestone</h3>
+                    <p className="text-[11px] text-purple-200">
+                      Add deliverable to {targetAsgForMilestone?.projectName || 'Project'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddMilestoneModalOpen(false)}
+                  className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddMilestoneSubmit} className="p-6 space-y-4 text-xs">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Milestone Title <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newMilestoneData.title}
+                    onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g. Unit Tests & CI/CD Pipeline"
+                    required
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#7c3aed]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Target Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={newMilestoneData.dueDate}
+                      onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, dueDate: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#7c3aed]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Weightage (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newMilestoneData.weightage}
+                      onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, weightage: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#7c3aed]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Description / Deliverables
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={newMilestoneData.description}
+                    onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Technical scope, tasks, or validation checklist..."
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-[#7c3aed]"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMilestoneModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingMilestone}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] hover:from-purple-700 hover:to-purple-600 text-white text-xs font-bold shadow-md shadow-purple-500/20 active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus size={15} />
+                    <span>{isSubmittingMilestone ? 'Adding...' : 'Add Milestone'}</span>
                   </button>
                 </div>
               </form>

@@ -44,14 +44,19 @@ export const getNextGlobalUserId = (role, clients = [], managers = [], partners 
 
 const DEFAULT_CLIENTS = [];
 
-export const calculateOverallCompletionProgress = (completedCount) => {
+export const calculateOverallCompletionProgress = (completedCount, totalCount = 5) => {
   const count = Number(completedCount) || 0;
-  if (count === 1) return 10;
-  if (count === 2) return 30;
-  if (count === 3) return 55;
-  if (count === 4) return 80;
-  if (count >= 5) return 100;
-  return 0;
+  const total = Number(totalCount) || 5;
+  if (total === 5) {
+    if (count === 1) return 10;
+    if (count === 2) return 30;
+    if (count === 3) return 55;
+    if (count === 4) return 80;
+    if (count >= 5) return 100;
+    return 0;
+  }
+  if (total <= 0) return 0;
+  return Math.min(100, Math.round((count / total) * 100));
 };
 
 export const getPartnerCompanyName = (member, partners = [], clients = []) => {
@@ -156,46 +161,57 @@ export const mapBackendProjectToFrontend = (p) => {
     return !isLegacyDemo;
   });
 
-  let mappedMilestones = cleanMs.map((m) => {
-    const isCompleted = m.status === 'COMPLETED' || m.status === 'Completed' || m.progressPercentage === 100 || Boolean(m.completed);
-    const isStarted = !isCompleted && (m.status === 'IN_PROGRESS' || m.status === 'In Progress' || (m.progressPercentage > 0 && m.progressPercentage < 100));
-    const formattedMsStatus = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+  // Look up existing commits from localStorage for this project if available
+  let savedCommitsByMilestone = {};
+  try {
+    const savedPmsStr = localStorage.getItem('flexistaff_project_milestones');
+    if (savedPmsStr) {
+      const parsedPms = JSON.parse(savedPmsStr);
+      const projMsList = parsedPms[p.id] || parsedPms[String(p.id)] || [];
+      projMsList.forEach((ms) => {
+        if (ms && ms.commits && ms.commits.length > 0) {
+          const key = (ms.title || ms.id || '').toLowerCase().trim();
+          savedCommitsByMilestone[key] = ms.commits;
+        }
+      });
+    }
+  } catch {}
 
-    return {
-      id: m.id || `ms-${Math.random().toString(16).substring(2, 6)}`,
-      title: m.title,
-      description: m.description || '',
-      status: formattedMsStatus,
-      dueDate: m.dueDate || p.endDate || p.deadline || '2027-02-28',
-      progressPercentage: m.progressPercentage || (isCompleted ? 100 : isStarted ? 50 : 0),
-      completed: isCompleted,
-      commits: m.commits || [],
-    };
-  });
-
-  mappedMilestones = defaultStandardizedMilestones.map((defMs, idx) => {
-    const existing = mappedMilestones.find((m) => m.title && m.title.toLowerCase().trim() === defMs.title.toLowerCase().trim()) || mappedMilestones[idx];
-    if (existing) {
-      const isCompleted = existing.completed || existing.status === 'Completed' || existing.status === 'COMPLETED' || existing.progressPercentage === 100;
-      const isStarted = !isCompleted && (existing.status === 'In Progress' || existing.status === 'IN_PROGRESS' || (existing.progressPercentage > 0 && existing.progressPercentage < 100));
-      const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+  let mappedMilestones = [];
+  if (cleanMs.length > 0) {
+    mappedMilestones = cleanMs.map((m, idx) => {
+      const isCompleted = m.status === 'COMPLETED' || m.status === 'Completed' || m.progressPercentage === 100 || Boolean(m.completed);
+      const isStarted = !isCompleted && (m.status === 'IN_PROGRESS' || m.status === 'In Progress' || (m.progressPercentage > 0 && m.progressPercentage < 100));
+      const formattedMsStatus = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+      const mTitleKey = (m.title || m.id || '').toLowerCase().trim();
+      const existingCommits = savedCommitsByMilestone[mTitleKey] || m.commits || [];
 
       return {
-        ...defMs,
-        ...existing,
-        id: existing.id || defMs.id,
-        title: defMs.title,
-        status: statusText,
+        id: m.id || `ms-0${idx + 1}`,
+        dbId: typeof m.id === 'number' ? m.id : (m.dbId || null),
+        title: m.title,
+        description: m.description || '',
+        status: formattedMsStatus,
+        dueDate: m.dueDate || p.endDate || p.deadline || 'Sprint Target',
+        progressPercentage: m.progressPercentage || (isCompleted ? 100 : isStarted ? 50 : 0),
         completed: isCompleted,
-        dueDate: existing.dueDate || defMs.dueDate,
-        commits: existing.commits || [],
+        commits: existingCommits,
+        weight: m.weightage || m.weight || 20,
+        weightage: m.weightage || m.weight || 20,
       };
-    }
-    return defMs;
-  });
+    });
+  } else {
+    mappedMilestones = defaultStandardizedMilestones.map((defMs) => {
+      const mTitleKey = (defMs.title || defMs.id || '').toLowerCase().trim();
+      return {
+        ...defMs,
+        commits: savedCommitsByMilestone[mTitleKey] || defMs.commits || [],
+      };
+    });
+  }
 
   const completedCount = mappedMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
-  const computedProgress = calculateOverallCompletionProgress(completedCount);
+  const computedProgress = calculateOverallCompletionProgress(completedCount, mappedMilestones.length);
 
   let assignedResources = [];
   if (p.allocations && p.allocations.length > 0) {
@@ -829,12 +845,11 @@ export const DataProvider = ({ children }) => {
             rawAllocStatus === 'AWAITING_TALENT_RESPONSE';
 
           const isActiveAllocation =
-            (rawAllocStatus === 'ACTIVE' || rawAllocStatus === 'ACCEPTED' || rawAllocStatus === 'WORKING' || rawAllocStatus === 'APPROVED') &&
+            (rawAllocStatus === 'ACTIVE' || rawAllocStatus === 'ACCEPTED' || rawAllocStatus === 'WORKING' || rawAllocStatus === 'APPROVED' || rawAllocStatus === 'ASSIGNED') &&
             !isPendingAssignment;
 
           const hasActiveProject = Boolean(
-            isActiveAllocation &&
-            f.isCurrentlyWorking &&
+            (isActiveAllocation || f.isCurrentlyWorking) &&
             f.currentProject &&
             f.currentProject !== 'None' &&
             f.currentProject !== 'none'
@@ -844,7 +859,10 @@ export const DataProvider = ({ children }) => {
           const isPending = f.status === 'Pending Review' || f.status === 'Pending' || f.approvalStatus === 'Pending Review' || f.approvalStatus === 'Pending';
           const isRejected = f.status === 'Rejected' || f.approvalStatus === 'Rejected';
           const approvalStatus = isRejected ? 'Rejected' : (isPending ? 'Pending Review' : (f.approvalStatus || 'Approved'));
-          const availabilityStatus = isRejected ? 'Rejected' : (f.availabilityStatus || f.availability || 'Available');
+          const rawAvail = f.availabilityStatus || f.availability || 'Available';
+          const availabilityStatus = isRejected
+            ? 'Rejected'
+            : (hasActiveProject && rawAvail !== 'Temporarily Unavailable' ? 'Currently Assigned' : rawAvail);
 
           return {
             ...f,
@@ -901,6 +919,38 @@ export const DataProvider = ({ children }) => {
         try {
           localStorage.setItem('flexistaff_workforce', JSON.stringify(mapped));
         } catch {}
+
+        setWorkforceUserProfile((prev) => {
+          if (!prev) return prev;
+          const pEmail = (prev.email || '').toLowerCase().trim();
+          const pId = String(prev.numericId || prev.id || prev.userId || '').trim();
+          const pName = (prev.name || '').toLowerCase().trim();
+          const matched = mapped.find((w) => {
+            const wEmail = (w.email || '').toLowerCase().trim();
+            const wId = String(w.numericId || w.id || w.userId || '').trim();
+            const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+            return (pEmail && wEmail && pEmail === wEmail) || (pId && wId && pId === wId) || (pName && wName && pName === wName);
+          });
+          if (matched) {
+            const isAssigned = matched.isCurrentlyWorking || matched.availabilityStatus === 'Currently Assigned' || (matched.currentProject && matched.currentProject !== 'None');
+            const resolvedAvail = isAssigned && matched.availabilityStatus !== 'Temporarily Unavailable'
+              ? 'Currently Assigned'
+              : (matched.availabilityStatus || matched.availability || prev.availabilityStatus || prev.availability || 'Available');
+            const updated = {
+              ...prev,
+              ...matched,
+              availability: resolvedAvail,
+              availabilityStatus: resolvedAvail,
+              isCurrentlyWorking: isAssigned,
+              currentProject: matched.currentProject || prev.currentProject,
+              assignedProject: matched.currentProject || prev.assignedProject,
+            };
+            try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
+            return updated;
+          }
+          return prev;
+        });
+
         return mapped;
       }
     } catch (err) {
@@ -1604,6 +1654,7 @@ export const DataProvider = ({ children }) => {
         }
 
         const projRes = await api.projects.getAll();
+        let finalProjectsList = [];
         if (projRes && projRes.success && Array.isArray(projRes.data) && projRes.data.length > 0) {
           const merged = [...projRes.data];
           backendProjects.forEach((bp) => {
@@ -1611,9 +1662,37 @@ export const DataProvider = ({ children }) => {
               merged.push(bp);
             }
           });
-          setProjects(merged.map(mapBackendProjectToFrontend));
+          finalProjectsList = merged.map(mapBackendProjectToFrontend);
         } else if (backendProjects.length > 0) {
-          setProjects(backendProjects.map(mapBackendProjectToFrontend));
+          finalProjectsList = backendProjects.map(mapBackendProjectToFrontend);
+        }
+
+        if (finalProjectsList.length > 0) {
+          setProjects(finalProjectsList);
+          try {
+            localStorage.setItem('flexistaff_projects', JSON.stringify(finalProjectsList));
+          } catch {}
+
+          // Synchronize projectMilestones with mapped project milestones & existing commits
+          setProjectMilestones((prev) => {
+            const next = { ...prev };
+            finalProjectsList.forEach((p) => {
+              if (p && p.id && Array.isArray(p.milestones) && p.milestones.length > 0) {
+                const prevMs = prev[p.id] || prev[String(p.id)] || [];
+                next[p.id] = p.milestones.map((m) => {
+                  const matchPrev = prevMs.find((pm) => pm.id === m.id || pm.title?.toLowerCase() === m.title?.toLowerCase());
+                  return matchPrev && matchPrev.commits && matchPrev.commits.length > 0
+                    ? { ...m, commits: matchPrev.commits }
+                    : m;
+                });
+                next[String(p.id)] = next[p.id];
+              }
+            });
+            try {
+              localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
         }
       } catch (err) {
         console.warn('Backend sync error:', err);
@@ -2335,8 +2414,21 @@ export const DataProvider = ({ children }) => {
           savedUser.portfolio ||
           '';
 
+        const isAssigned = Boolean(
+          matchedWf?.isCurrentlyWorking ||
+          (matchedWf?.currentProject && matchedWf?.currentProject !== 'None' && matchedWf?.currentProject !== 'none') ||
+          matchedWf?.availability === 'Currently Assigned' ||
+          matchedWf?.availabilityStatus === 'Currently Assigned'
+        );
+        const initAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability || 'Available';
+        const resolvedInitAvail = isAssigned && initAvail !== 'Temporarily Unavailable'
+          ? 'Currently Assigned'
+          : initAvail;
+
         return {
           id: matchedWf?.id || savedUser.id || 'wf-101',
+          numericId: matchedWf?.numericId || matchedWf?.id || savedUser.numericId || savedUser.id,
+          userId: matchedWf?.userId || savedUser.id,
           name: matchedWf?.name || matchedWf?.pseudonym || savedUser.name || savedUser.fullName || 'Workforce Specialist',
           email: matchedWf?.email || savedUser.email || '',
           phone: matchedWf?.phone || savedUser.phone || '+91 98765 00000',
@@ -2345,7 +2437,11 @@ export const DataProvider = ({ children }) => {
           experience: matchedWf?.experience || savedUser.experience || '4+ Years',
           location: matchedWf?.location || savedUser.location || 'Bengaluru, India',
           skills: resolvedSkills,
-          availability: matchedWf?.availability || savedUser.availability || 'Available',
+          availability: resolvedInitAvail,
+          availabilityStatus: resolvedInitAvail,
+          isCurrentlyWorking: isAssigned,
+          currentProject: matchedWf?.currentProject || (isAssigned ? 'Active Project Assignment' : 'None'),
+          assignedProject: matchedWf?.currentProject || (isAssigned ? 'Active Project Assignment' : 'None'),
           preferredWorkType: matchedWf?.preferredWorkType || savedUser.preferredWorkType || 'Remote',
           portfolioUrl: resolvedPortfolio,
           linkedin: resolvedPortfolio,
@@ -2517,8 +2613,38 @@ export const DataProvider = ({ children }) => {
               savedUser.portfolio ||
               '';
 
+            const isAssignedToProject = Boolean(
+              matchedWf?.isCurrentlyWorking ||
+              (matchedWf?.currentProject && matchedWf?.currentProject !== 'None' && matchedWf?.currentProject !== 'none') ||
+              matchedWf?.availability === 'Currently Assigned' ||
+              matchedWf?.availabilityStatus === 'Currently Assigned' ||
+              matchedWf?.availability === 'Assigned' ||
+              matchedWf?.availabilityStatus === 'Assigned' ||
+              (managerAssignments || []).some((a) => {
+                if (!a) return false;
+                const aName = (a.professionalName || '').toLowerCase().trim();
+                const aId = String(a.professionalId || '').trim();
+                const mName = wfName.toLowerCase().trim();
+                const mId = String(savedUser?.id || '').trim();
+                const matchesUser = (mName && aName && (aName === mName || aName.includes(mName) || mName.includes(aName))) || (mId && aId && mId === aId);
+                const st = String(a.status || '').toLowerCase();
+                return matchesUser && (st === 'accepted' || st === 'working' || st === 'in progress' || st === 'approved' || st === 'assigned');
+              })
+            );
+
+            const initialAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability || 'Available';
+            const resolvedAvail = isAssignedToProject && initialAvail !== 'Temporarily Unavailable'
+              ? 'Currently Assigned'
+              : initialAvail;
+
+            const activeProjName = matchedWf?.currentProject && matchedWf?.currentProject !== 'None'
+              ? matchedWf.currentProject
+              : (matchedWf?.assignedProject && matchedWf?.assignedProject !== 'None' ? matchedWf.assignedProject : (isAssignedToProject ? 'Active Project Assignment' : 'None'));
+
             const profileObj = {
               id: matchedWf?.id || savedUser.id || 'wf-101',
+              numericId: matchedWf?.numericId || matchedWf?.id || savedUser.numericId || savedUser.id,
+              userId: matchedWf?.userId || savedUser.id,
               name: wfName,
               email: emailAddr,
               phone: phoneNo,
@@ -2527,7 +2653,11 @@ export const DataProvider = ({ children }) => {
               experience: matchedWf?.experience || matchedWf?.experienceLevel || savedUser.experience || '4+ Years',
               location: matchedWf?.location || matchedWf?.personalDetails?.city || savedUser.location || 'Bengaluru, India',
               skills: resolvedSkills,
-              availability: matchedWf?.availability || savedUser.availability || 'Available',
+              availability: resolvedAvail,
+              availabilityStatus: resolvedAvail,
+              isCurrentlyWorking: isAssignedToProject,
+              currentProject: activeProjName,
+              assignedProject: activeProjName,
               preferredWorkType: matchedWf?.preferredWorkType || savedUser.preferredWorkType || 'Remote',
               portfolioUrl: resolvedPortfolio,
               linkedin: resolvedPortfolio,
@@ -3331,22 +3461,48 @@ export const DataProvider = ({ children }) => {
   };
 
   // GitHub-style Milestone Commit System State for Workforce Module
-  const [projectMilestones, setProjectMilestones] = useState({});
+  const [projectMilestones, setProjectMilestones] = useState(() => {
+    try {
+      const saved = localStorage.getItem('flexistaff_project_milestones');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
 
-  const getDefaultProjectMilestones = (pId) => [
-    { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: 'Sprint 1', commits: [] },
-    { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 2', commits: [] },
-    { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 3', commits: [] },
-    { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 4', commits: [] },
-    { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 5', commits: [] },
-  ];
+  // Automatically persist projectMilestones to localStorage
+  useEffect(() => {
+    if (projectMilestones && Object.keys(projectMilestones).length > 0) {
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(projectMilestones));
+      } catch {}
+    }
+  }, [projectMilestones]);
+
+  const getDefaultProjectMilestones = (pId) => {
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const foundProj = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+    if (foundProj && Array.isArray(foundProj.milestones) && foundProj.milestones.length > 0) {
+      return foundProj.milestones;
+    }
+    return [
+      { id: 'ms-01', title: 'Requirement Analysis', weight: 10, weightage: 10, status: 'Pending', dueDate: 'Sprint 1', commits: [] },
+      { id: 'ms-02', title: 'UI/UX & System Design', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 2', commits: [] },
+      { id: 'ms-03', title: 'Backend & Database Development', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 3', commits: [] },
+      { id: 'ms-04', title: 'Frontend & Integration', weight: 25, weightage: 25, status: 'Pending', dueDate: 'Sprint 4', commits: [] },
+      { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', weight: 20, weightage: 20, status: 'Pending', dueDate: 'Sprint 5', commits: [] },
+    ];
+  };
 
   const syncMilestoneProgressToState = (pId, updatedMilestones) => {
     const completedCount = (updatedMilestones || []).filter(
       (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.status === 'COMPLETED'
     ).length;
 
-    const calculatedProgress = calculateOverallCompletionProgress(completedCount);
+    const calculatedProgress = calculateOverallCompletionProgress(completedCount, (updatedMilestones || []).length);
     const isComplete = calculatedProgress >= 100;
     const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
 
@@ -3360,7 +3516,9 @@ export const DataProvider = ({ children }) => {
           }
           return {
             ...p,
+            milestones: updatedMilestones,
             progress: calculatedProgress,
+            progressPercentage: calculatedProgress,
             status: isComplete ? 'Completed' : (calculatedProgress > 0 ? 'In Progress' : p.status),
             stage: isComplete ? 'Completed' : (calculatedProgress > 0 ? 'In Progress' : p.stage),
             recentUpdate: isComplete ? 'All sprint deliverables completed.' : `Milestone progress updated to ${calculatedProgress}%.`,
@@ -3383,6 +3541,7 @@ export const DataProvider = ({ children }) => {
           return {
             ...a,
             progress: calculatedProgress,
+            milestones: updatedMilestones,
             status: isComplete ? 'Completed' : (a.status === 'Pending' ? 'Accepted' : a.status),
             currentTask: isComplete ? 'All sprint deliverables completed.' : `Milestone progress updated to ${calculatedProgress}%.`,
           };
@@ -3390,6 +3549,24 @@ export const DataProvider = ({ children }) => {
         return a;
       });
       try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch { }
+      return updated;
+    });
+
+    setPartnerProjects((prevPartnerProjects) => {
+      const updated = (prevPartnerProjects || []).map((pp) => {
+        if (!pp) return pp;
+        const normId = String(pp.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        if (normId === normPId || String(pp.id) === String(pId)) {
+          return {
+            ...pp,
+            progress: calculatedProgress,
+            milestones: updatedMilestones,
+            status: isComplete ? 'Completed' : (calculatedProgress > 0 ? 'In Progress' : pp.status),
+          };
+        }
+        return pp;
+      });
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch {}
       return updated;
     });
 
@@ -3412,47 +3589,66 @@ export const DataProvider = ({ children }) => {
     };
 
     const pId = projectId || (projects[0]?.id || 1);
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
+    // Resolve target project and existing milestones
+    const matchedProject = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+
+    const currentStoredMs = (projectMilestones[pId] || projectMilestones[normPId] || (matchedProject?.milestones && matchedProject.milestones.length > 0 ? matchedProject.milestones : getDefaultProjectMilestones(pId)));
+
+    // Find target milestone to resolve real dbId
+    const targetMs = currentStoredMs.find((m) =>
+      m.id === milestoneId || String(m.id) === String(milestoneId) || m.title?.toLowerCase() === String(milestoneId).toLowerCase()
+    );
+
+    const realDbId = targetMs?.dbId || (typeof targetMs?.id === 'number' ? targetMs.id : null) || (typeof milestoneId === 'number' ? milestoneId : Number(String(milestoneId).replace(/\D/g, '')));
 
     // 2. Persist update to PostgreSQL backend if numeric ID
-    if (milestoneId) {
-      const numericMsId = Number(String(milestoneId).replace(/\D/g, ''));
-      if (numericMsId) {
-        const msStatus = (commitData.milestoneStatus === 'Completed' || commitData.status === 'Completed') ? 'COMPLETED' : 'IN_PROGRESS';
-        api.milestones.updateProgress(numericMsId, {
-          status: msStatus,
-          authorRole: commitData.authorRole,
-          authorSkills: Array.isArray(commitData.authorSkills) ? commitData.authorSkills.join(', ') : commitData.authorSkills,
-          milestoneSkillDomain: commitData.assignedSkill || '',
-        }).catch((err) => console.warn('Milestone API sync fallback:', err));
-      }
+    if (realDbId && !isNaN(realDbId)) {
+      const msStatus = (commitData.milestoneStatus === 'Completed' || commitData.status === 'Completed') ? 'COMPLETED' : 'IN_PROGRESS';
+      api.milestones.updateProgress(realDbId, {
+        status: msStatus,
+        authorRole: commitData.authorRole || 'Full Stack Developer',
+        authorSkills: Array.isArray(commitData.authorSkills) ? commitData.authorSkills.join(', ') : (commitData.authorSkills || 'React, Java, Spring Boot, PostgreSQL'),
+        milestoneSkillDomain: commitData.assignedSkill || targetMs?.title || '',
+      }).catch((err) => console.warn('Milestone API sync fallback:', err));
     }
 
+    const targetStatus = commitData.milestoneStatus || commitData.status || 'In Progress';
+    const updated = currentStoredMs.map((ms) => {
+      const isMatch = ms.id === milestoneId || String(ms.id) === String(milestoneId) || ms.title?.toLowerCase() === String(milestoneId).toLowerCase() || (realDbId && (ms.dbId === realDbId || ms.id === realDbId));
+      if (isMatch || (!milestoneId && ms.status === 'In Progress')) {
+        return {
+          ...ms,
+          status: targetStatus,
+          completed: targetStatus === 'Completed',
+          progressPercentage: targetStatus === 'Completed' ? 100 : 50,
+          commits: [newCommit, ...(ms.commits || [])],
+        };
+      }
+      return ms;
+    });
+
+    syncMilestoneProgressToState(pId, updated);
+
     setProjectMilestones((prev) => {
-      const projectMs = (prev[pId] && prev[pId].length > 0) ? prev[pId] : getDefaultProjectMilestones(pId);
-      const targetStatus = commitData.milestoneStatus || commitData.status || 'In Progress';
-
-      const updated = projectMs.map((ms) => {
-        if (ms.id === milestoneId || (!milestoneId && ms.status === 'In Progress')) {
-          return {
-            ...ms,
-            status: targetStatus,
-            completed: targetStatus === 'Completed',
-            commits: [newCommit, ...(ms.commits || [])],
-          };
-        }
-        return ms;
-      });
-
-      syncMilestoneProgressToState(pId, updated);
-
-      return {
+      const next = {
         ...prev,
         [pId]: updated,
+        [normPId]: updated,
       };
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+      } catch {}
+      return next;
     });
 
     // 3. Broadcast real-time notifications to Admin, Manager, Client, and Partner Company
-    const msTitle = commitData.milestoneTitle || commitData.milestoneName || 'Milestone';
+    const msTitle = commitData.milestoneTitle || commitData.milestoneName || targetMs?.title || 'Milestone';
     const notifPayload = {
       id: `notif-${Date.now()}`,
       title: `Milestone Update: ${msTitle} (${commitData.milestoneStatus || 'Updated'})`,
@@ -3472,20 +3668,236 @@ export const DataProvider = ({ children }) => {
 
   const updateMilestoneStatus = (projectId, milestoneId, newStatus) => {
     const pId = projectId || (projects[0]?.id || 1);
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
+    const matchedProject = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+
+    const currentStoredMs = (projectMilestones[pId] || projectMilestones[normPId] || (matchedProject?.milestones && matchedProject.milestones.length > 0 ? matchedProject.milestones : getDefaultProjectMilestones(pId)));
+
+    const targetMs = currentStoredMs.find((m) =>
+      m.id === milestoneId || String(m.id) === String(milestoneId) || m.title?.toLowerCase() === String(milestoneId).toLowerCase()
+    );
+
+    const realDbId = targetMs?.dbId || (typeof targetMs?.id === 'number' ? targetMs.id : null) || (typeof milestoneId === 'number' ? milestoneId : Number(String(milestoneId).replace(/\D/g, '')));
+    if (realDbId && !isNaN(realDbId)) {
+      const backendStatus = newStatus === 'Completed' ? 'COMPLETED' : (newStatus === 'In Progress' ? 'IN_PROGRESS' : 'NOT_STARTED');
+      api.milestones.updateProgress(realDbId, { status: backendStatus }).catch((err) => console.warn('Backend milestone status sync error:', err));
+    }
+
+    const updated = currentStoredMs.map((ms) => {
+      const isMatch = ms.id === milestoneId || String(ms.id) === String(milestoneId) || ms.title?.toLowerCase() === String(milestoneId).toLowerCase() || (realDbId && (ms.dbId === realDbId || ms.id === realDbId));
+      return isMatch
+        ? {
+            ...ms,
+            status: newStatus,
+            completed: newStatus === 'Completed',
+            progressPercentage: newStatus === 'Completed' ? 100 : (newStatus === 'In Progress' ? 50 : 0),
+          }
+        : ms;
+    });
+
+    syncMilestoneProgressToState(pId, updated);
 
     setProjectMilestones((prev) => {
-      const projectMs = (prev[pId] && prev[pId].length > 0) ? prev[pId] : getDefaultProjectMilestones(pId);
-      const updated = projectMs.map((ms) =>
-        ms.id === milestoneId ? { ...ms, status: newStatus } : ms
-      );
-
-      syncMilestoneProgressToState(pId, updated);
-
-      return {
+      const next = {
         ...prev,
         [pId]: updated,
+        [normPId]: updated,
+      };
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const addMilestone = async (projectId, milestoneData) => {
+    const pId = projectId || (projects[0]?.id || 1);
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const numProjectId = typeof pId === 'number' ? pId : parseInt(String(pId).replace(/\D/g, ''), 10);
+
+    let createdMilestone = null;
+    if (numProjectId && !isNaN(numProjectId)) {
+      try {
+        const res = await api.milestones.create({
+          projectId: numProjectId,
+          title: milestoneData.title,
+          description: milestoneData.description || `Deliverable for ${milestoneData.title}`,
+          dueDate: milestoneData.dueDate || new Date().toISOString().split('T')[0],
+          weightage: Number(milestoneData.weightage) || 20,
+        });
+        if (res && (res.data || res.success)) {
+          createdMilestone = res.data || res;
+        }
+      } catch (err) {
+        console.warn('Backend add milestone fallback:', err);
+      }
+    }
+
+    const newMsObj = {
+      id: createdMilestone?.id || `ms-${Date.now()}`,
+      dbId: createdMilestone?.id || null,
+      title: milestoneData.title,
+      description: milestoneData.description || '',
+      status: 'Pending',
+      completed: false,
+      progressPercentage: 0,
+      dueDate: milestoneData.dueDate || 'Sprint Target',
+      weight: Number(milestoneData.weightage) || 20,
+      weightage: Number(milestoneData.weightage) || 20,
+      commits: [],
+    };
+
+    const matchedProject = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+
+    const currentStoredMs = (projectMilestones[pId] || projectMilestones[normPId] || (matchedProject?.milestones && matchedProject.milestones.length > 0 ? matchedProject.milestones : getDefaultProjectMilestones(pId)));
+    const updated = [...currentStoredMs, newMsObj];
+
+    syncMilestoneProgressToState(pId, updated);
+
+    setProjectMilestones((prev) => {
+      const next = {
+        ...prev,
+        [pId]: updated,
+        [normPId]: updated,
+      };
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    const notifPayload = {
+      id: `notif-${Date.now()}`,
+      title: `New Milestone Added: ${milestoneData.title}`,
+      message: `A new milestone deliverable "${milestoneData.title}" was added to project #${pId}.`,
+      time: 'Just now',
+      unread: true,
+      link: '/projects',
+    };
+    setNotifications((prev) => [notifPayload, ...prev]);
+    setManagerNotifications((prev) => [{ ...notifPayload, link: '/manager/projects' }, ...prev]);
+    setClientNotifications((prev) => [{ ...notifPayload, link: '/client/progress' }, ...prev]);
+    setPartnerNotifications((prev) => [{ ...notifPayload, link: '/partner/projects' }, ...prev]);
+    setWorkforceNotifications((prev) => [{ ...notifPayload, link: '/workforce/assignments' }, ...prev]);
+
+    return newMsObj;
+  };
+
+  const deleteMilestone = async (projectId, milestoneId) => {
+    const pId = projectId || (projects[0]?.id || 1);
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
+    const matchedProject = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+
+    const currentStoredMs = (projectMilestones[pId] || projectMilestones[normPId] || (matchedProject?.milestones && matchedProject.milestones.length > 0 ? matchedProject.milestones : getDefaultProjectMilestones(pId)));
+
+    const targetMs = currentStoredMs.find((m) =>
+      m.id === milestoneId || String(m.id) === String(milestoneId) || m.title?.toLowerCase() === String(milestoneId).toLowerCase()
+    );
+
+    const realDbId = targetMs?.dbId || (typeof targetMs?.id === 'number' ? targetMs.id : null) || (typeof milestoneId === 'number' ? milestoneId : Number(String(milestoneId).replace(/\D/g, '')));
+
+    if (realDbId && !isNaN(realDbId)) {
+      try {
+        await api.milestones.delete(realDbId);
+      } catch (err) {
+        console.warn('Backend delete milestone fallback:', err);
+      }
+    }
+
+    const updated = currentStoredMs.filter((m) =>
+      !(m.id === milestoneId || String(m.id) === String(milestoneId) || (realDbId && (m.dbId === realDbId || m.id === realDbId)))
+    );
+
+    syncMilestoneProgressToState(pId, updated);
+
+    setProjectMilestones((prev) => {
+      const next = {
+        ...prev,
+        [pId]: updated,
+        [normPId]: updated,
+      };
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    return true;
+  };
+
+  const editMilestone = async (projectId, milestoneId, updatedData) => {
+    const pId = projectId || (projects[0]?.id || 1);
+    const normPId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+
+    const matchedProject = (projects || []).find((p) => {
+      if (!p) return false;
+      const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+      return pNorm === normPId || String(p.id) === String(pId);
+    });
+
+    const currentStoredMs = (projectMilestones[pId] || projectMilestones[normPId] || (matchedProject?.milestones && matchedProject.milestones.length > 0 ? matchedProject.milestones : getDefaultProjectMilestones(pId)));
+
+    const targetMs = currentStoredMs.find((m) =>
+      m.id === milestoneId || String(m.id) === String(milestoneId) || m.title?.toLowerCase() === String(milestoneId).toLowerCase()
+    );
+
+    const realDbId = targetMs?.dbId || (typeof targetMs?.id === 'number' ? targetMs.id : null) || (typeof milestoneId === 'number' ? milestoneId : Number(String(milestoneId).replace(/\D/g, '')));
+
+    if (realDbId && !isNaN(realDbId)) {
+      try {
+        await api.milestones.update(realDbId, {
+          title: updatedData.title,
+          description: updatedData.description,
+          dueDate: updatedData.dueDate,
+          weightage: updatedData.weightage,
+        });
+      } catch (err) {
+        console.warn('Backend edit milestone fallback:', err);
+      }
+    }
+
+    const updated = currentStoredMs.map((m) => {
+      const isMatch = m.id === milestoneId || String(m.id) === String(milestoneId) || (realDbId && (m.dbId === realDbId || m.id === realDbId));
+      if (!isMatch) return m;
+      return {
+        ...m,
+        ...updatedData,
+        title: updatedData.title || m.title,
+        dueDate: updatedData.dueDate || m.dueDate,
+        weight: updatedData.weightage !== undefined ? Number(updatedData.weightage) : m.weight,
+        weightage: updatedData.weightage !== undefined ? Number(updatedData.weightage) : m.weightage,
       };
     });
+
+    syncMilestoneProgressToState(pId, updated);
+
+    setProjectMilestones((prev) => {
+      const next = {
+        ...prev,
+        [pId]: updated,
+        [normPId]: updated,
+      };
+      try {
+        localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    return true;
   };
 
   // Activity & Notification Helpers
@@ -4724,14 +5136,16 @@ export const DataProvider = ({ children }) => {
 
     if (!targetAsg) return;
 
-    // 1. Update candidate availability to 'Assigned' in central workforce and partner pools
+    // 1. Update candidate availability to 'Currently Assigned' in central workforce and partner pools
     setWorkforce((prev) => {
       const updated = (prev || []).map((w) =>
         w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
             ...w,
-            availability: 'Assigned',
+            availability: 'Currently Assigned',
+            availabilityStatus: 'Currently Assigned',
             workingStatus: 'Working',
+            isCurrentlyWorking: true,
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
           }
@@ -4746,14 +5160,56 @@ export const DataProvider = ({ children }) => {
         w && (String(w.id || '') === String(targetAsg.professionalId || '') || String(w.name || '').toLowerCase() === String(targetAsg.professionalName || '').toLowerCase())
           ? {
             ...w,
-            availability: 'Assigned',
+            availability: 'Currently Assigned',
+            availabilityStatus: 'Currently Assigned',
             workingStatus: 'Working',
+            isCurrentlyWorking: true,
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
           }
           : w
       )
     );
+
+    // Sync workforceUserProfile if currently logged-in professional is the approved candidate
+    setWorkforceUserProfile((prev) => {
+      if (!prev) return prev;
+      const pId = String(prev.numericId || prev.id || prev.userId || '').trim();
+      const pName = (prev.name || '').toLowerCase().trim();
+      const tId = String(targetAsg.professionalId || targetAsg.id || '').trim();
+      const tName = (targetAsg.professionalName || '').toLowerCase().trim();
+      if ((pId && tId && pId === tId) || (pName && tName && (pName === tName || pName.includes(tName) || tName.includes(pName)))) {
+        const updated = {
+          ...prev,
+          availability: 'Currently Assigned',
+          availabilityStatus: 'Currently Assigned',
+          workingStatus: 'Working',
+          isCurrentlyWorking: true,
+          currentProject: targetAsg.projectName,
+          assignedProject: targetAsg.projectName,
+          currentAssignment: targetAsg,
+        };
+        try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
+        try {
+          const uStr = localStorage.getItem('flexistaff_user');
+          if (uStr) {
+            const u = JSON.parse(uStr);
+            const updatedUser = { ...u, availability: 'Currently Assigned', availabilityStatus: 'Currently Assigned', isCurrentlyWorking: true, currentProject: targetAsg.projectName };
+            localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+            window.dispatchEvent(new CustomEvent('auth_change', { detail: updatedUser }));
+          }
+        } catch {}
+        return updated;
+      }
+      return prev;
+    });
+
+    try {
+      const numProf = parseInt(String(targetAsg.professionalId || targetAsg.id || '').replace(/\D/g, ''), 10);
+      if (!isNaN(numProf) && numProf > 0 && api?.freelancers?.updateAvailability) {
+        api.freelancers.updateAvailability(numProf, 'Currently Assigned').catch(() => {});
+      }
+    } catch {}
 
     // 2. Synchronize project assignedResources and status in state and localStorage
     const updateProjObj = (p) => {
@@ -4996,7 +5452,7 @@ export const DataProvider = ({ children }) => {
       };
     }
 
-    // Update candidate availability to 'Assigned' in central workforce and partner pools
+    // Update candidate availability to 'Currently Assigned' in central workforce and partner pools
     setWorkforce((prev) => {
       const updated = (prev || []).map((w) =>
         w && (
@@ -5006,7 +5462,8 @@ export const DataProvider = ({ children }) => {
         )
           ? {
             ...w,
-            availability: 'Assigned',
+            availability: 'Currently Assigned',
+            availabilityStatus: 'Currently Assigned',
             workingStatus: 'Working',
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
@@ -5027,7 +5484,8 @@ export const DataProvider = ({ children }) => {
         )
           ? {
             ...w,
-            availability: 'Assigned',
+            availability: 'Currently Assigned',
+            availabilityStatus: 'Currently Assigned',
             workingStatus: 'Working',
             currentProject: targetAsg.projectName,
             assignedProject: targetAsg.projectName,
@@ -5040,19 +5498,40 @@ export const DataProvider = ({ children }) => {
     });
 
     // Update workforceUserProfile
-    setWorkforceUserProfile((prev) => ({
-      ...prev,
-      availability: 'Assigned',
-      workingStatus: 'Working',
-      isCurrentlyWorking: true,
-      currentProject: targetAsg.projectName,
-      assignedProject: targetAsg.projectName,
-      currentAssignment: {
-        ...(prev?.currentAssignment || {}),
-        ...targetAsg,
-        status: 'Accepted',
-      },
-    }));
+    setWorkforceUserProfile((prev) => {
+      const updated = {
+        ...prev,
+        availability: 'Currently Assigned',
+        availabilityStatus: 'Currently Assigned',
+        workingStatus: 'Working',
+        isCurrentlyWorking: true,
+        currentProject: targetAsg.projectName,
+        assignedProject: targetAsg.projectName,
+        currentAssignment: {
+          ...(prev?.currentAssignment || {}),
+          ...targetAsg,
+          status: 'Accepted',
+        },
+      };
+      try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
+      try {
+        const uStr = localStorage.getItem('flexistaff_user');
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          const updatedUser = { ...u, availability: 'Currently Assigned', availabilityStatus: 'Currently Assigned', isCurrentlyWorking: true, currentProject: targetAsg.projectName };
+          localStorage.setItem('flexistaff_user', JSON.stringify(updatedUser));
+          window.dispatchEvent(new CustomEvent('auth_change', { detail: updatedUser }));
+        }
+      } catch {}
+      return updated;
+    });
+
+    try {
+      const targetNumeric = parseInt(String(targetAsg.professionalId || workforceUserProfile?.id || workforceUserProfile?.numericId || '').replace(/\D/g, ''), 10);
+      if (!isNaN(targetNumeric) && targetNumeric > 0 && api?.freelancers?.updateAvailability) {
+        api.freelancers.updateAvailability(targetNumeric, 'Currently Assigned').catch(() => {});
+      }
+    } catch {}
 
     // Update projects status to 'In Progress' and add assigned resource
     const updateProjObj = (p) => {
@@ -5346,6 +5825,18 @@ export const DataProvider = ({ children }) => {
 
     let updatedAsgObj = null;
 
+    // Resolve target assignment and corresponding project ID first
+    const foundAsg = (managerAssignments || []).find((a) => {
+      if (!a) return false;
+      const aIdStr = String(a.id || '').toLowerCase().trim();
+      const aProjIdStr = String(a.projectId || '').toLowerCase().trim();
+      const tIdStr = String(targetAsgId || '').toLowerCase().trim();
+      const pIdStr = String(targetProjectId || '').toLowerCase().trim();
+      return (tIdStr && aIdStr === tIdStr) || (pIdStr && aProjIdStr === pIdStr);
+    });
+
+    const resolvedProjectId = targetProjectId || foundAsg?.projectId;
+
     // 1. Update manager assignments
     setManagerAssignments((prev) => {
       const updated = (prev || []).map((a) => {
@@ -5373,29 +5864,59 @@ export const DataProvider = ({ children }) => {
       return updated;
     });
 
-    // 2. Update projects overall progress
-    setProjects((prev) => {
-      const updated = (prev || []).map((p) => {
-        if (!p) return p;
-        const pIdStr = String(p.id || '').toLowerCase().trim();
-        const tIdStr = String(targetAsgId || '').toLowerCase().trim();
-        const pIdMatch = pIdStr === tIdStr || (updatedAsgObj && String(updatedAsgObj.projectId || '').toLowerCase().trim() === pIdStr);
+    // 2. Update projects and partner projects overall progress using resolved project ID
+    if (resolvedProjectId) {
+      const targetPIdStr = String(resolvedProjectId).toLowerCase().trim();
+      const targetPIdStripped = targetPIdStr.replace(/^proj-0*/i, '');
 
-        if (pIdMatch) {
-          const isComplete = numProgress === 100;
-          return {
-            ...p,
-            progress: numProgress,
-            status: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.status),
-            stage: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.stage),
-            recentUpdate: taskName || `Sprint execution progress updated to ${numProgress}%.`,
-          };
-        }
-        return p;
+      setProjects((prev) => {
+        const updated = (prev || []).map((p) => {
+          if (!p) return p;
+          const pIdStr = String(p.id || '').toLowerCase().trim();
+          const pDbIdStr = String(p.dbId || '').toLowerCase().trim();
+          const pIdStripped = pIdStr.replace(/^proj-0*/i, '');
+          const pIdMatch = pIdStr === targetPIdStr || pDbIdStr === targetPIdStr || (targetPIdStripped && pIdStripped === targetPIdStripped);
+
+          if (pIdMatch) {
+            const isComplete = numProgress === 100;
+            return {
+              ...p,
+              progress: numProgress,
+              status: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.status),
+              stage: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.stage),
+              recentUpdate: taskName || `Sprint execution progress updated to ${numProgress}%.`,
+            };
+          }
+          return p;
+        });
+        try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
+        return updated;
       });
-      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch { }
-      return updated;
-    });
+
+      setPartnerProjects((prev) => {
+        const updated = (prev || []).map((p) => {
+          if (!p) return p;
+          const pIdStr = String(p.id || '').toLowerCase().trim();
+          const pDbIdStr = String(p.dbId || '').toLowerCase().trim();
+          const pIdStripped = pIdStr.replace(/^proj-0*/i, '');
+          const pIdMatch = pIdStr === targetPIdStr || pDbIdStr === targetPIdStr || (targetPIdStripped && pIdStripped === targetPIdStripped);
+
+          if (pIdMatch) {
+            const isComplete = numProgress === 100;
+            return {
+              ...p,
+              progress: numProgress,
+              status: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.status),
+              stage: isComplete ? 'Completed' : (numProgress > 0 ? 'In Progress' : p.stage),
+              recentUpdate: taskName || `Sprint execution progress updated to ${numProgress}%.`,
+            };
+          }
+          return p;
+        });
+        try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch { }
+        return updated;
+      });
+    }
 
     // 3. Update workforce user profile state if applicable
     setWorkforceUserProfile((prev) => ({
@@ -7516,40 +8037,50 @@ export const DataProvider = ({ children }) => {
       ? targetPrj.milestones
       : defaultMilestones;
 
-    const targetMs = currentMilestones.find((m) => m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId);
+    const targetMs = currentMilestones.find((m) =>
+      m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId || m.title?.toLowerCase() === String(milestoneId).toLowerCase()
+    );
     const willBeCompleted = !(targetMs?.completed || targetMs?.status === 'Completed' || targetMs?.status === 'COMPLETED');
     const newStatus = willBeCompleted ? 'COMPLETED' : 'NOT_STARTED';
 
-    const numericMsId = Number(String(milestoneId).replace(/\D/g, ''));
-    if (numericMsId && !isNaN(numericMsId)) {
+    const realDbId = targetMs?.dbId || (typeof targetMs?.id === 'number' ? targetMs.id : null) || (typeof milestoneId === 'number' ? milestoneId : Number(String(milestoneId).replace(/\D/g, '')));
+    if (realDbId && !isNaN(realDbId)) {
       try {
-        await api.milestones.updateProgress(numericMsId, { status: newStatus });
+        await api.milestones.updateProgress(realDbId, { status: newStatus });
       } catch (err) {
         console.warn('Milestone API sync fallback:', err);
       }
     }
 
-    setProjects((prev) =>
-      prev.map((prj) => {
+    const prjMs = (targetPrj.milestones && targetPrj.milestones.length > 0) ? targetPrj.milestones : defaultMilestones;
+    const updatedMilestones = prjMs.map((m) => {
+      const isMatch = m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId || m.title?.toLowerCase() === String(milestoneId).toLowerCase() || (realDbId && (m.dbId === realDbId || m.id === realDbId));
+      return isMatch
+        ? {
+            ...m,
+            completed: willBeCompleted,
+            status: willBeCompleted ? 'Completed' : 'Pending',
+            progressPercentage: willBeCompleted ? 100 : 0,
+          }
+        : m;
+    });
+
+    const completedCount = updatedMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
+    const computedProgress = calculateOverallCompletionProgress(completedCount, updatedMilestones.length);
+    const isCompleted = computedProgress === 100;
+    const isProgressing = computedProgress > 0 && computedProgress < 100;
+
+    const numProjId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
+    if (numProjId && !isNaN(numProjId) && api?.projects?.update) {
+      api.projects.update(numProjId, {
+        status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
+      }).catch((err) => console.warn('Could not sync project completion status to backend:', err));
+    }
+
+    // 1. Update projects
+    setProjects((prev) => {
+      const updated = prev.map((prj) => {
         if (prj.id !== projectId && String(prj.id) !== String(projectId)) return prj;
-        const prjMs = (prj.milestones && prj.milestones.length > 0) ? prj.milestones : defaultMilestones;
-        const updatedMilestones = prjMs.map((m) =>
-          m.id === milestoneId || String(m.id) === String(milestoneId) || m.title === milestoneId
-            ? { ...m, completed: willBeCompleted, status: willBeCompleted ? 'Completed' : 'Pending', progressPercentage: willBeCompleted ? 100 : 0 }
-            : m
-        );
-        const completedCount = updatedMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED').length;
-        const computedProgress = calculateOverallCompletionProgress(completedCount);
-        const isCompleted = computedProgress === 100;
-        const isProgressing = computedProgress > 0 && computedProgress < 100;
-
-        const numProjId = typeof projectId === 'number' ? projectId : parseInt(String(projectId).replace(/\D/g, ''), 10);
-        if (numProjId && !isNaN(numProjId) && api?.projects?.update) {
-          api.projects.update(numProjId, {
-            status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS'
-          }).catch((err) => console.warn('Could not sync project completion status to backend:', err));
-        }
-
         return {
           ...prj,
           milestones: updatedMilestones,
@@ -7558,10 +8089,58 @@ export const DataProvider = ({ children }) => {
           stage: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.stage === 'Completed' ? 'In Progress' : prj.stage)),
           status: isCompleted ? 'Completed' : (isProgressing ? 'In Progress' : (prj.status === 'Completed' ? 'In Progress' : prj.status)),
         };
-      })
-    );
+      });
+      try { localStorage.setItem('flexistaff_projects', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
-    refreshProjects();
+    // 2. Update projectMilestones dictionary
+    setProjectMilestones((prev) => {
+      const pIdStr = String(projectId);
+      const next = {
+        ...prev,
+        [projectId]: updatedMilestones,
+        [pIdStr]: updatedMilestones,
+      };
+      try { localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    // 3. Update managerAssignments
+    setManagerAssignments((prev) => {
+      const updated = (prev || []).map((a) => {
+        if (!a) return a;
+        if (String(a.projectId) === String(projectId) || String(a.id) === String(projectId)) {
+          return {
+            ...a,
+            progress: computedProgress,
+            milestones: updatedMilestones,
+            status: isCompleted ? 'Completed' : a.status,
+          };
+        }
+        return a;
+      });
+      try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    // 4. Update partnerProjects
+    setPartnerProjects((prev) => {
+      const updated = (prev || []).map((pp) => {
+        if (!pp) return pp;
+        if (String(pp.id) === String(projectId)) {
+          return {
+            ...pp,
+            progress: computedProgress,
+            milestones: updatedMilestones,
+            status: isCompleted ? 'Completed' : (computedProgress > 0 ? 'In Progress' : pp.status),
+          };
+        }
+        return pp;
+      });
+      try { localStorage.setItem('flexistaff_partner_projects', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   };
 
   return (
@@ -7674,6 +8253,9 @@ export const DataProvider = ({ children }) => {
         calculateSkillMatch,
         // GitHub-style Milestone Commits System
         projectMilestones,
+        addMilestone,
+        deleteMilestone,
+        editMilestone,
         addMilestoneCommit,
         updateMilestoneStatus,
         // Central Support & Feedback Reports

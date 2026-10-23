@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   FolderCheck,
@@ -17,13 +17,26 @@ import {
   Layers,
   Activity,
   Check,
+  Plus,
+  X,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { toast } from 'react-toastify';
 
 export const ManagerProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, partnerProjects, workforce, managerAssignments, projectMilestones = {}, updateProjectHeadcount } = useData();
+  const { projects, partnerProjects, workforce, managerAssignments, projectMilestones = {}, updateProjectHeadcount, addMilestone } = useData();
+
+  // Add Milestone Modal State
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
+  const [newMilestoneData, setNewMilestoneData] = useState({
+    title: '',
+    dueDate: '',
+    weightage: 20,
+    description: '',
+  });
+  const [isSubmittingMilestone, setIsSubmittingMilestone] = useState(false);
 
   // Find project
   const project = useMemo(() => {
@@ -94,6 +107,34 @@ export const ManagerProjectDetails = () => {
     ? totalRequired
     : (requirementsList.reduce((sum, r) => sum + (Number(r.assigned) || 0), 0) || activeProject.workforceAssigned || 0);
   const totalRemaining = Math.max(0, totalRequired - totalAssigned);
+
+  const handleAddMilestoneSubmit = async (e) => {
+    e.preventDefault();
+    if (!newMilestoneData.title.trim()) {
+      toast.error('Please enter a milestone title');
+      return;
+    }
+    try {
+      setIsSubmittingMilestone(true);
+      if (addMilestone) {
+        await addMilestone(activeProject.id, {
+          title: newMilestoneData.title.trim(),
+          dueDate: newMilestoneData.dueDate || activeProject.expectedEndDate || new Date().toISOString().split('T')[0],
+          weightage: Number(newMilestoneData.weightage) || 20,
+          description: newMilestoneData.description || '',
+          status: 'PENDING',
+        });
+      }
+      toast.success(`Milestone "${newMilestoneData.title}" added successfully!`);
+      setNewMilestoneData({ title: '', dueDate: '', weightage: 20, description: '' });
+      setIsAddMilestoneModalOpen(false);
+    } catch (err) {
+      console.error('Failed to add milestone from manager:', err);
+      toast.error('Failed to add milestone: ' + (err.message || 'Error'));
+    } finally {
+      setIsSubmittingMilestone(false);
+    }
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -267,70 +308,193 @@ export const ManagerProjectDetails = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-blue-50 border border-blue-100">
-            <span className="text-xs font-bold text-slate-500">Overall Progress:</span>
-            <span className="text-sm font-black text-blue-700">{project.progress || 0}%</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsAddMilestoneModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Plus size={14} />
+              <span>Add Milestone</span>
+            </button>
+            <div className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-blue-50 border border-blue-100">
+              <span className="text-xs font-bold text-slate-500">Overall Progress:</span>
+              <span className="text-sm font-black text-blue-700">{project.progress || 0}%</span>
+            </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          {((projectMilestones && projectMilestones[project?.id || 'PRJ-2026-001']) || [
-            { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: 'Sprint 1', weight: 10, commits: [] },
-            { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: 'Sprint 2', weight: 20, commits: [] },
-            { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: 'Sprint 3', weight: 25, commits: [] },
-            { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: 'Sprint 4', weight: 25, commits: [] },
-            { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: 'Sprint 5', weight: 20, commits: [] },
-          ]).map((ms) => {
-            const isCompleted = ms.status === 'Completed';
-            const msCommits = ms.commits || [];
+          {(() => {
+            const pId = project?.id;
+            const normId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+            const pMsList = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId] || projectMilestones[String(pId)]));
+            const msList = (pMsList && pMsList.length > 0)
+              ? pMsList
+              : (project?.milestones && project.milestones.length > 0)
+              ? project.milestones
+              : [
+                  { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: 'Sprint 1', weight: 10, commits: [] },
+                  { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: 'Sprint 2', weight: 20, commits: [] },
+                  { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: 'Sprint 3', weight: 25, commits: [] },
+                  { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: 'Sprint 4', weight: 25, commits: [] },
+                  { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: 'Sprint 5', weight: 20, commits: [] },
+                ];
 
-            return (
-              <div key={ms.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className={isCompleted ? 'text-emerald-600' : 'text-slate-400'} />
-                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900">{ms.title}</h4>
-                  </div>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold self-start sm:self-auto ${
-                      isCompleted
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-blue-100 text-blue-800 border border-blue-200'
-                    }`}
-                  >
-                    {ms.status}
-                  </span>
-                </div>
+            return msList.map((ms) => {
+              const isCompleted = Boolean(ms.status === 'Completed' || ms.status === 'COMPLETED' || ms.completed);
+              const msCommits = ms.commits || [];
 
-                {msCommits.length > 0 && (
-                  <div className="ml-6 border-l-2 border-slate-200 pl-3 space-y-2 pt-1">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                      Talent Commit Logs ({msCommits.length})
+              return (
+                <div key={ms.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} className={isCompleted ? 'text-emerald-600' : 'text-slate-400'} />
+                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900">{ms.title}</h4>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold self-start sm:self-auto ${
+                        isCompleted
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-blue-100 text-blue-800 border border-blue-200'
+                      }`}
+                    >
+                      {isCompleted ? 'Completed' : (ms.status || 'Pending')}
                     </span>
-                    {msCommits.map((cmt) => (
-                      <div key={cmt.id} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                              #{cmt.commitHash}
-                            </span>
-                            <h6 className="font-bold text-slate-900">{cmt.commitMessage}</h6>
-                          </div>
-                          <span className="text-[10px] text-slate-400">{cmt.dateTime}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 font-sans leading-relaxed">{cmt.workCompleted}</p>
-                        <div className="text-[10px] text-slate-400 pt-0.5">
-                          Author: <strong className="text-slate-700">{cmt.authorName}</strong>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {msCommits.length > 0 && (
+                    <div className="ml-6 border-l-2 border-slate-200 pl-3 space-y-2 pt-1">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                        Talent Commit Logs ({msCommits.length})
+                      </span>
+                      {msCommits.map((cmt) => (
+                        <div key={cmt.id} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[9px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                #{cmt.commitHash}
+                              </span>
+                              <h6 className="font-bold text-slate-900">{cmt.commitMessage}</h6>
+                            </div>
+                            <span className="text-[10px] text-slate-400">{cmt.dateTime}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-sans leading-relaxed">{cmt.workCompleted}</p>
+                          <div className="text-[10px] text-slate-400 pt-0.5">
+                            Author: <strong className="text-slate-700">{cmt.authorName}</strong>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
       </div>
+
+      {/* Add Project Milestone Modal */}
+      {isAddMilestoneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 p-5 bg-gradient-to-r from-[#004ac6] to-[#2563eb] text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-white/10 text-white">
+                  <Plus size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">Add Project Milestone</h3>
+                  <p className="text-[11px] text-blue-100">
+                    Add milestone deliverable to {project.title || project.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddMilestoneModalOpen(false)}
+                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddMilestoneSubmit} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Milestone Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newMilestoneData.title}
+                  onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. End-to-End Testing & Security Compliance"
+                  required
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Target Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newMilestoneData.dueDate}
+                    onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, dueDate: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Weightage (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={newMilestoneData.weightage}
+                    onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, weightage: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Description / Deliverables
+                </label>
+                <textarea
+                  rows={3}
+                  value={newMilestoneData.description}
+                  onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Technical checklist, scope, QA requirements..."
+                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddMilestoneModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingMilestone}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={15} />
+                  <span>{isSubmittingMilestone ? 'Adding...' : 'Add Milestone'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

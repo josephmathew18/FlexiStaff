@@ -50,25 +50,29 @@ const StatusBadge = ({ status = 'Active', size = 'md' }) => {
 export const PartnerProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { partnerProjects = [], partnerWorkforce = [] } = useData() || {};
+  const { partnerProjects = [], projects = [], partnerWorkforce = [], projectMilestones = {} } = useData() || {};
 
   const project = useMemo(() => {
     const decodedId = decodeURIComponent(id || '').trim();
     const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
+    const all = [...(partnerProjects || []), ...(projects || [])];
 
     return (
-      (partnerProjects || []).find((p) => {
+      all.find((p) => {
         if (!p || !p.id) return false;
         const pidLower = String(p.id).toLowerCase().trim();
         const pidNormalized = pidLower.replace(/[\s_]/g, '-');
+        const pDbId = p.dbId ? String(p.dbId).toLowerCase().trim() : '';
         return (
           pidLower === decodedId.toLowerCase() ||
           pidNormalized === normalizedId ||
-          pidLower === id?.toLowerCase()
+          pidLower === id?.toLowerCase() ||
+          (pDbId && pDbId === decodedId.toLowerCase()) ||
+          pidLower.replace(/^proj-0*/i, '') === decodedId.toLowerCase().replace(/^proj-0*/i, '')
         );
       }) || null
     );
-  }, [partnerProjects, id]);
+  }, [partnerProjects, projects, id]);
 
   const assignedEmployees = useMemo(() => {
     if (!project) return [];
@@ -264,7 +268,13 @@ export const PartnerProjectDetails = () => {
 
         {/* 9-Step Horizontal / Flow Sequence */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-9 gap-2.5">
-          {project.workflowSteps.map((stepItem, idx) => {
+          {(project.workflowSteps || [
+            { step: 1, label: 'Submitted', status: 'Completed', date: project.startDate || 'Done' },
+            { step: 2, label: 'FlexiStaff Review', status: 'Completed', date: 'Done' },
+            { step: 3, label: 'Workforce Matched', status: 'Completed', date: 'Done' },
+            { step: 4, label: 'Sprint Execution', status: (project.progress || 0) > 0 ? 'Active' : 'Pending', date: 'Active' },
+            { step: 5, label: 'Final Quality Check', status: (project.progress || 0) === 100 ? 'Completed' : 'Pending', date: 'Pending' }
+          ]).map((stepItem, idx) => {
             const isCompleted = stepItem.status === 'Completed';
             const isActive = stepItem.status === 'Active';
 
@@ -384,24 +394,27 @@ export const PartnerProjectDetails = () => {
           </div>
 
           <div className="space-y-2.5">
-            {project.milestones?.map((m) => (
-              <div
-                key={m.id}
-                className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
-                  m.completed ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center ${m.completed ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                    {m.completed ? <Check size={12} /> : <Clock size={12} />}
+            {(((project.id ? (projectMilestones[project.id] || projectMilestones[String(project.id)]) : null) || project.milestones || []).map((m) => {
+              const isCompleted = m.completed || m.status === 'Completed' || m.status === 'COMPLETED' || m.progressPercentage === 100;
+              return (
+                <div
+                  key={m.id}
+                  className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+                    isCompleted ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isCompleted ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                      {isCompleted ? <Check size={12} /> : <Clock size={12} />}
+                    </div>
+                    <span className={`font-semibold ${isCompleted ? 'text-emerald-950 font-bold' : 'text-slate-700'}`}>
+                      {m.title || m.name}
+                    </span>
                   </div>
-                  <span className={`font-semibold ${m.completed ? 'text-emerald-950 font-bold' : 'text-slate-700'}`}>
-                    {m.name}
-                  </span>
+                  <span className="text-[10px] font-bold text-slate-400">{m.dueDate || m.date || 'Active Sprint'}</span>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400">{m.date}</span>
-              </div>
-            ))}
+              );
+            }))}
           </div>
         </div>
 

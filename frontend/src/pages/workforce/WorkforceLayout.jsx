@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   ChevronDown,
   HelpCircle,
+  DollarSign,
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -51,6 +52,7 @@ export const WorkforceLayout = () => {
       badgeColor: 'bg-indigo-100 text-indigo-800',
     },
     { label: 'Live Availability', path: '/workforce/availability', icon: CheckCircle2 },
+    { label: 'Earnings & Payouts', path: '/workforce/earnings', icon: DollarSign },
     { label: 'Profile & Settings', path: '/workforce/profile', icon: User },
     { label: 'Support & Feedback', path: '/workforce/support', icon: LifeBuoy },
   ];

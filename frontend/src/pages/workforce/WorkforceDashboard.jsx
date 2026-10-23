@@ -216,7 +216,14 @@ export const WorkforceDashboard = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/workforce/earnings"
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold backdrop-blur-md active:scale-95 transition-all"
+            >
+              <DollarSign size={16} />
+              <span>Earnings & Payouts</span>
+            </Link>
             <Link
               to="/workforce/assignments"
               className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#7c3aed] to-[#8b5cf6] text-white text-xs font-bold shadow-lg shadow-purple-600/30 hover:scale-105 active:scale-95 transition-all"

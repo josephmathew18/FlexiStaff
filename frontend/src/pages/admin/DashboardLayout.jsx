@@ -30,6 +30,7 @@ import {
   AlertCircle,
   ShieldCheck,
   LifeBuoy,
+  CreditCard,
 } from 'lucide-react';
 import { MdHub } from 'react-icons/md';
 
@@ -419,6 +420,11 @@ const InlineSidebar = ({
       badgeColor: 'bg-indigo-100 text-indigo-800',
     },
     {
+      label: 'Payments & Payouts',
+      path: '/admin/payments',
+      icon: CreditCard,
+    },
+    {
       label: 'Support Reports',
       path: '/admin/support-tickets',
       icon: LifeBuoy,
@@ -594,6 +600,9 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
       '/admin/projects': [{ label: 'Projects & Requests', path: '/admin/projects' }],
       '/admin/assignment-approvals': [{ label: 'Assignment Approvals', path: '/admin/assignment-approvals' }],
       '/admin/support-tickets': [{ label: 'Support & Feedback Reports', path: '/admin/support-tickets' }],
+      '/admin/payments': [{ label: 'Payments & Payout Management', path: '/admin/payments' }],
+      '/admin/transactions': [{ label: 'Transaction Management', path: '/admin/transactions' }],
+      '/admin/payouts': [{ label: 'Payout Management', path: '/admin/payouts' }],
     };
 
     return map[path] || [{ label: 'Dashboard', path: '/admin/dashboard' }];

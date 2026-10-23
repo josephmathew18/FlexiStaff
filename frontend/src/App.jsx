@@ -27,6 +27,7 @@ import ProjectDetails from './pages/admin/ProjectDetails';
 import AdminAssignmentApprovals from './pages/admin/AdminAssignmentApprovals';
 import AdminProfile from './pages/admin/AdminProfile';
 import AdminSupportTickets from './pages/admin/AdminSupportTickets';
+import AdminPaymentManagement from './pages/admin/AdminPaymentManagement';
 
 // Enterprise Client Portal Pages (/client/*)
 import ClientLayout from './pages/client/ClientLayout';
@@ -40,6 +41,7 @@ import ClientMessages from './pages/client/ClientMessages';
 import ClientNotifications from './pages/client/ClientNotifications';
 import ClientProfile from './pages/client/ClientProfile';
 import ClientSupport from './pages/client/ClientSupport';
+import ClientPayments from './pages/client/ClientPayments';
 
 // Partner Company Portal Pages (/partner/*)
 import PartnerLayout from './pages/partner/PartnerLayout';
@@ -75,6 +77,7 @@ import WorkforceAssignments from './pages/workforce/WorkforceAssignments';
 import WorkforceAvailability from './pages/workforce/WorkforceAvailability';
 import WorkforceProfile from './pages/workforce/WorkforceProfile';
 import WorkforceSupport from './pages/workforce/WorkforceSupport';
+import WorkforceEarnings from './pages/workforce/WorkforceEarnings';
 
 // Authentication & Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -176,6 +179,9 @@ function App() {
               <Route path="/admin/projects/:id" element={<ProjectDetails />} />
               <Route path="/admin/assignment-approvals" element={<AdminAssignmentApprovals />} />
               <Route path="/admin/support-tickets" element={<AdminSupportTickets />} />
+              <Route path="/admin/payments" element={<AdminPaymentManagement />} />
+              <Route path="/admin/transactions" element={<AdminPaymentManagement />} />
+              <Route path="/admin/payouts" element={<AdminPaymentManagement />} />
               <Route path="/admin/profile" element={<Navigate to="/admin/company" replace />} />
             </Route>
 
@@ -203,6 +209,8 @@ function App() {
               <Route path="/client/workforce" element={<ClientWorkforce />} />
               <Route path="/client/progress" element={<ClientProgress />} />
               <Route path="/client/messages" element={<ClientMessages />} />
+              <Route path="/client/payments" element={<ClientPayments />} />
+              <Route path="/client/billing" element={<ClientPayments />} />
               <Route path="/client/notifications" element={<ClientNotifications />} />
               <Route path="/client/profile" element={<ClientProfile />} />
               <Route path="/client/support" element={<ClientSupport />} />
@@ -281,6 +289,8 @@ function App() {
               <Route path="/workforce/availability" element={<WorkforceAvailability />} />
               <Route path="/workforce/profile" element={<WorkforceProfile />} />
               <Route path="/workforce/support" element={<WorkforceSupport />} />
+              <Route path="/workforce/earnings" element={<WorkforceEarnings />} />
+              <Route path="/workforce/payments" element={<WorkforceEarnings />} />
             </Route>
 
             {/* 404 Fallback */}

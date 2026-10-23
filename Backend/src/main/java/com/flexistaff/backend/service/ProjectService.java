@@ -315,7 +315,7 @@ public class ProjectService {
             long completedCount = milestoneDtos.stream()
                     .filter(m -> m.getStatus() == com.flexistaff.backend.entity.enums.MilestoneStatus.COMPLETED)
                     .count();
-            int calcProgress = MilestoneService.calculateOverallProgress(completedCount);
+            int calcProgress = MilestoneService.calculateOverallProgress(completedCount, milestoneDtos.size());
             dto.setProgressPercentage(calcProgress);
         } else {
             dto.setProgressPercentage(0);

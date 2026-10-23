@@ -5,8 +5,163 @@ import UserAvatar from '../../components/common/UserAvatar';
 import { toast } from 'react-toastify';
 
 export const WorkforceAvailability = () => {
-  const { workforceUserProfile, updateWorkforceUserProfile, updateProfessionalAvailability } = useData() || {};
+  const {
+    workforceUserProfile,
+    updateWorkforceUserProfile,
+    updateProfessionalAvailability,
+    managerAssignments = [],
+    projects = [],
+    workforce = [],
+  } = useData() || {};
   const [isUpdating, setIsUpdating] = React.useState(false);
+
+  // Normalize user identifiers
+  const wfName = (workforceUserProfile?.name || '').toLowerCase().trim();
+  const wfEmail = (workforceUserProfile?.email || '').toLowerCase().trim();
+  const wfId = String(workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId || '').trim();
+
+  // Find any active project assignment
+  const activeAssignment = React.useMemo(() => {
+    // 1. Direct profile assignment
+    if (
+      workforceUserProfile?.isCurrentlyWorking &&
+      workforceUserProfile?.currentProject &&
+      workforceUserProfile?.currentProject !== 'None' &&
+      workforceUserProfile?.currentProject !== 'none'
+    ) {
+      return {
+        projectName: workforceUserProfile.currentProjectName || workforceUserProfile.currentProject,
+        role: workforceUserProfile.currentProjectRole || workforceUserProfile.role || 'Specialist',
+        progress: workforceUserProfile.currentAssignment?.progress || 45,
+      };
+    }
+    if (workforceUserProfile?.currentAssignment?.projectName) {
+      return {
+        projectName: workforceUserProfile.currentAssignment.projectName,
+        role: workforceUserProfile.currentAssignment.role || 'Specialist',
+        progress: workforceUserProfile.currentAssignment.progress || 45,
+      };
+    }
+
+    // 2. From managerAssignments
+    const asgMatch = (managerAssignments || []).find((a) => {
+      if (!a) return false;
+      const aName = (a.professionalName || '').toLowerCase().trim();
+      const aId = String(a.professionalId || '').trim();
+      const matches =
+        (wfName && aName && (aName === wfName || aName.includes(wfName) || wfName.includes(aName))) ||
+        (wfId && aId && wfId === aId);
+      const st = String(a.status || '').toLowerCase().trim();
+      const isActive =
+        st === 'accepted' ||
+        st === 'working' ||
+        st === 'in progress' ||
+        st === 'approved' ||
+        st === 'assigned';
+      return matches && isActive;
+    });
+    if (asgMatch) {
+      return {
+        projectName: asgMatch.projectName || asgMatch.title || 'Enterprise Project',
+        role: asgMatch.role || asgMatch.roleInProject || 'Specialist',
+        progress: asgMatch.progress || 40,
+      };
+    }
+
+    // 3. From projects assignedResources
+    for (const p of projects || []) {
+      if (!p) continue;
+      const isAssigned = (p.assignedResources || []).some((res) => {
+        if (!res) return false;
+        const rName = (res.name || res.professionalName || '').toLowerCase().trim();
+        const rId = String(res.id || res.professionalId || '').trim();
+        const rEmail = (res.email || '').toLowerCase().trim();
+        return (
+          (wfName && rName && (rName === wfName || rName.includes(wfName) || wfName.includes(rName))) ||
+          (wfId && rId && wfId === rId) ||
+          (wfEmail && rEmail && wfEmail === rEmail)
+        );
+      });
+      if (
+        isAssigned &&
+        p.status !== 'Completed' &&
+        p.stage !== 'Completed' &&
+        p.status !== 'Rejected' &&
+        p.status !== 'Cancelled'
+      ) {
+        return {
+          projectName: p.title || p.name || 'Enterprise Project',
+          role: p.requiredSkills?.[0] ? `${p.requiredSkills[0]} Developer` : 'Specialist Software Engineer',
+          progress: p.progress || 50,
+        };
+      }
+    }
+
+    // 4. From matching workforce roster item
+    const wfMatch = (workforce || []).find((w) => {
+      if (!w) return false;
+      const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+      const wId = String(w.numericId || w.id || w.userId || '').trim();
+      const wEmail = (w.email || '').toLowerCase().trim();
+      return (
+        (wfName && wName && (wName === wfName || wName.includes(wfName) || wfName.includes(wName))) ||
+        (wfId && wId && wfId === wId) ||
+        (wfEmail && wEmail && wfEmail === wEmail)
+      );
+    });
+    if (
+      wfMatch &&
+      (wfMatch.isCurrentlyWorking ||
+        (wfMatch.currentProject && wfMatch.currentProject !== 'None' && wfMatch.currentProject !== 'none') ||
+        wfMatch.availability === 'Currently Assigned' ||
+        wfMatch.availabilityStatus === 'Currently Assigned')
+    ) {
+      return {
+        projectName: wfMatch.currentProjectName || wfMatch.currentProject || 'Assigned Enterprise Project',
+        role: wfMatch.currentProjectRole || wfMatch.role || 'Specialist',
+        progress: 45,
+      };
+    }
+
+    return null;
+  }, [workforceUserProfile, managerAssignments, projects, workforce, wfName, wfEmail, wfId]);
+
+  const hasAssignedProject = Boolean(activeAssignment);
+
+  const rawStatus = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability || 'Available';
+
+  // If user is assigned to an active project, their status is Currently Assigned unless they explicitly chose Temporarily Unavailable
+  const currentAvailability =
+    hasAssignedProject && rawStatus !== 'Temporarily Unavailable'
+      ? 'Currently Assigned'
+      : rawStatus;
+
+  const isAvailable = currentAvailability === 'Available' || currentAvailability === 'Immediate';
+  const isAssigned =
+    currentAvailability === 'Currently Assigned' ||
+    currentAvailability === 'Assigned' ||
+    currentAvailability === 'Working';
+  const isUnavailable =
+    currentAvailability === 'Temporarily Unavailable' ||
+    currentAvailability === 'Unavailable' ||
+    currentAvailability === 'On Leave';
+
+  // Auto-sync status on mount if project is assigned but state still held Available
+  React.useEffect(() => {
+    if (hasAssignedProject && rawStatus !== 'Currently Assigned' && rawStatus !== 'Temporarily Unavailable') {
+      const targetId = workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId;
+      if (updateProfessionalAvailability && targetId) {
+        updateProfessionalAvailability(targetId, 'Currently Assigned').catch(() => {});
+      } else if (updateWorkforceUserProfile) {
+        updateWorkforceUserProfile({
+          availability: 'Currently Assigned',
+          availabilityStatus: 'Currently Assigned',
+          isCurrentlyWorking: true,
+          currentProject: activeAssignment?.projectName,
+        });
+      }
+    }
+  }, [hasAssignedProject, rawStatus, activeAssignment]);
 
   const handleAvailabilityChange = async (newStatus) => {
     if (isUpdating) return;
@@ -26,12 +181,6 @@ export const WorkforceAvailability = () => {
       setIsUpdating(false);
     }
   };
-
-  const currentAvailability = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability || 'Available';
-
-  const isAvailable = currentAvailability === 'Available' || currentAvailability === 'Immediate';
-  const isAssigned = currentAvailability === 'Currently Assigned' || currentAvailability === 'Assigned' || currentAvailability === 'Working';
-  const isUnavailable = currentAvailability === 'Temporarily Unavailable' || currentAvailability === 'Unavailable' || currentAvailability === 'On Leave';
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 p-2 sm:p-4 font-sans antialiased text-[#191b23]">
@@ -62,7 +211,7 @@ export const WorkforceAvailability = () => {
             {workforceUserProfile?.title || workforceUserProfile?.role || 'Frontend React Developer'}
           </p>
 
-          <div className="pt-1">
+          <div className="pt-1 flex flex-wrap items-center gap-2.5">
             <span
               className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold ${
                 isAvailable
@@ -72,9 +221,16 @@ export const WorkforceAvailability = () => {
                   : 'bg-rose-100 text-rose-800 border border-rose-200'
               }`}
             >
-              {isAvailable ? <Check size={13} /> : isAssigned ? <Check size={13} /> : <X size={13} />}
+              {isAvailable ? <Check size={13} /> : isAssigned ? <Clock size={13} /> : <X size={13} />}
               <span>{isAvailable ? 'Available' : isAssigned ? 'Assigned' : 'Unavailable'}</span>
             </span>
+
+            {isAssigned && activeAssignment?.projectName && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span>Project: {activeAssignment.projectName}</span>
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -148,13 +304,26 @@ export const WorkforceAvailability = () => {
               </h4>
 
               <p className="text-xs text-slate-500 leading-relaxed mt-2 font-normal">
-                Currently assigned and working on client or partner project deliveries.
+                {activeAssignment?.projectName
+                  ? `Active on "${activeAssignment.projectName}" project deliverables.`
+                  : 'Currently assigned and working on client or partner project deliveries.'}
               </p>
             </div>
 
             {/* Bottom Progress Bar Gauge */}
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-6">
-              <div className="h-full bg-[#2563eb] rounded-full w-2/3" />
+            <div className="w-full mt-6 space-y-1.5">
+              {activeAssignment?.projectName && (
+                <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
+                  <span className="truncate max-w-[140px] text-blue-600">{activeAssignment.projectName}</span>
+                  <span>{activeAssignment.progress || 50}%</span>
+                </div>
+              )}
+              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(15, activeAssignment?.progress || 60)}%` }}
+                />
+              </div>
             </div>
           </button>
 

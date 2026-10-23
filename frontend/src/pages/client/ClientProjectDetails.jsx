@@ -17,16 +17,30 @@ import {
   AlertCircle,
   Star,
   Sparkles,
+  CreditCard,
+  Printer,
+  RefreshCw,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { StatusBadge, ProjectProgress } from '../../components/workflow';
 import RatingFeedbackModal from '../../components/feedback/RatingFeedbackModal';
+import PayNowModal from '../../components/payment/PayNowModal';
+import PaymentReceiptModal from '../../components/payment/PaymentReceiptModal';
+import { api } from '../../services/api';
+import { toast } from 'react-toastify';
 
 export const ClientProjectDetails = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects = [], managerAssignments = [], toggleMilestone } = useData() || {};
   const [isFeedbackOpen, setIsFeedbackOpen] = React.useState(false);
+
+  // Payment State
+  const [paymentSummary, setPaymentSummary] = React.useState(null);
+  const [loadingPayment, setLoadingPayment] = React.useState(false);
+  const [isPayModalOpen, setIsPayModalOpen] = React.useState(false);
+  const [selectedReceipt, setSelectedReceipt] = React.useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = React.useState(false);
 
   const decodedId = decodeURIComponent(projectId || '').trim();
   const normalizedId = decodedId.toLowerCase().replace(/[\s_]/g, '-');
@@ -43,6 +57,25 @@ export const ClientProjectDetails = () => {
 
     return isDirectMatch || isNumMatch;
   });
+
+  const loadPaymentSummary = React.useCallback(async () => {
+    if (!project?.id) return;
+    setLoadingPayment(true);
+    try {
+      const res = await api.payments.getSummary(project.id);
+      if (res && res.data) {
+        setPaymentSummary(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch payment summary:', err);
+    } finally {
+      setLoadingPayment(false);
+    }
+  }, [project?.id]);
+
+  React.useEffect(() => {
+    loadPaymentSummary();
+  }, [loadPaymentSummary]);
 
   const assignedSquad = React.useMemo(() => {
     if (!project) return [];
@@ -213,7 +246,33 @@ export const ClientProjectDetails = () => {
             <p className="text-xs text-slate-500">{project.category || 'Enterprise Software Engineering'}</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Quick Pay Now Option in Header */}
+            {paymentSummary && Number(paymentSummary.remainingBalance) > 0 ? (
+              <button
+                type="button"
+                onClick={() => setIsPayModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-blue-500/25 transition-all cursor-pointer active:scale-95"
+              >
+                <CreditCard size={15} />
+                <span>Pay Project (₹{Number(paymentSummary.remainingBalance).toLocaleString('en-IN')})</span>
+              </button>
+            ) : paymentSummary && Number(paymentSummary.totalAgreedCost) > 0 && Number(paymentSummary.remainingBalance) <= 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                <CheckCircle2 size={15} />
+                <span>Fully Paid & Settled</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPayModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <CreditCard size={15} />
+                <span>Pay Project (Razorpay)</span>
+              </button>
+            )}
+
             {isCompleted && (
               <button
                 type="button"
@@ -342,6 +401,162 @@ export const ClientProjectDetails = () => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* RAZORPAY PAYMENT SUMMARY & BILLING (CLIENT MANAGEMENT PHASE 1) */}
+      {/* ========================================================================= */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-600">
+                <CreditCard size={18} />
+              </span>
+              <h3 className="text-base font-bold text-slate-900">
+                Project Payment & Billing Summary
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Agreed deliverables cost, verified payments, and Razorpay checkout
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {paymentSummary && paymentSummary.remainingBalance > 0 && paymentSummary.isEligibleForPayment ? (
+              <button
+                type="button"
+                onClick={() => setIsPayModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                <CreditCard size={15} />
+                Pay Now (₹{Number(paymentSummary.remainingBalance).toLocaleString('en-IN')})
+              </button>
+            ) : paymentSummary && paymentSummary.totalAgreedCost > 0 && paymentSummary.remainingBalance <= 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                <CheckCircle2 size={14} />
+                Fully Paid & Settled
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={loadPaymentSummary}
+              disabled={loadingPayment}
+              title="Refresh Payment Status"
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition"
+            >
+              <RefreshCw size={14} className={loadingPayment ? 'animate-spin text-blue-600' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Financial Metrics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-left">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Agreed Project Cost</span>
+            <span className="text-base font-black text-slate-900">
+              ₹{Number(paymentSummary?.totalAgreedCost ?? (project.budget || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-slate-400 block">Approved staffing budget</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-1">
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Total Amount Paid</span>
+            <span className="text-base font-black text-emerald-700">
+              ₹{Number(paymentSummary?.totalPaid ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-emerald-600/80 block">Verified via Razorpay</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-200 space-y-1">
+            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Outstanding Balance</span>
+            <span className={`text-base font-black ${paymentSummary?.remainingBalance > 0 ? 'text-rose-700' : 'text-slate-400'}`}>
+              ₹{Number(paymentSummary?.remainingBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className="text-[10px] text-rose-600/80 block">Pending sprint payment</span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Payment Status</span>
+            <div>
+              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                paymentSummary?.paymentStatus === 'PAID'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : paymentSummary?.paymentStatus === 'PARTIALLY_PAID'
+                  ? 'bg-blue-100 text-blue-800'
+                  : paymentSummary?.paymentStatus === 'NO_COST_AGREED'
+                  ? 'bg-slate-200 text-slate-700'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {paymentSummary?.paymentStatus || (project.budget > 0 ? 'UNPAID' : 'Awaiting Approval')}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 block">Status across portal</span>
+          </div>
+        </div>
+
+        {/* Project Payments History Table */}
+        {paymentSummary?.payments && paymentSummary.payments.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Project Transactions & Receipts
+            </h4>
+            <div className="border border-slate-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-4">Receipt #</th>
+                    <th className="py-2.5 px-4">Date</th>
+                    <th className="py-2.5 px-4">Method</th>
+                    <th className="py-2.5 px-4">Gateway Ref</th>
+                    <th className="py-2.5 px-4 text-right">Amount</th>
+                    <th className="py-2.5 px-4 text-center">Receipt</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paymentSummary.payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                      <td className="py-2.5 px-4 font-mono font-bold text-slate-800">{p.receiptNumber}</td>
+                      <td className="py-2.5 px-4 text-slate-500">
+                        {new Date(p.paidAt || p.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+                      </td>
+                      <td className="py-2.5 px-4 capitalize text-slate-600">{p.paymentMethod || 'Online'}</td>
+                      <td className="py-2.5 px-4 font-mono text-[11px] text-slate-500">{p.razorpayPaymentId || 'N/A'}</td>
+                      <td className="py-2.5 px-4 text-right font-black text-slate-900">
+                        ₹{Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-2.5 px-4 text-center">
+                        {p.status === 'SUCCESS' ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await api.payments.getReceipt(p.id);
+                                if (res && res.data) {
+                                  setSelectedReceipt(res.data);
+                                  setIsReceiptModalOpen(true);
+                                }
+                              } catch (e) {
+                                toast.error('Failed to load receipt');
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-[11px] transition"
+                          >
+                            <FileText size={12} />
+                            Receipt
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">{p.status}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Project Execution Progress UI (If Approved, In Progress, or Completed) */}
@@ -509,6 +724,35 @@ export const ClientProjectDetails = () => {
           isOpen={isFeedbackOpen}
           onClose={() => setIsFeedbackOpen(false)}
           project={project}
+        />
+      )}
+
+      {/* Pay Now Modal */}
+      {isPayModalOpen && project && (
+        <PayNowModal
+          isOpen={isPayModalOpen}
+          onClose={() => setIsPayModalOpen(false)}
+          project={project}
+          summary={paymentSummary || {
+            totalAgreedCost: Number(project.budget || 0),
+            totalPaid: 0,
+            remainingBalance: Number(project.budget || 0),
+          }}
+          onPaymentSuccess={() => {
+            loadPaymentSummary();
+          }}
+        />
+      )}
+
+      {/* Payment Receipt Modal */}
+      {selectedReceipt && (
+        <PaymentReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => {
+            setIsReceiptModalOpen(false);
+            setSelectedReceipt(null);
+          }}
+          receipt={selectedReceipt}
         />
       )}
     </div>

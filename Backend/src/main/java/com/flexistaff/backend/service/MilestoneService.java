@@ -77,9 +77,9 @@ public class MilestoneService {
         boolean isFrontendDomain = domain.contains("frontend") || domain.contains("ui") || domain.contains("design");
         boolean isBackendDomain = domain.contains("backend") || domain.contains("database");
 
-        boolean hasFrontendSkill = candidateRole.contains("frontend") || candidateRole.contains("ui") || candidateSkills.contains("react") || candidateSkills.contains("html") || candidateSkills.contains("css");
-        boolean hasBackendSkill = candidateRole.contains("backend") || candidateSkills.contains("java") || candidateSkills.contains("spring") || candidateSkills.contains("postgre") || candidateSkills.contains("python");
-        boolean isFullstackOrLead = candidateRole.contains("full") || candidateRole.contains("architect") || candidateRole.contains("lead") || candidateRole.contains("workforce") || (hasFrontendSkill && hasBackendSkill);
+        boolean hasFrontendSkill = candidateRole.contains("frontend") || candidateRole.contains("ui") || candidateSkills.contains("react") || candidateSkills.contains("html") || candidateSkills.contains("css") || candidateSkills.contains("javascript");
+        boolean hasBackendSkill = candidateRole.contains("backend") || candidateSkills.contains("java") || candidateSkills.contains("spring") || candidateSkills.contains("postgre") || candidateSkills.contains("python") || candidateSkills.contains("node");
+        boolean isFullstackOrLead = candidateRole.contains("full") || candidateRole.contains("architect") || candidateRole.contains("lead") || candidateRole.contains("workforce") || candidateRole.contains("specialist") || candidateRole.contains("developer") || candidateRole.contains("engineer") || (hasFrontendSkill && hasBackendSkill);
 
         if (isFrontendDomain && !hasFrontendSkill && !isFullstackOrLead && (request.getAuthorRole() != null || request.getAuthorSkills() != null)) {
             throw new BadRequestException("Skill Mismatch: Your assigned role/skills do not authorize updates for Frontend/UI milestones.");
@@ -115,7 +115,7 @@ public class MilestoneService {
             long completedCount = projectMilestones.stream()
                     .filter(m -> m.getStatus() == MilestoneStatus.COMPLETED)
                     .count();
-            int calculatedProgress = calculateOverallProgress(completedCount);
+            int calculatedProgress = calculateOverallProgress(completedCount, projectMilestones.size());
             if (calculatedProgress >= 100 && !projectMilestones.isEmpty() && project.getStatus() != ProjectStatus.REJECTED && project.getStatus() != ProjectStatus.DECLINED && project.getStatus() != ProjectStatus.CANCELLED) {
                 project.setStatus(ProjectStatus.COMPLETED);
                 projectRepository.save(project);
@@ -128,13 +128,64 @@ public class MilestoneService {
         return mapToMilestoneDto(updated);
     }
 
+    @Transactional
+    public MilestoneDto updateMilestone(Long milestoneId, CreateMilestoneRequest request) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", "id", milestoneId));
+        if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
+            milestone.setTitle(request.getTitle().trim());
+        }
+        if (request.getDescription() != null) {
+            milestone.setDescription(request.getDescription().trim());
+        }
+        if (request.getDueDate() != null) {
+            milestone.setDueDate(request.getDueDate());
+        }
+        if (request.getWeightage() != null) {
+            milestone.setWeightage(request.getWeightage());
+        }
+        Milestone updated = milestoneRepository.save(milestone);
+        return mapToMilestoneDto(updated);
+    }
+
+    @Transactional
+    public void deleteMilestone(Long milestoneId) {
+        Milestone milestone = milestoneRepository.findById(milestoneId)
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", "id", milestoneId));
+        Project project = milestone.getProject();
+        milestoneRepository.delete(milestone);
+
+        if (project != null) {
+            List<Milestone> remaining = milestoneRepository.findByProjectId(project.getId());
+            long completedCount = remaining.stream()
+                    .filter(m -> m.getStatus() == MilestoneStatus.COMPLETED)
+                    .count();
+            int calculatedProgress = calculateOverallProgress(completedCount, remaining.size());
+            if (calculatedProgress >= 100 && !remaining.isEmpty() && project.getStatus() != ProjectStatus.REJECTED && project.getStatus() != ProjectStatus.DECLINED && project.getStatus() != ProjectStatus.CANCELLED) {
+                project.setStatus(ProjectStatus.COMPLETED);
+                projectRepository.save(project);
+            } else if (calculatedProgress > 0 && project.getStatus() != ProjectStatus.COMPLETED && project.getStatus() != ProjectStatus.REJECTED && project.getStatus() != ProjectStatus.DECLINED && project.getStatus() != ProjectStatus.CANCELLED) {
+                project.setStatus(ProjectStatus.IN_PROGRESS);
+                projectRepository.save(project);
+            }
+        }
+    }
+
     public static int calculateOverallProgress(long completedCount) {
-        if (completedCount == 1) return 10;
-        if (completedCount == 2) return 30;
-        if (completedCount == 3) return 55;
-        if (completedCount == 4) return 80;
-        if (completedCount >= 5) return 100;
-        return 0;
+        return calculateOverallProgress(completedCount, 5);
+    }
+
+    public static int calculateOverallProgress(long completedCount, int totalCount) {
+        if (totalCount == 5) {
+            if (completedCount == 1) return 10;
+            if (completedCount == 2) return 30;
+            if (completedCount == 3) return 55;
+            if (completedCount == 4) return 80;
+            if (completedCount >= 5) return 100;
+            return 0;
+        }
+        if (totalCount <= 0) return 0;
+        return (int) Math.min(100, Math.round(((double) completedCount / totalCount) * 100));
     }
 
     public MilestoneDto mapToMilestoneDto(Milestone milestone) {

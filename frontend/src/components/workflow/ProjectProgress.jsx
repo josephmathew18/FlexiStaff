@@ -28,7 +28,7 @@ export const ProjectProgress = ({
 }) => {
   if (!project) return null;
 
-  const milestones = (project.milestones && Array.isArray(project.milestones) && project.milestones.length === 5)
+  const milestones = (project.milestones && Array.isArray(project.milestones) && project.milestones.length > 0)
     ? project.milestones
     : [
         { id: 'ms-01', title: 'Requirement Analysis', weight: 10, completed: (project.progress || 0) >= 10, dueDate: 'Sprint 1' },

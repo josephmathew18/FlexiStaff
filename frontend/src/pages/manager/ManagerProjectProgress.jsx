@@ -59,7 +59,7 @@ export const ManagerProjectProgress = () => {
                   <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
                     {prj.id}
                   </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">{prj.name}</h3>
+                  <h3 className="text-lg font-bold text-slate-900 mt-1">{prj.title || prj.name}</h3>
                   <p className="text-xs text-slate-500">{prj.client || prj.partner || ''}</p>
                 </div>
                 <span className="text-2xl font-black text-[#004ac6]">{currentProgress}%</span>

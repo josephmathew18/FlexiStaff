@@ -122,6 +122,7 @@ export const PartnerWorkforce = () => {
     rejectPartnerWorkforceRequest,
     partnerProfile,
     workforce = [],
+    projectMilestones = {},
   } = useData() || {};
 
   // Combined roster: partnerWorkforce + any matching partner employees in central workforce
@@ -230,8 +231,12 @@ export const PartnerWorkforce = () => {
 
     // Progress metrics
     const progressPercentage = matchedProject?.progress ?? selectedEmployee.workProgress ?? 0;
-    const completedTasks = matchedProject?.completedTasksCount ?? Math.round((progressPercentage / 100) * 12);
-    const pendingTasks = matchedProject?.pendingTasksCount ?? Math.max(0, 12 - completedTasks);
+    const pMilestones = matchedProject?.id ? (projectMilestones[matchedProject.id] || projectMilestones[String(matchedProject.id)] || matchedProject.milestones || []) : (matchedProject?.milestones || []);
+    const totalMilestones = Array.isArray(pMilestones) && pMilestones.length > 0 ? pMilestones.length : 0;
+    const completedTasks = totalMilestones > 0
+      ? pMilestones.filter((m) => m.completed || m.status === 'Completed' || m.status === 'COMPLETED' || m.progressPercentage === 100).length
+      : (matchedProject?.completedTasksCount ?? 0);
+    const pendingTasks = totalMilestones > 0 ? Math.max(0, totalMilestones - completedTasks) : (matchedProject?.pendingTasksCount ?? 0);
 
     const currentMilestone = selectedEmployee.currentMilestone || matchedProject?.currentMilestone || 'Active Sprint';
     const latestProgressUpdate = selectedEmployee.latestCommit?.message || selectedEmployee.currentTask || matchedProject?.recentUpdate || matchedProject?.latestActivity || 'Project assignment active.';
@@ -251,7 +256,7 @@ export const PartnerWorkforce = () => {
       currentMilestone,
       latestProgressUpdate,
     };
-  }, [selectedEmployee, projects, partnerProjects, managerAssignments]);
+  }, [selectedEmployee, projects, partnerProjects, managerAssignments, projectMilestones]);
 
   // Compute enriched full employee dossier
   const displayEmployee = useMemo(() => {

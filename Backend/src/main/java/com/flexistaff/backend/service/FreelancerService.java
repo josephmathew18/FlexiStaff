@@ -588,8 +588,8 @@ public class FreelancerService {
             WorkforceAllocation activeAlloc = (allocations != null ? allocations : new java.util.ArrayList<WorkforceAllocation>())
                     .stream()
                     .filter(a -> a != null && a.getProject() != null &&
-                            (a.getStatus() == AllocationStatus.ACTIVE || a.getStatus() == AllocationStatus.ACCEPTED) &&
-                            (a.getProject().getStatus() == ProjectStatus.IN_PROGRESS || a.getProject().getStatus() == ProjectStatus.APPROVED))
+                            (a.getStatus() == AllocationStatus.ACTIVE || a.getStatus() == AllocationStatus.ACCEPTED || a.getStatus() == AllocationStatus.ASSIGNED) &&
+                            (a.getProject().getStatus() == ProjectStatus.IN_PROGRESS || a.getProject().getStatus() == ProjectStatus.APPROVED || a.getProject().getStatus() == ProjectStatus.ON_HOLD))
                     .findFirst()
                     .orElse(null);
 
@@ -614,13 +614,34 @@ public class FreelancerService {
                 dto.setCurrentProject(projTitle);
                 dto.setCurrentProjectClient(clientName);
                 dto.setCurrentProjectRole(activeAlloc.getRoleInProject() != null ? activeAlloc.getRoleInProject() : dto.getTitle());
-                String allocStatus = activeAlloc.getStatus() != null ? activeAlloc.getStatus().name() : "ACTIVE";
+                String allocStatus = activeAlloc.getStatus() != null ? activeAlloc.getStatus().name() : "ASSIGNED";
                 dto.setCurrentAssignmentStatus(allocStatus);
                 dto.setAssignmentStatus("Active");
                 dto.setCurrentProjectStatus(p.getStatus() != null ? p.getStatus().name() : "IN_PROGRESS");
-                if (dto.getAvailabilityStatus() == null || dto.getAvailabilityStatus().isBlank()) {
+                
+                // When actively allocated to a project, live availability is 'Currently Assigned' unless manually set to 'Temporarily Unavailable'
+                if (!"Temporarily Unavailable".equalsIgnoreCase(dto.getAvailabilityStatus())) {
                     dto.setAvailabilityStatus("Currently Assigned");
                 }
+
+                // Synchronize database records if they were still marked Available
+                if (dto.getId() != null) {
+                    freelancerRepository.findById(dto.getId()).ifPresent(fl -> {
+                        if (!"Currently Assigned".equalsIgnoreCase(fl.getAvailabilityStatus()) &&
+                            !"Temporarily Unavailable".equalsIgnoreCase(fl.getAvailabilityStatus())) {
+                            fl.setAvailabilityStatus("Currently Assigned");
+                            freelancerRepository.save(fl);
+                        }
+                    });
+                }
+                userRepository.findById(targetUserId).ifPresent(u -> {
+                    if (u.getProfessionalProfile() != null &&
+                        !"Currently Assigned".equalsIgnoreCase(u.getProfessionalProfile().getAvailabilityStatus()) &&
+                        !"Temporarily Unavailable".equalsIgnoreCase(u.getProfessionalProfile().getAvailabilityStatus())) {
+                        u.getProfessionalProfile().setAvailabilityStatus("Currently Assigned");
+                        userRepository.save(u);
+                    }
+                });
             } else {
                 dto.setIsCurrentlyWorking(false);
                 dto.setCurrentProjectId(null);
@@ -631,7 +652,7 @@ public class FreelancerService {
                 dto.setCurrentAssignmentStatus("None");
                 dto.setAssignmentStatus("None");
                 dto.setCurrentProjectStatus("None");
-                if (dto.getAvailabilityStatus() == null || dto.getAvailabilityStatus().isBlank()) {
+                if (dto.getAvailabilityStatus() == null || dto.getAvailabilityStatus().isBlank() || "Currently Assigned".equalsIgnoreCase(dto.getAvailabilityStatus())) {
                     dto.setAvailabilityStatus("Available");
                 }
             }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -33,9 +33,18 @@ import {
   XCircle,
   PlayCircle,
   X,
+  CreditCard,
+  Receipt,
+  IndianRupee,
+  RefreshCw,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import { useData } from "../../context/DataContext";
 import { toast } from "react-toastify";
+import { payments } from "../../services/api";
+import PayNowModal from "../../components/payment/PayNowModal";
+import PaymentReceiptModal from "../../components/payment/PaymentReceiptModal";
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -54,6 +63,15 @@ export default function ClientDashboard() {
     requiredSkills: "React.js, Node.js, Cloud",
     description: "",
   });
+
+  // Razorpay Client Payment States (Phase 1)
+  const [projectSummaries, setProjectSummaries] = useState({});
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [selectedProjectForPay, setSelectedProjectForPay] = useState(null);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [selectedReceiptPaymentId, setSelectedReceiptPaymentId] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   // Filter projects belonging to current client
   const clientProjects = useMemo(() => {
@@ -124,6 +142,55 @@ export default function ClientDashboard() {
     return `${Math.round(totalProg / clientProjects.length)}%`;
   }, [clientProjects]);
 
+  // Load verified financial summaries and payment history from trusted backend
+  const loadFinancialData = useCallback(async () => {
+    try {
+      setLoadingPayments(true);
+      const historyRes = await payments.getHistory().catch(() => ({ data: [] }));
+      setPaymentHistory(historyRes?.data || []);
+
+      const summaries = {};
+      for (const prj of clientProjects) {
+        if (prj?.id) {
+          try {
+            const res = await payments.getSummary(prj.id);
+            if (res?.data) {
+              summaries[prj.id] = res.data;
+            }
+          } catch (e) {
+            // Summary fetch catch
+          }
+        }
+      }
+      setProjectSummaries(summaries);
+    } catch (err) {
+      console.error("Error loading client financial data:", err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, [clientProjects]);
+
+  useEffect(() => {
+    if (clientProjects.length > 0) {
+      loadFinancialData();
+    }
+  }, [clientProjects, loadFinancialData]);
+
+  // Aggregate financial metrics across client projects
+  const financialTotals = useMemo(() => {
+    let totalCost = 0;
+    let totalPaid = 0;
+    let totalRemaining = 0;
+
+    Object.values(projectSummaries).forEach((s) => {
+      totalCost += Number(s.totalAgreedCost || 0);
+      totalPaid += Number(s.totalPaid || 0);
+      totalRemaining += Number(s.remainingBalance || 0);
+    });
+
+    return { totalCost, totalPaid, totalRemaining };
+  }, [projectSummaries]);
+
   const STATS = [
     {
       title: "Active Contractors",
@@ -153,6 +220,14 @@ export default function ClientDashboard() {
       icon: UserCheck,
       color: "from-purple-600 to-violet-600",
       badgeColor: "bg-purple-50 text-purple-700 border-purple-200",
+    },
+    {
+      title: "SOW Outstanding Due",
+      value: `₹${financialTotals.totalRemaining.toLocaleString('en-IN')}`,
+      icon: CreditCard,
+      color: "from-rose-500 to-amber-600",
+      badgeColor: "bg-rose-50 text-rose-700 border-rose-200",
+      subtext: `Agreed: ₹${financialTotals.totalCost.toLocaleString('en-IN')} • Paid: ₹${financialTotals.totalPaid.toLocaleString('en-IN')}`,
     },
   ];
 
@@ -265,7 +340,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {STATS.map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -340,6 +415,254 @@ export default function ClientDashboard() {
               {tab.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* PROJECT PAYMENT SUMMARY & RAZORPAY BILLING (PHASE 1) */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 md:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-blue-100 text-blue-600">
+                <CreditCard size={18} />
+              </span>
+              <h2 className="text-base font-bold text-slate-900">
+                Project Payment Summary & Razorpay Billing
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-extrabold uppercase">
+                Phase 1 Live
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Agreed deliverables cost, verified transactions, outstanding balance, and Razorpay checkout
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadFinancialData}
+              disabled={loadingPayments}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+              title="Sync latest payment records"
+            >
+              <RefreshCw size={13} className={loadingPayments ? "animate-spin" : ""} />
+              <span>Sync Status</span>
+            </button>
+            <Link
+              to="/client/payments"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs"
+            >
+              <span>Full Billing Portal</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Project Billing Breakdown Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clientProjects.length === 0 ? (
+            <div className="col-span-full py-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <CreditCard className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-600">No active client projects</p>
+              <p className="text-[11px] text-slate-400">Payment summaries appear when projects are approved.</p>
+            </div>
+          ) : (
+            clientProjects.map((prj) => {
+              const summary = projectSummaries[prj.id] || {
+                projectId: prj.id,
+                projectName: prj.title || prj.name,
+                totalAgreedCost: prj.budget || 0,
+                totalPaid: 0,
+                remainingBalance: prj.budget || 0,
+                paymentStatus: "UNPAID",
+                isEligibleForPayment: Boolean(prj.budget && Number(prj.budget) > 0),
+              };
+
+              const agreedCost = Number(summary.totalAgreedCost || 0);
+              const paid = Number(summary.totalPaid || 0);
+              const balance = Number(summary.remainingBalance || 0);
+              const isDue = balance > 0 && summary.isEligibleForPayment;
+
+              return (
+                <div
+                  key={prj.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between hover:border-blue-300 transition-all space-y-4"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                          #{prj.id ? `PRJ-${String(prj.id).padStart(3, '0')}` : 'PRJ-REQ'}
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-900 mt-1 line-clamp-1">
+                          {prj.title || prj.name}
+                        </h3>
+                      </div>
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                          summary.paymentStatus === "PAID"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : summary.paymentStatus === "PARTIALLY_PAID"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-rose-50 text-rose-700 border-rose-200"
+                        }`}
+                      >
+                        {summary.paymentStatus || "UNPAID"}
+                      </span>
+                    </div>
+
+                    {/* Financial Numbers */}
+                    <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-xl border border-slate-200 text-center">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block">Agreed Cost</span>
+                        <span className="text-xs font-extrabold text-slate-800">
+                          ₹{agreedCost.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-emerald-600 block">Paid</span>
+                        <span className="text-xs font-extrabold text-emerald-700">
+                          ₹{paid.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-rose-600 block">Balance</span>
+                        <span className="text-xs font-extrabold text-rose-700">
+                          ₹{balance.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pay Now Button / Settled Badge */}
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/client/projects/${prj.id}`)}
+                      className="text-[11px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                    >
+                      <span>Details</span>
+                      <ExternalLink size={12} />
+                    </button>
+
+                    {isDue ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProjectForPay(prj);
+                          setIsPayModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-sm active:scale-95 transition"
+                      >
+                        <CreditCard size={13} />
+                        <span>Pay Now (₹{balance.toLocaleString('en-IN')})</span>
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                        <CheckCircle2 size={12} />
+                        <span>Settled</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Client Recent Payment History Widget */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Receipt size={14} className="text-blue-600" />
+              <span>Recent Payment Transactions</span>
+            </h3>
+            {paymentHistory.length > 0 && (
+              <Link to="/client/payments" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+                View All Transactions ({paymentHistory.length}) →
+              </Link>
+            )}
+          </div>
+
+          {paymentHistory.length === 0 ? (
+            <div className="py-4 px-3 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              No payment transactions recorded yet. Use "Pay Now" above to initiate test payment.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3">Date & Time</th>
+                    <th className="py-2.5 px-3">Project</th>
+                    <th className="py-2.5 px-3">Amount</th>
+                    <th className="py-2.5 px-3">Method</th>
+                    <th className="py-2.5 px-3">Reference ID</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {paymentHistory.slice(0, 3).map((pmt) => (
+                    <tr key={pmt.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-2 px-3 text-slate-600 font-medium">
+                        {pmt.paymentDate
+                          ? new Date(pmt.paymentDate).toLocaleString('en-IN', {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                            })
+                          : 'Recent'}
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-slate-900">
+                        {pmt.projectName || `Project #${pmt.projectId}`}
+                      </td>
+                      <td className="py-2 px-3 font-extrabold text-slate-900">
+                        ₹{Number(pmt.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-2 px-3 text-slate-500 capitalize">
+                        {pmt.paymentMethod || 'Razorpay Gateway'}
+                      </td>
+                      <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                        {pmt.razorpayPaymentId || pmt.razorpayOrderId || '-'}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            pmt.status === 'SUCCESS'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : pmt.status === 'FAILED'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {pmt.status === 'SUCCESS' && <CheckCircle2 size={10} />}
+                          {pmt.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        {pmt.status === 'SUCCESS' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReceiptPaymentId(pmt.id);
+                              setIsReceiptModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] transition"
+                          >
+                            <Receipt size={12} />
+                            <span>Receipt</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -564,6 +887,34 @@ export default function ClientDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Pay Now Modal */}
+      {isPayModalOpen && selectedProjectForPay && (
+        <PayNowModal
+          project={selectedProjectForPay}
+          isOpen={isPayModalOpen}
+          onClose={() => {
+            setIsPayModalOpen(false);
+            setSelectedProjectForPay(null);
+          }}
+          onSuccess={() => {
+            loadFinancialData();
+            toast.success("Payment verified! Project balance updated.");
+          }}
+        />
+      )}
+
+      {/* Payment Receipt Modal */}
+      {isReceiptModalOpen && selectedReceiptPaymentId && (
+        <PaymentReceiptModal
+          paymentId={selectedReceiptPaymentId}
+          isOpen={isReceiptModalOpen}
+          onClose={() => {
+            setIsReceiptModalOpen(false);
+            setSelectedReceiptPaymentId(null);
+          }}
+        />
       )}
     </div>
   );

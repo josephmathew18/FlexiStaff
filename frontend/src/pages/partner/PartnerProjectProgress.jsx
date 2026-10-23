@@ -31,15 +31,60 @@ import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 
 export const PartnerProjectProgress = () => {
-  const { partnerProjects = [], partnerActivities = [] } = useData() || {};
+  const { partnerProjects = [], partnerActivities = [], projects = [], projectMilestones = {} } = useData() || {};
   const navigate = useNavigate();
 
-  const [selectedProjectId, setSelectedProjectId] = useState(partnerProjects[0]?.id || '');
+  const allPartnerProjects = React.useMemo(() => {
+    const list = [...(partnerProjects || [])];
+    (projects || []).forEach((p) => {
+      if (!p) return;
+      const idMatch = list.some((item) => String(item.id) === String(p.id) || String(item.id).toLowerCase().replace(/[\s_]/g, '-') === String(p.id).toLowerCase().replace(/[\s_]/g, '-'));
+      const nameMatch = list.some((item) => String(item.name || '').toLowerCase() === String(p.title || p.name || '').toLowerCase());
+      if (!idMatch && !nameMatch) {
+        list.push({
+          id: p.id,
+          name: p.title || p.name,
+          category: p.category || 'Enterprise',
+          startDate: p.startDate || '2026-10-15',
+          expectedEndDate: p.endDate || p.targetEndDate || '2027-02-28',
+          progress: p.progress || 0,
+          status: p.status || p.stage || 'In Progress',
+          milestones: p.milestones || [],
+          workforceAssigned: p.assignedResources?.length || 1,
+          workforceRequired: p.workforceRequired || 1,
+          assignedWorkforce: p.assignedResources || [],
+        });
+      }
+    });
+    return list;
+  }, [partnerProjects, projects]);
 
-  const selectedProject =
-    partnerProjects.find((p) => p && p.id === selectedProjectId) || partnerProjects[0];
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
-  if (!partnerProjects || partnerProjects.length === 0 || !selectedProject) {
+  const selectedProject = React.useMemo(() => {
+    if (!allPartnerProjects || allPartnerProjects.length === 0) return null;
+    return allPartnerProjects.find((p) => p && String(p.id) === String(selectedProjectId)) || allPartnerProjects[0];
+  }, [allPartnerProjects, selectedProjectId]);
+
+  const selectedMilestones = React.useMemo(() => {
+    if (!selectedProject) return [];
+    const pId = selectedProject.id;
+    const normId = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+    const pMsFromStore = (projectMilestones && (projectMilestones[pId] || projectMilestones[normId]));
+    return (pMsFromStore && pMsFromStore.length > 0)
+      ? pMsFromStore
+      : (selectedProject.milestones && selectedProject.milestones.length > 0)
+      ? selectedProject.milestones
+      : [
+          { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: selectedProject.startDate || '2026-10-15', commits: [] },
+          { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: selectedProject.startDate || '2026-11-01', commits: [] },
+          { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: selectedProject.expectedEndDate || '2026-12-15', commits: [] },
+          { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: selectedProject.expectedEndDate || '2027-01-20', commits: [] },
+          { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: selectedProject.expectedEndDate || '2027-02-28', commits: [] },
+        ];
+  }, [selectedProject, projectMilestones]);
+
+  if (!allPartnerProjects || allPartnerProjects.length === 0 || !selectedProject) {
     return (
       <div className="space-y-6">
         <div>
@@ -62,11 +107,11 @@ export const PartnerProjectProgress = () => {
   }
 
   // Velocity data for charts based on actual project milestones
-  const sprintVelocityData = (selectedProject.milestones && selectedProject.milestones.length > 0)
-    ? selectedProject.milestones.map((m, idx) => ({
-        sprint: `M${idx + 1}: ${(m.title || `Milestone ${idx + 1}`).substring(0, 16)}`,
+  const sprintVelocityData = selectedMilestones.length > 0
+    ? selectedMilestones.map((m, idx) => ({
+        sprint: `M${idx + 1}: ${(m.title || m.name || `Milestone ${idx + 1}`).substring(0, 16)}`,
         planned: m.weightage || m.weight || 20,
-        completed: m.completed || m.status === 'Completed' ? (m.weightage || m.weight || 20) : (m.progressPercentage || 0),
+        completed: (m.completed || m.status === 'Completed' || m.status === 'COMPLETED') ? (m.weightage || m.weight || 20) : (m.progressPercentage || 0),
       }))
     : [
         { sprint: 'Progress', planned: 100, completed: selectedProject.progress || 0 },
@@ -89,10 +134,10 @@ export const PartnerProjectProgress = () => {
         <select
           value={selectedProject.id || ''}
           onChange={(e) => setSelectedProjectId(e.target.value)}
-          className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 outline-none shadow-xs"
+          className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 outline-none shadow-xs cursor-pointer"
         >
-          {(partnerProjects || []).map((p) => (
-            <option key={p.id} value={p.id}>{p.name} ({p.progress || 0}%)</option>
+          {(allPartnerProjects || []).map((p) => (
+            <option key={p.id} value={p.id}>{p.title || p.name} ({p.progress || 0}%)</option>
           ))}
         </select>
       </div>
@@ -235,32 +280,52 @@ export const PartnerProjectProgress = () => {
         </div>
 
         <div className="relative pl-6 space-y-6 border-l-2 border-slate-200 ml-3">
-          {selectedProject.milestones?.map((milestone, idx) => (
-            <div key={milestone.id} className="relative group">
-              {/* Dot */}
-              <div
-                className={`absolute -left-[31px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-white ${
-                  milestone.completed ? 'bg-emerald-500' : 'bg-slate-300'
-                }`}
-              >
-                {milestone.completed ? <Check size={12} /> : <Clock size={12} />}
-              </div>
+          {selectedMilestones?.map((milestone, idx) => {
+            const isCompleted = Boolean(milestone.completed || milestone.status === 'Completed' || milestone.status === 'COMPLETED');
+            const isInProgress = !isCompleted && (milestone.status === 'In Progress' || milestone.status === 'IN_PROGRESS' || (milestone.commits && milestone.commits.length > 0));
+            const statusLabel = isCompleted ? 'Completed' : isInProgress ? 'In Progress' : 'Pending';
 
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
-                <div>
-                  <h4 className={`font-bold ${milestone.completed ? 'text-slate-900' : 'text-slate-600'}`}>
-                    {milestone.name}
-                  </h4>
-                  <span className="text-[10px] text-slate-400">{milestone.date}</span>
+            return (
+              <div key={milestone.id || idx} className="relative group">
+                {/* Dot */}
+                <div
+                  className={`absolute -left-[31px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-white ${
+                    isCompleted ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300'
+                  }`}
+                >
+                  {isCompleted ? <Check size={12} /> : <Clock size={12} />}
                 </div>
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                  milestone.completed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {milestone.completed ? 'Completed' : 'In Progress'}
-                </span>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className={`font-bold ${isCompleted ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>
+                        {milestone.title || milestone.name}
+                      </h4>
+                      <span className="text-[10px] text-slate-400">Target Due: {milestone.dueDate || milestone.date || 'Sprint Target'}</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${
+                      isCompleted ? 'bg-emerald-100 text-emerald-800' : isInProgress ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {statusLabel}
+                    </span>
+                  </div>
+
+                  {milestone.commits && milestone.commits.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/60 pl-2 border-l-2 border-purple-300 space-y-1">
+                      <span className="text-[9px] font-bold text-purple-700 uppercase">Commits ({milestone.commits.length})</span>
+                      {milestone.commits.slice(0, 3).map((c) => (
+                        <div key={c.id} className="text-[10px] text-slate-600 flex items-center justify-between">
+                          <span className="font-mono text-purple-600">#{c.commitHash || 'cmt'} {c.commitMessage}</span>
+                          <span className="text-slate-400">{c.authorName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

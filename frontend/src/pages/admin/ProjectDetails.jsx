@@ -99,6 +99,7 @@ export const ProjectDetails = () => {
     managers = [],
     managerAssignments = [],
     projectMilestones = {},
+    addMilestone,
     updateProjectStage,
     toggleMilestone,
     refreshProjects,
@@ -117,6 +118,16 @@ export const ProjectDetails = () => {
 
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedManagerName, setSelectedManagerName] = useState(managers[0]?.name || '');
+
+  // Add Milestone Modal State
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
+  const [newMilestoneData, setNewMilestoneData] = useState({
+    title: '',
+    dueDate: '',
+    weightage: 20,
+    description: '',
+  });
+  const [isSubmittingMilestone, setIsSubmittingMilestone] = useState(false);
 
   React.useEffect(() => {
     if (!selectedManagerName && managers.length > 0) {
@@ -332,22 +343,23 @@ export const ProjectDetails = () => {
       return !t.includes('kickoff') && !t.includes('feature engineering') && !t.includes('handover') && !t.includes('blueprint') && !t.includes('uat');
     });
 
-    return default5.map((def, idx) => {
-      const match = cleanMsList.find((m) => m.title && m.title.toLowerCase().trim() === def.title.toLowerCase().trim()) || cleanMsList[idx];
-      if (match) {
-        const isCompleted = Boolean(match.completed || match.status === 'Completed' || match.status === 'COMPLETED' || match.progressPercentage === 100);
-        const isStarted = !isCompleted && Boolean(match.status === 'In Progress' || match.status === 'IN_PROGRESS' || (match.progressPercentage > 0 && match.progressPercentage < 100));
-        const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
-        return {
-          ...def,
-          ...match,
-          id: match.id || def.id,
-          title: def.title,
-          completed: isCompleted,
-          status: statusText,
-        };
-      }
-      return def;
+    if (cleanMsList.length === 0) return default5;
+
+    return cleanMsList.map((m, idx) => {
+      const isCompleted = Boolean(m.completed || m.status === 'Completed' || m.status === 'COMPLETED' || m.progressPercentage === 100);
+      const isStarted = !isCompleted && Boolean(m.status === 'In Progress' || m.status === 'IN_PROGRESS' || (m.progressPercentage > 0 && m.progressPercentage < 100));
+      const statusText = isCompleted ? 'Completed' : isStarted ? 'In Progress' : 'Pending';
+      return {
+        id: m.id || `ms-0${idx + 1}`,
+        dbId: typeof m.id === 'number' ? m.id : (m.dbId || null),
+        title: m.title,
+        dueDate: m.dueDate || project.endDate || 'Sprint Target',
+        completed: isCompleted,
+        status: statusText,
+        commits: m.commits || [],
+        weight: m.weightage || m.weight || 20,
+        weightage: m.weightage || m.weight || 20,
+      };
     });
   }, [project]);
 
@@ -356,13 +368,44 @@ export const ProjectDetails = () => {
   }, [displayMilestones]);
 
   const overallCompletionPercentage = useMemo(() => {
-    if (completedMilestonesCount === 1) return 10;
-    if (completedMilestonesCount === 2) return 30;
-    if (completedMilestonesCount === 3) return 55;
-    if (completedMilestonesCount === 4) return 80;
-    if (completedMilestonesCount >= 5) return 100;
-    return 0;
-  }, [completedMilestonesCount]);
+    const total = displayMilestones.length || 5;
+    if (total === 5) {
+      if (completedMilestonesCount === 1) return 10;
+      if (completedMilestonesCount === 2) return 30;
+      if (completedMilestonesCount === 3) return 55;
+      if (completedMilestonesCount === 4) return 80;
+      if (completedMilestonesCount >= 5) return 100;
+      return 0;
+    }
+    return Math.min(100, Math.round((completedMilestonesCount / total) * 100));
+  }, [completedMilestonesCount, displayMilestones.length]);
+
+  const handleAddMilestoneSubmit = async (e) => {
+    e.preventDefault();
+    if (!newMilestoneData.title.trim()) {
+      toast.error('Please enter a milestone title');
+      return;
+    }
+    try {
+      setIsSubmittingMilestone(true);
+      await addMilestone(project.id, {
+        title: newMilestoneData.title.trim(),
+        dueDate: newMilestoneData.dueDate || project.endDate || new Date().toISOString().split('T')[0],
+        weightage: Number(newMilestoneData.weightage) || 20,
+        description: newMilestoneData.description || '',
+        status: 'PENDING',
+      });
+      toast.success(`Milestone "${newMilestoneData.title}" added successfully!`);
+      setNewMilestoneData({ title: '', dueDate: '', weightage: 20, description: '' });
+      setIsAddMilestoneModalOpen(false);
+      fetchProjectDetails();
+    } catch (err) {
+      console.error('Failed to add milestone:', err);
+      toast.error('Failed to add milestone: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsSubmittingMilestone(false);
+    }
+  };
 
   if (!project) {
     return (
@@ -693,12 +736,22 @@ export const ProjectDetails = () => {
                 </p>
               </div>
 
-              {!isProjectApproved && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
-                  <AlertCircle size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
-                  <span>Approve project above to enable task completion</span>
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {!isProjectApproved && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                    <AlertCircle size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>Approve project above to enable task completion</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsAddMilestoneModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Add Milestone</span>
+                </button>
+              </div>
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-white/10 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-[#1c1a36]/50">
@@ -1138,6 +1191,89 @@ export const ProjectDetails = () => {
               className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 active:scale-95 transition-all"
             >
               Confirm Rejection
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add Project Milestone Modal */}
+      <Modal
+        isOpen={isAddMilestoneModalOpen}
+        onClose={() => setIsAddMilestoneModalOpen(false)}
+        title="Add Project Milestone"
+        subtitle={`Add a tracked milestone deliverable to "${project.title || project.name}"`}
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleAddMilestoneSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Milestone Title *
+            </label>
+            <input
+              type="text"
+              value={newMilestoneData.title}
+              onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, title: e.target.value }))}
+              placeholder="e.g. Security Audit & Compliance"
+              required
+              className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Target Due Date
+              </label>
+              <input
+                type="date"
+                value={newMilestoneData.dueDate}
+                onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, dueDate: e.target.value }))}
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Weightage (%)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={newMilestoneData.weightage}
+                onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, weightage: e.target.value }))}
+                className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Description / Checklist Deliverables
+            </label>
+            <textarea
+              rows={3}
+              value={newMilestoneData.description}
+              onChange={(e) => setNewMilestoneData((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Outline deliverables, QA checklist, or verification criteria for this milestone..."
+              className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-[#1c1a36] p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsAddMilestoneModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingMilestone}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>{isSubmittingMilestone ? 'Adding...' : 'Add Milestone'}</span>
             </button>
           </div>
         </form>

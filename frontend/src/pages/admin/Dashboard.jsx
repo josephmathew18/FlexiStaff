@@ -525,6 +525,33 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {/* Payment Operations & Payouts Management Strip */}
+      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-5 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+              Financial Suite • Phase 1
+            </span>
+          </div>
+          <h3 className="text-base sm:text-lg font-black tracking-tight">
+            Admin Payment Management & Talent Payouts
+          </h3>
+          <p className="text-xs text-slate-300 max-w-xl">
+            Monitor client payments, calculate milestone eligibility, release payouts to partner professionals and freelancers, and audit ledger transactions.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/admin/payments"
+            className="px-4 py-2.5 rounded-xl bg-white text-slate-900 hover:bg-blue-50 text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+          >
+            <span>Open Payment Center</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </div>
+
       {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Project Status Bar Chart */}

@@ -34,3 +34,11 @@ app:
     allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     allowed-headers: "*"
     allow-credentials: true
+
+# Razorpay Payment Gateway Configuration
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_TrGBbfauXe7IAK}
+  key-secret: ${RAZORPAY_KEY_SECRET:uMOFKl6fdJONriMfwwkegAqG}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:placeholderWebhookSecret}
+  currency: ${RAZORPAY_CURRENCY:INR}
+  company-name: "FlexiStaff Technologies Pvt Ltd"

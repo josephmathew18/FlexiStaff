@@ -17,6 +17,7 @@ import {
   LifeBuoy,
   ChevronDown,
   HelpCircle,
+  CreditCard,
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -60,6 +61,7 @@ export const ClientLayout = () => {
       badge: unreadNotifCount > 0 ? `${unreadNotifCount}` : null,
       badgeColor: 'bg-rose-100 text-rose-800',
     },
+    { label: 'Payments & Billing', path: '/client/payments', icon: CreditCard },
     { label: 'Profile', path: '/client/profile', icon: Building2 },
     { label: 'Support & Feedback', path: '/client/support', icon: LifeBuoy },
   ];

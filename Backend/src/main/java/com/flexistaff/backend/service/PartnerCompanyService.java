@@ -181,7 +181,7 @@ public class PartnerCompanyService {
 
         List<Freelancer> workforce = freelancerRepository.findByPartnerCompanyId(partner.getId());
         int workforceCount = workforce != null ? workforce.size() : 0;
-        int activePlacements = (int) (workforce != null ? workforce.stream().filter(w -> "Working".equalsIgnoreCase(w.getAvailabilityStatus()) || "Active".equalsIgnoreCase(w.getStatus())).count() : 0);
+        int activePlacements = (int) (workforce != null ? workforce.stream().filter(w -> "Working".equalsIgnoreCase(w.getAvailabilityStatus()) || "Currently Assigned".equalsIgnoreCase(w.getAvailabilityStatus()) || "Assigned".equalsIgnoreCase(w.getAvailabilityStatus()) || "Active".equalsIgnoreCase(w.getStatus())).count() : 0);
 
         int supplied = partner.getSuppliedProfessionals() != null && partner.getSuppliedProfessionals() > workforceCount
                 ? partner.getSuppliedProfessionals()

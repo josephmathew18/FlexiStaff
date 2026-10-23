@@ -139,6 +139,15 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    update: (milestoneId, data) =>
+      request(`/milestones/${milestoneId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (milestoneId) =>
+      request(`/milestones/${milestoneId}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Partners API endpoints
@@ -265,9 +274,29 @@ export const api = {
       }),
   },
   
+  // Razorpay Payments API endpoints (Client Management Phase 1)
+  payments: {
+    getSummary: (projectId) => request(`/payments/project/${projectId}/summary`),
+    createOrder: (orderData) =>
+      request('/payments/orders', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+      }),
+    verifyPayment: (verifyData) =>
+      request('/payments/verify', {
+        method: 'POST',
+        body: JSON.stringify(verifyData),
+      }),
+    getHistory: (clientId) =>
+      request(clientId ? `/payments/history?clientId=${clientId}` : '/payments/history'),
+    getReceipt: (paymentId) => request(`/payments/${paymentId}/receipt`),
+    getKeyId: () => request('/payments/config/key-id'),
+  },
+
   // Rating & Feedback API endpoints (Axios Client)
   feedback: feedbackApi,
 };
 
+export const payments = api.payments;
 export { feedbackApi };
 export default api;

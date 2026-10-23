@@ -339,19 +339,6 @@ export const ClientProjects = () => {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {String(prj.status || prj.stage || '').toLowerCase() === 'completed' && Number(progressVal) === 100 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFeedbackProject(prj);
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                            >
-                              <Star size={12} className="fill-amber-500 text-amber-500" />
-                              <span>Rate & Review</span>
-                            </button>
-                          )}
                           <span className="text-xs font-bold text-[#059669] hover:text-emerald-700 inline-flex items-center gap-0.5">
                             <span>View Details</span>
                             <ArrowRight size={13} />

@@ -80,7 +80,7 @@ export const ManagerApprovedProjects = () => {
       if (priorityFilter !== 'all' && p.priority?.toLowerCase() !== priorityFilter.toLowerCase()) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = (p.name || p.projectName || '').toLowerCase().includes(q);
+        const matchesName = (p.title || p.name || p.projectName || '').toLowerCase().includes(q);
         const matchesPartner = (p.client || p.partner || p.clientCompany || '').toLowerCase().includes(q);
         const matchesTech = (Array.isArray(p.skills) ? p.skills.join(' ') : (p.techStack || '')).toLowerCase().includes(q);
         if (!matchesName && !matchesPartner && !matchesTech) return false;
@@ -172,7 +172,7 @@ export const ManagerApprovedProjects = () => {
                       onClick={() => navigate(`/manager/projects/${prj.id}`)}
                       className="font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors"
                     >
-                      {prj.name}
+                      {prj.title || prj.name}
                     </p>
                     <p className="text-[11px] text-slate-400">{prj.category}</p>
                   </td>

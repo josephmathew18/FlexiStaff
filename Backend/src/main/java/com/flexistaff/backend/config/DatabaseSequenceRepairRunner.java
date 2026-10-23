@@ -37,7 +37,8 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
                 "milestones",
                 "workforce_allocations",
                 "hr_managers",
-                "feedback"
+                "feedback",
+                "payments"
         );
 
         for (String table : tables) {
@@ -95,9 +96,19 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
                 "VALUES (4, 'System Administrator', 'admin@flexistaff.com', '" + adminPasswordHash + "', 'ROLE_ADMIN', true, NOW(), NOW()) " +
                 "ON CONFLICT (id) DO UPDATE SET email = 'admin@flexistaff.com', password = '" + adminPasswordHash + "', active = true, role = 'ROLE_ADMIN'"
             ).executeUpdate();
-            log.info("Successfully ensured system administrator account (admin@flexistaff.com)");
+            // Ensure Project 1 has approved budget/cost if currently null
+            entityManager.createNativeQuery(
+                "UPDATE projects SET budget = 50000.00 WHERE id = 1 AND budget IS NULL"
+            ).executeUpdate();
+
+            // Ensure Client Mathew (tedz@gmail.com) has valid password hash for Password@123
+            String clientPasswordHash = "$2a$10$EeeObKb2iTHwLcjaedXZfeCNGaeoA3V/kskUifpvikKeJidrtOV22"; // Password@123
+            entityManager.createNativeQuery(
+                "UPDATE users SET password = '" + clientPasswordHash + "' WHERE email = 'tedz@gmail.com'"
+            ).executeUpdate();
+            log.info("Successfully verified approved budget for default project 1 and client credentials");
         } catch (Exception ex) {
-            log.debug("Role check constraint sync notice: {}", ex.getMessage());
+            log.debug("Database repair notice: {}", ex.getMessage());
         }
     }
 }

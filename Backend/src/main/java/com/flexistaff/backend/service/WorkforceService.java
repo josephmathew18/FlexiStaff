@@ -95,6 +95,17 @@ public class WorkforceService {
                 userRepository.findById(request.getManagerId()).ifPresent(existing::setManager);
             }
 
+            if (existing.getStatus() == AllocationStatus.ASSIGNED || existing.getStatus() == AllocationStatus.ACTIVE || existing.getStatus() == AllocationStatus.ACCEPTED) {
+                if (fl != null && !"Temporarily Unavailable".equalsIgnoreCase(fl.getAvailabilityStatus())) {
+                    fl.setAvailabilityStatus("Currently Assigned");
+                    freelancerRepository.save(fl);
+                }
+                if (professional.getProfessionalProfile() != null && !"Temporarily Unavailable".equalsIgnoreCase(professional.getProfessionalProfile().getAvailabilityStatus())) {
+                    professional.getProfessionalProfile().setAvailabilityStatus("Currently Assigned");
+                    userRepository.save(professional);
+                }
+            }
+
             WorkforceAllocation updated = allocationRepository.save(existing);
             return mapToAllocationDto(updated);
         }
@@ -142,7 +153,19 @@ public class WorkforceService {
 
         WorkforceAllocation saved = allocationRepository.save(allocation);
 
-        // 4. Synchronize project status: if approved and workforce assigned/accepted, advance to IN_PROGRESS
+        // 4. Update professional availability to 'Currently Assigned'
+        if (initialStatus == AllocationStatus.ASSIGNED || initialStatus == AllocationStatus.ACTIVE || initialStatus == AllocationStatus.ACCEPTED) {
+            if (fl != null && !"Temporarily Unavailable".equalsIgnoreCase(fl.getAvailabilityStatus())) {
+                fl.setAvailabilityStatus("Currently Assigned");
+                freelancerRepository.save(fl);
+            }
+            if (professional.getProfessionalProfile() != null && !"Temporarily Unavailable".equalsIgnoreCase(professional.getProfessionalProfile().getAvailabilityStatus())) {
+                professional.getProfessionalProfile().setAvailabilityStatus("Currently Assigned");
+                userRepository.save(professional);
+            }
+        }
+
+        // 5. Synchronize project status: if approved and workforce assigned/accepted, advance to IN_PROGRESS
         if (project.getStatus() == ProjectStatus.APPROVED &&
             (initialStatus == AllocationStatus.ASSIGNED || initialStatus == AllocationStatus.ACTIVE || initialStatus == AllocationStatus.ACCEPTED)) {
             project.setStatus(ProjectStatus.IN_PROGRESS);
@@ -198,6 +221,41 @@ public class WorkforceService {
             (status == AllocationStatus.ACCEPTED || status == AllocationStatus.ACTIVE || status == AllocationStatus.ASSIGNED)) {
             project.setStatus(ProjectStatus.IN_PROGRESS);
             projectRepository.save(project);
+        }
+
+        // Synchronize professional's live availability status
+        User profUser = updated.getProfessional();
+        if (profUser != null) {
+            com.flexistaff.backend.entity.Freelancer profFl = freelancerRepository.findByUserId(profUser.getId()).orElse(null);
+            if (status == AllocationStatus.ACCEPTED || status == AllocationStatus.ACTIVE || status == AllocationStatus.ASSIGNED) {
+                if (profFl != null && !"Temporarily Unavailable".equalsIgnoreCase(profFl.getAvailabilityStatus())) {
+                    profFl.setAvailabilityStatus("Currently Assigned");
+                    freelancerRepository.save(profFl);
+                }
+                if (profUser.getProfessionalProfile() != null && !"Temporarily Unavailable".equalsIgnoreCase(profUser.getProfessionalProfile().getAvailabilityStatus())) {
+                    profUser.getProfessionalProfile().setAvailabilityStatus("Currently Assigned");
+                    userRepository.save(profUser);
+                }
+            } else if (status == AllocationStatus.CANCELLED || status == AllocationStatus.REJECTED || status == AllocationStatus.DECLINED || status == AllocationStatus.DECLINED_BY_CANDIDATE || status == AllocationStatus.RELEASED) {
+                Long profUserId = profUser.getId();
+                List<WorkforceAllocation> otherAllocs = allocationRepository.findByProfessionalId(profUserId);
+                boolean hasOtherActive = otherAllocs != null && otherAllocs.stream().anyMatch(a ->
+                        !a.getId().equals(updated.getId()) &&
+                        (a.getStatus() == AllocationStatus.ACTIVE || a.getStatus() == AllocationStatus.ACCEPTED || a.getStatus() == AllocationStatus.ASSIGNED) &&
+                        a.getProject() != null &&
+                        (a.getProject().getStatus() == ProjectStatus.IN_PROGRESS || a.getProject().getStatus() == ProjectStatus.APPROVED || a.getProject().getStatus() == ProjectStatus.ON_HOLD)
+                );
+                if (!hasOtherActive) {
+                    if (profFl != null && "Currently Assigned".equalsIgnoreCase(profFl.getAvailabilityStatus())) {
+                        profFl.setAvailabilityStatus("Available");
+                        freelancerRepository.save(profFl);
+                    }
+                    if (profUser.getProfessionalProfile() != null && "Currently Assigned".equalsIgnoreCase(profUser.getProfessionalProfile().getAvailabilityStatus())) {
+                        profUser.getProfessionalProfile().setAvailabilityStatus("Available");
+                        userRepository.save(profUser);
+                    }
+                }
+            }
         }
 
         return mapToAllocationDto(updated);

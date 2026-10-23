@@ -22,7 +22,6 @@ public class MilestoneController {
     private final MilestoneService milestoneService;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<ApiResponse<MilestoneDto>> createMilestone(
             @Valid @RequestBody CreateMilestoneRequest request) {
         MilestoneDto created = milestoneService.createMilestone(request);
@@ -42,5 +41,19 @@ public class MilestoneController {
             @Valid @RequestBody UpdateMilestoneProgressRequest request) {
         MilestoneDto updated = milestoneService.updateMilestoneProgress(milestoneId, request);
         return ResponseEntity.ok(ApiResponse.success("Milestone progress updated successfully", updated));
+    }
+
+    @PutMapping("/{milestoneId}")
+    public ResponseEntity<ApiResponse<MilestoneDto>> updateMilestone(
+            @PathVariable Long milestoneId,
+            @RequestBody CreateMilestoneRequest request) {
+        MilestoneDto updated = milestoneService.updateMilestone(milestoneId, request);
+        return ResponseEntity.ok(ApiResponse.success("Milestone updated successfully", updated));
+    }
+
+    @DeleteMapping("/{milestoneId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMilestone(@PathVariable Long milestoneId) {
+        milestoneService.deleteMilestone(milestoneId);
+        return ResponseEntity.ok(ApiResponse.success("Milestone deleted successfully", null));
     }
 }
