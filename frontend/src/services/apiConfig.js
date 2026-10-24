@@ -29,5 +29,29 @@ export function getApiBaseUrl() {
   return 'https://flexistaff.onrender.com/api/v1';
 }
 
+export function getWsBaseUrl() {
+  if (typeof window !== 'undefined' && window.location) {
+    const isHttps = window.location.protocol === 'https:';
+    const wsProto = isHttps ? 'wss:' : 'ws:';
+    const host = window.location.hostname.toLowerCase();
+
+    // 1. Hosted on Render (same-origin with Spring Boot)
+    if (host.includes('onrender.com')) {
+      return `${wsProto}//${window.location.host}/ws/chat`;
+    }
+
+    // 2. Localhost development
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+      return 'ws://localhost:8080/ws/chat';
+    }
+
+    // 3. Vercel or custom domain -> Point to Render backend
+    return 'wss://flexistaff.onrender.com/ws/chat';
+  }
+
+  return 'wss://flexistaff.onrender.com/ws/chat';
+}
+
 export const API_BASE_URL = getApiBaseUrl();
+export const WS_BASE_URL = getWsBaseUrl();
 export default API_BASE_URL;

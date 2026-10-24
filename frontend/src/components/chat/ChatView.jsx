@@ -631,7 +631,11 @@ export const ChatView = ({ title = 'Messages' }) => {
                       <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 px-1">
                         <span>{formatMessageTime(m.createdAt)}</span>
                         {isMine && (
-                          m.isRead ? (
+                          m.status === 'SENDING' ? (
+                            <Clock size={11} className="text-slate-400 animate-pulse" title="Sending..." />
+                          ) : m.status === 'FAILED' ? (
+                            <span className="text-rose-500 font-bold" title="Failed to send">Failed</span>
+                          ) : m.isRead ? (
                             <CheckCheck size={13} className="text-blue-500" title="Read" />
                           ) : (
                             <Check size={13} className="text-slate-400" title="Sent" />
