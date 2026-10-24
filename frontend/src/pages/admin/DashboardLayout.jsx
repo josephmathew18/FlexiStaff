@@ -224,6 +224,7 @@ const InlineNotificationMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { notifications, markNotificationRead, markAllNotificationsRead } = useData();
+  const { effectiveTheme } = useTheme();
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -255,8 +256,13 @@ const InlineNotificationMenu = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[#c3c6d7]/70 bg-white text-[#434655] shadow-xs hover:bg-slate-50 hover:text-[#191b23] transition-all"
+        className={`relative flex h-9 w-9 items-center justify-center rounded-xl border text-xs transition-colors shadow-2xs ${
+          effectiveTheme === 'dark'
+            ? 'border-white/10 bg-[#1e1c38] text-slate-300 hover:text-white hover:bg-white/10'
+            : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}
         aria-label="View notifications"
+        title="Notifications"
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -655,6 +661,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
 
       <div className="flex items-center gap-2 sm:gap-3">
         <ThemeDropdown />
+        {/* Messages / Chat Button near Notification Bell */}
         <Link
           to="/admin/messages"
           className={`relative flex h-9 w-9 items-center justify-center rounded-xl border text-xs transition-colors shadow-2xs ${
@@ -663,8 +670,9 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
               : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
           title="Direct Messages"
+          aria-label="Direct Messages"
         >
-          <MessageSquare size={16} />
+          <MessageSquare size={18} />
           {chatUnreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white shadow-xs">
               {chatUnreadCount}

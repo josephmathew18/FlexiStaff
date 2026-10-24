@@ -313,6 +313,15 @@ export const ManagerLayout = () => {
           <div className="flex items-center gap-3">
             <ThemeDropdown />
             <Link
+              to="/manager/matching"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
+            >
+              <Cpu size={14} />
+              <span>Skill-Based Matching</span>
+            </Link>
+
+            {/* Direct Messages Icon near Notification Bell */}
+            <Link
               to="/manager/messages"
               className={`relative rounded-xl border p-2 transition-colors shadow-2xs ${
                 effectiveTheme === 'dark' ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -325,13 +334,6 @@ export const ManagerLayout = () => {
                   {chatUnreadCount}
                 </span>
               )}
-            </Link>
-            <Link
-              to="/manager/matching"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"
-            >
-              <Cpu size={14} />
-              <span>Skill-Based Matching</span>
             </Link>
 
             {/* Notifications Popover */}
