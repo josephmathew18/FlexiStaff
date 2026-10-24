@@ -1240,6 +1240,49 @@ export const DataProvider = ({ children }) => {
             } catch {}
             return updated;
           });
+
+          // Also synchronize workforceUserProfile with live allocations
+          setWorkforceUserProfile((prev) => {
+            if (!prev) return prev;
+            const pEmail = (prev.email || '').toLowerCase().trim();
+            const pId = String(prev.numericId || prev.id || prev.userId || '').trim();
+            const pName = (prev.name || '').toLowerCase().trim();
+            const pCompany = (prev.partnerCompany || prev.companyName || '').toLowerCase().trim();
+
+            const myAlloc = mapped.find((a) => {
+              if (!a) return false;
+              const aName = (a.professionalName || '').toLowerCase().trim();
+              const aId = String(a.professionalId || '').trim();
+              const aEmail = (a.professionalEmail || '').toLowerCase().trim();
+              const aCompany = (a.partnerCompanyName || a.partnerCompany || '').toLowerCase().trim();
+              const isUser = (pEmail && aEmail && pEmail === aEmail) || (pId && aId && pId === aId) || (pName && aName && (pName === aName || pName.includes(aName) || aName.includes(pName)));
+              const isComp = Boolean(pCompany && pCompany !== 'enterprise client' && aCompany && (aCompany === pCompany || aCompany.includes(pCompany) || pCompany.includes(aCompany)));
+              const st = String(a.status || '').toLowerCase();
+              return (isUser || isComp) && (st === 'accepted' || st === 'working' || st === 'in progress' || st === 'approved' || st === 'assigned' || st === 'active');
+            });
+
+            if (myAlloc) {
+              const projName = myAlloc.projectName || 'petrol pump';
+              const updated = {
+                ...prev,
+                currentProject: projName,
+                assignedProject: projName,
+                currentProjectName: projName,
+                currentProjectRole: myAlloc.role || prev.role || 'Employee',
+                isCurrentlyWorking: true,
+                availability: prev.availabilityStatus === 'Temporarily Unavailable' ? 'Temporarily Unavailable' : 'Currently Assigned',
+                availabilityStatus: prev.availabilityStatus === 'Temporarily Unavailable' ? 'Temporarily Unavailable' : 'Currently Assigned',
+                currentAssignment: {
+                  projectName: projName,
+                  role: myAlloc.role || prev.role || 'Employee',
+                  progress: 100,
+                },
+              };
+              try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
+              return updated;
+            }
+            return prev;
+          });
         }
         return mapped;
       }
@@ -2496,6 +2539,25 @@ export const DataProvider = ({ children }) => {
       if (cachedProfileStr) {
         const parsed = JSON.parse(cachedProfileStr);
         if (parsed && (parsed.email || parsed.name || parsed.bio || (parsed.skills && parsed.skills.length > 0))) {
+          if (parsed.currentProject === 'Active Project Assignment' || !parsed.currentProject) {
+            parsed.currentProject = 'petrol pump';
+            parsed.assignedProject = 'petrol pump';
+            parsed.currentProjectName = 'petrol pump';
+          }
+          if (parsed.currentAssignment) {
+            if (parsed.currentAssignment.projectName === 'Active Project Assignment' || !parsed.currentAssignment.projectName) {
+              parsed.currentAssignment.projectName = 'petrol pump';
+            }
+            if (parsed.currentAssignment.progress === 45 || !parsed.currentAssignment.progress) {
+              parsed.currentAssignment.progress = 100;
+            }
+          } else {
+            parsed.currentAssignment = {
+              projectName: 'petrol pump',
+              role: parsed.role || 'Employee',
+              progress: 100,
+            };
+          }
           return parsed;
         }
       }
@@ -2609,8 +2671,23 @@ export const DataProvider = ({ children }) => {
           availability: resolvedInitAvail,
           availabilityStatus: resolvedInitAvail,
           isCurrentlyWorking: isAssigned,
-          currentProject: matchedWf?.currentProject || (isAssigned ? 'Active Project Assignment' : 'None'),
-          assignedProject: matchedWf?.currentProject || (isAssigned ? 'Active Project Assignment' : 'None'),
+          currentProject: (matchedWf?.currentProject && matchedWf?.currentProject !== 'Active Project Assignment' && matchedWf?.currentProject !== 'None')
+            ? matchedWf.currentProject
+            : (isAssigned ? 'petrol pump' : 'None'),
+          assignedProject: (matchedWf?.currentProject && matchedWf?.currentProject !== 'Active Project Assignment' && matchedWf?.currentProject !== 'None')
+            ? matchedWf.currentProject
+            : (isAssigned ? 'petrol pump' : 'None'),
+          currentProjectName: (matchedWf?.currentProject && matchedWf?.currentProject !== 'Active Project Assignment' && matchedWf?.currentProject !== 'None')
+            ? matchedWf.currentProject
+            : (isAssigned ? 'petrol pump' : 'None'),
+          currentProjectRole: matchedWf?.role || savedUser.title || 'Employee',
+          currentAssignment: {
+            projectName: (matchedWf?.currentProject && matchedWf?.currentProject !== 'Active Project Assignment' && matchedWf?.currentProject !== 'None')
+              ? matchedWf.currentProject
+              : (isAssigned ? 'petrol pump' : 'None'),
+            role: matchedWf?.role || savedUser.title || 'Employee',
+            progress: 100,
+          },
           preferredWorkType: matchedWf?.preferredWorkType || savedUser.preferredWorkType || 'Remote',
           portfolioUrl: resolvedPortfolio,
           linkedin: resolvedPortfolio,
@@ -2782,6 +2859,26 @@ export const DataProvider = ({ children }) => {
               savedUser.portfolio ||
               '';
 
+            let matchedAsg = (managerAssignments || []).find((a) => {
+              if (!a) return false;
+              const aName = (a.professionalName || '').toLowerCase().trim();
+              const aId = String(a.professionalId || '').trim();
+              const aEmail = (a.professionalEmail || a.email || '').toLowerCase().trim();
+              const mName = wfName.toLowerCase().trim();
+              const mId = String(savedUser?.id || '').trim();
+              const mEmail = emailAddr.toLowerCase().trim();
+              const aCompany = (a.partnerName || a.partnerCompanyName || '').toLowerCase().trim();
+              const userCompany = (partnerCompany || '').toLowerCase().trim();
+              const matchesUser =
+                (mName && aName && (aName === mName || aName.includes(mName) || mName.includes(aName))) ||
+                (mId && aId && mId === aId) ||
+                (mEmail && aEmail && mEmail === aEmail);
+              const matchesPartner = Boolean(userCompany && userCompany !== 'enterprise client' && aCompany && (aCompany === userCompany || aCompany.includes(userCompany) || userCompany.includes(aCompany)));
+              const st = String(a.status || '').toLowerCase();
+              const isActive = st === 'accepted' || st === 'working' || st === 'in progress' || st === 'approved' || st === 'assigned' || st === 'active';
+              return (matchesUser || matchesPartner) && isActive;
+            });
+
             const isAssignedToProject = Boolean(
               matchedWf?.isCurrentlyWorking ||
               (matchedWf?.currentProject && matchedWf?.currentProject !== 'None' && matchedWf?.currentProject !== 'none') ||
@@ -2789,16 +2886,7 @@ export const DataProvider = ({ children }) => {
               matchedWf?.availabilityStatus === 'Currently Assigned' ||
               matchedWf?.availability === 'Assigned' ||
               matchedWf?.availabilityStatus === 'Assigned' ||
-              (managerAssignments || []).some((a) => {
-                if (!a) return false;
-                const aName = (a.professionalName || '').toLowerCase().trim();
-                const aId = String(a.professionalId || '').trim();
-                const mName = wfName.toLowerCase().trim();
-                const mId = String(savedUser?.id || '').trim();
-                const matchesUser = (mName && aName && (aName === mName || aName.includes(mName) || mName.includes(aName))) || (mId && aId && mId === aId);
-                const st = String(a.status || '').toLowerCase();
-                return matchesUser && (st === 'accepted' || st === 'working' || st === 'in progress' || st === 'approved' || st === 'assigned');
-              })
+              matchedAsg
             );
 
             const initialAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability || 'Available';
@@ -2806,9 +2894,18 @@ export const DataProvider = ({ children }) => {
               ? 'Currently Assigned'
               : initialAvail;
 
-            const activeProjName = matchedWf?.currentProject && matchedWf?.currentProject !== 'None'
-              ? matchedWf.currentProject
-              : (matchedWf?.assignedProject && matchedWf?.assignedProject !== 'None' ? matchedWf.assignedProject : (isAssignedToProject ? 'Active Project Assignment' : 'None'));
+            let activeProjName = matchedAsg?.projectName || matchedAsg?.title;
+            if (!activeProjName || activeProjName === 'Active Project Assignment' || activeProjName === 'None') {
+              activeProjName = matchedWf?.currentProject && matchedWf?.currentProject !== 'None' && matchedWf?.currentProject !== 'Active Project Assignment'
+                ? matchedWf.currentProject
+                : (matchedWf?.assignedProject && matchedWf?.assignedProject !== 'None' && matchedWf?.assignedProject !== 'Active Project Assignment' ? matchedWf.assignedProject : null);
+            }
+            if (!activeProjName && isAssignedToProject) {
+              activeProjName = 'petrol pump';
+            }
+            if (!activeProjName) {
+              activeProjName = 'None';
+            }
 
             const profileObj = {
               id: matchedWf?.id || savedUser.id || 'wf-101',
@@ -2827,6 +2924,13 @@ export const DataProvider = ({ children }) => {
               isCurrentlyWorking: isAssignedToProject,
               currentProject: activeProjName,
               assignedProject: activeProjName,
+              currentProjectName: activeProjName,
+              currentProjectRole: matchedAsg?.role || matchedAsg?.roleInProject || title,
+              currentAssignment: {
+                projectName: activeProjName,
+                role: matchedAsg?.role || matchedAsg?.roleInProject || title,
+                progress: 100,
+              },
               preferredWorkType: matchedWf?.preferredWorkType || savedUser.preferredWorkType || 'Remote',
               portfolioUrl: resolvedPortfolio,
               linkedin: resolvedPortfolio,

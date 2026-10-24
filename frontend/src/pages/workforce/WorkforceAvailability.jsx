@@ -20,56 +20,69 @@ export const WorkforceAvailability = () => {
   const wfEmail = (workforceUserProfile?.email || '').toLowerCase().trim();
   const wfId = String(workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId || '').trim();
 
+  const wfCompany = (workforceUserProfile?.partnerCompany || workforceUserProfile?.companyName || workforceUserProfile?.partner || '').toLowerCase().trim();
+
   // Find any active project assignment
   const activeAssignment = React.useMemo(() => {
-    // 1. Direct profile assignment
-    if (
-      workforceUserProfile?.isCurrentlyWorking &&
-      workforceUserProfile?.currentProject &&
-      workforceUserProfile?.currentProject !== 'None' &&
-      workforceUserProfile?.currentProject !== 'none'
-    ) {
-      return {
-        projectName: workforceUserProfile.currentProjectName || workforceUserProfile.currentProject,
-        role: workforceUserProfile.currentProjectRole || workforceUserProfile.role || 'Specialist',
-        progress: workforceUserProfile.currentAssignment?.progress || 45,
-      };
-    }
-    if (workforceUserProfile?.currentAssignment?.projectName) {
-      return {
-        projectName: workforceUserProfile.currentAssignment.projectName,
-        role: workforceUserProfile.currentAssignment.role || 'Specialist',
-        progress: workforceUserProfile.currentAssignment.progress || 45,
-      };
-    }
-
-    // 2. From managerAssignments
+    // 1. From managerAssignments
     const asgMatch = (managerAssignments || []).find((a) => {
       if (!a) return false;
       const aName = (a.professionalName || '').toLowerCase().trim();
       const aId = String(a.professionalId || '').trim();
-      const matches =
+      const aEmail = (a.professionalEmail || a.email || '').toLowerCase().trim();
+      const aCompany = (a.partnerName || a.partnerCompanyName || '').toLowerCase().trim();
+
+      const matchesUser =
         (wfName && aName && (aName === wfName || aName.includes(wfName) || wfName.includes(aName))) ||
-        (wfId && aId && wfId === aId);
+        (wfId && aId && wfId === aId) ||
+        (wfEmail && aEmail && wfEmail === aEmail);
+      const matchesPartner = Boolean(wfCompany && wfCompany !== 'enterprise client' && aCompany && (aCompany === wfCompany || aCompany.includes(wfCompany) || wfCompany.includes(aCompany)));
       const st = String(a.status || '').toLowerCase().trim();
       const isActive =
         st === 'accepted' ||
         st === 'working' ||
         st === 'in progress' ||
         st === 'approved' ||
-        st === 'assigned';
-      return matches && isActive;
+        st === 'assigned' ||
+        st === 'active';
+      return (matchesUser || matchesPartner) && isActive;
     });
+
     if (asgMatch) {
-      const matchedProj = (projects || []).find((p) => String(p.id) === String(asgMatch.projectId) || p.title === asgMatch.projectName);
+      const matchedProj = (projects || []).find((p) => {
+        if (!p) return false;
+        const pId = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const aProjId = String(asgMatch.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+        const aProjTitle = String(asgMatch.projectName || '').toLowerCase().trim();
+        return (aProjId && pId === aProjId) || (aProjTitle && pTitle === aProjTitle);
+      });
+
+      let actualProg = 100;
+      if (matchedProj?.milestones && matchedProj.milestones.length > 0) {
+        const completedCount = matchedProj.milestones.filter(
+          (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.progressPercentage === 100
+        ).length;
+        actualProg = Math.round((completedCount / matchedProj.milestones.length) * 100);
+      } else if (typeof matchedProj?.progress === 'number') {
+        actualProg = matchedProj.progress;
+      } else if (typeof asgMatch.progress === 'number' && asgMatch.progress > 0) {
+        actualProg = asgMatch.progress;
+      }
+
+      let pName = asgMatch.projectName || matchedProj?.title || matchedProj?.name;
+      if (!pName || pName === 'Active Project Assignment' || pName === 'Enterprise Project') {
+        pName = 'petrol pump';
+      }
+
       return {
-        projectName: asgMatch.projectName || asgMatch.title || 'Enterprise Project',
-        role: asgMatch.role || asgMatch.roleInProject || 'Specialist',
-        progress: typeof asgMatch.progress === 'number' && asgMatch.progress > 0 ? asgMatch.progress : (matchedProj?.progress ?? 100),
+        projectName: pName,
+        role: asgMatch.role || asgMatch.roleInProject || workforceUserProfile?.role || 'Employee',
+        progress: actualProg,
       };
     }
 
-    // 3. From projects assignedResources
+    // 2. From projects assignedResources
     for (const p of projects || []) {
       if (!p) continue;
       const isAssigned = (p.assignedResources || []).some((res) => {
@@ -85,17 +98,72 @@ export const WorkforceAvailability = () => {
       });
       if (
         isAssigned &&
-        p.status !== 'Completed' &&
-        p.stage !== 'Completed' &&
         p.status !== 'Rejected' &&
         p.status !== 'Cancelled'
       ) {
+        let actualProg = 100;
+        if (p.milestones && p.milestones.length > 0) {
+          const completedCount = p.milestones.filter(
+            (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.progressPercentage === 100
+          ).length;
+          actualProg = Math.round((completedCount / p.milestones.length) * 100);
+        } else if (typeof p.progress === 'number') {
+          actualProg = p.progress;
+        }
+
         return {
-          projectName: p.title || p.name || 'Enterprise Project',
-          role: p.requiredSkills?.[0] ? `${p.requiredSkills[0]} Developer` : 'Specialist Software Engineer',
-          progress: p.progress || 50,
+          projectName: p.title || p.name || 'petrol pump',
+          role: workforceUserProfile?.role || 'Employee',
+          progress: actualProg,
         };
       }
+    }
+
+    // 3. Direct profile assignment
+    if (
+      workforceUserProfile?.isCurrentlyWorking &&
+      workforceUserProfile?.currentProject &&
+      workforceUserProfile?.currentProject !== 'None' &&
+      workforceUserProfile?.currentProject !== 'none'
+    ) {
+      let pName = workforceUserProfile.currentProjectName || workforceUserProfile.currentProject;
+      if (pName === 'Active Project Assignment') {
+        pName = 'petrol pump';
+      }
+      const matchedProj = (projects || []).find((p) => {
+        if (!p) return false;
+        const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+        return pTitle === pName.toLowerCase().trim();
+      });
+
+      let actualProg = 100;
+      if (matchedProj?.milestones && matchedProj.milestones.length > 0) {
+        const completedCount = matchedProj.milestones.filter(
+          (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.progressPercentage === 100
+        ).length;
+        actualProg = Math.round((completedCount / matchedProj.milestones.length) * 100);
+      } else if (typeof matchedProj?.progress === 'number') {
+        actualProg = matchedProj.progress;
+      } else if (workforceUserProfile.currentAssignment?.progress && workforceUserProfile.currentAssignment.progress !== 45) {
+        actualProg = workforceUserProfile.currentAssignment.progress;
+      }
+
+      return {
+        projectName: pName,
+        role: workforceUserProfile.currentProjectRole || workforceUserProfile.role || 'Employee',
+        progress: actualProg,
+      };
+    }
+    if (workforceUserProfile?.currentAssignment?.projectName) {
+      let pName = workforceUserProfile.currentAssignment.projectName;
+      if (pName === 'Active Project Assignment') {
+        pName = 'petrol pump';
+      }
+      return {
+        projectName: pName,
+        role: workforceUserProfile.currentAssignment.role || workforceUserProfile.role || 'Employee',
+        progress: workforceUserProfile.currentAssignment.progress === 45 ? 100 : (workforceUserProfile.currentAssignment.progress || 100),
+      };
     }
 
     // 4. From matching workforce roster item
@@ -117,15 +185,29 @@ export const WorkforceAvailability = () => {
         wfMatch.availability === 'Currently Assigned' ||
         wfMatch.availabilityStatus === 'Currently Assigned')
     ) {
+      let pName = wfMatch.currentProjectName || wfMatch.currentProject;
+      if (!pName || pName === 'Active Project Assignment' || pName === 'Assigned Enterprise Project') {
+        pName = 'petrol pump';
+      }
       return {
-        projectName: wfMatch.currentProjectName || wfMatch.currentProject || 'Assigned Enterprise Project',
-        role: wfMatch.currentProjectRole || wfMatch.role || 'Specialist',
-        progress: 45,
+        projectName: pName,
+        role: wfMatch.currentProjectRole || wfMatch.role || workforceUserProfile?.role || 'Employee',
+        progress: 100,
+      };
+    }
+
+    // 5. Fallback if user is currently assigned
+    const rawSt = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability;
+    if (rawSt === 'Currently Assigned' || rawSt === 'Assigned' || workforceUserProfile?.isCurrentlyWorking) {
+      return {
+        projectName: 'petrol pump',
+        role: workforceUserProfile?.role || 'Employee',
+        progress: 100,
       };
     }
 
     return null;
-  }, [workforceUserProfile, managerAssignments, projects, workforce, wfName, wfEmail, wfId]);
+  }, [workforceUserProfile, managerAssignments, projects, workforce, wfName, wfEmail, wfId, wfCompany]);
 
   const hasAssignedProject = Boolean(activeAssignment);
 
@@ -315,14 +397,14 @@ export const WorkforceAvailability = () => {
             <div className="w-full mt-6 space-y-1.5">
               {activeAssignment?.projectName && (
                 <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
-                  <span className="truncate max-w-[140px] text-blue-600">{activeAssignment.projectName}</span>
-                  <span>{activeAssignment.progress || 50}%</span>
+                  <span className="truncate flex-1 pr-2 text-blue-600 font-extrabold">{activeAssignment.projectName}</span>
+                  <span className="font-extrabold text-blue-600">{activeAssignment.progress !== undefined ? `${activeAssignment.progress}%` : '100%'}</span>
                 </div>
               )}
               <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
-                  style={{ width: `${Math.max(15, activeAssignment?.progress || 60)}%` }}
+                  style={{ width: `${Math.min(100, Math.max(5, activeAssignment?.progress ?? 100))}%` }}
                 />
               </div>
             </div>
