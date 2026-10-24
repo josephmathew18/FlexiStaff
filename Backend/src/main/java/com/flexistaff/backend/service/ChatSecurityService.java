@@ -33,10 +33,10 @@ public class ChatSecurityService {
 
         // 1. Admin rules
         if (currentRole == Role.ROLE_ADMIN) {
-            return targetRole == Role.ROLE_CLIENT || targetRole == Role.ROLE_MANAGER;
+            return targetRole == Role.ROLE_CLIENT || targetRole == Role.ROLE_MANAGER || targetRole == Role.ROLE_PARTNER || targetRole == Role.ROLE_PROFESSIONAL;
         }
         if (targetRole == Role.ROLE_ADMIN) {
-            return currentRole == Role.ROLE_CLIENT || currentRole == Role.ROLE_MANAGER;
+            return currentRole == Role.ROLE_CLIENT || currentRole == Role.ROLE_MANAGER || currentRole == Role.ROLE_PARTNER || currentRole == Role.ROLE_PROFESSIONAL;
         }
 
         // 2. Client rules
@@ -99,9 +99,11 @@ public class ChatSecurityService {
         Role role = currentUser.getRole();
 
         if (role == Role.ROLE_ADMIN) {
-            // Admin can contact Clients & Managers
+            // Admin can contact Clients, HR Managers, Partner Companies, and Professionals
             userRepository.findByRole(Role.ROLE_CLIENT).forEach(u -> addContact(contacts, u, "Client", null, null));
             userRepository.findByRole(Role.ROLE_MANAGER).forEach(u -> addContact(contacts, u, "HR Manager", null, null));
+            userRepository.findByRole(Role.ROLE_PARTNER).forEach(u -> addContact(contacts, u, "Partner Company", null, null));
+            userRepository.findByRole(Role.ROLE_PROFESSIONAL).forEach(u -> addContact(contacts, u, "Professional", null, null));
         } else if (role == Role.ROLE_CLIENT) {
             // Client can contact Admins, Managers, and Assigned Professionals
             userRepository.findByRole(Role.ROLE_ADMIN).forEach(u -> addContact(contacts, u, "System Admin", "FlexiStaff Support", null));

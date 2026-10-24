@@ -27,7 +27,7 @@ import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 
-export const ChatView = ({ title = 'Direct Messages' }) => {
+export const ChatView = ({ title = 'Messages' }) => {
   const { user: authUser } = useAuth() || {};
   const {
     conversations,
@@ -79,22 +79,45 @@ export const ChatView = ({ title = 'Direct Messages' }) => {
   // Filter conversations
   const filteredConversations = useMemo(() => {
     return conversations.filter((c) => {
-      // 1. Filter tab
-      if (filter === 'unread' && c.unreadCount <= 0) return false;
-      if (filter === 'projects' && !c.projectId) return false;
+      // If a search query is active, search across all categories without filter tab restriction
+      if (!searchQuery.trim()) {
+        if (filter === 'unread' && c.unreadCount <= 0) return false;
+        if (filter === 'projects' && !c.projectId) return false;
+      }
 
-      // 2. Search query
+      // Search query across title, messages, names, roles, projects, emails
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const titleMatch = (c.title || '').toLowerCase().includes(q);
         const lastMsgMatch = (c.lastMessage || '').toLowerCase().includes(q);
         const nameMatch = (c.otherParticipant?.fullName || '').toLowerCase().includes(q);
+        const emailMatch = (c.otherParticipant?.email || '').toLowerCase().includes(q);
+        const roleMatch = (c.otherParticipant?.role || '').toLowerCase().includes(q);
         const projMatch = (c.projectTitle || '').toLowerCase().includes(q);
-        return titleMatch || lastMsgMatch || nameMatch || projMatch;
+        return titleMatch || lastMsgMatch || nameMatch || emailMatch || roleMatch || projMatch;
       }
       return true;
     });
   }, [conversations, filter, searchQuery]);
+
+  // People & contacts matching the sidebar search
+  const searchMatchingContacts = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    // Exclude contacts who already have an active conversation displayed in filteredConversations
+    const activeParticipantIds = new Set(
+      filteredConversations.map((c) => c.otherParticipant?.id).filter(Boolean)
+    );
+    return contacts.filter(
+      (contact) =>
+        !activeParticipantIds.has(contact.id) &&
+        ((contact.fullName || '').toLowerCase().includes(q) ||
+          (contact.role || '').toLowerCase().includes(q) ||
+          (contact.email || '').toLowerCase().includes(q) ||
+          (contact.companyName || '').toLowerCase().includes(q) ||
+          (contact.projectTitle || '').toLowerCase().includes(q))
+    );
+  }, [contacts, searchQuery, filteredConversations]);
 
   // Filter eligible contacts for "New Message" modal
   const filteredContacts = useMemo(() => {
@@ -104,6 +127,7 @@ export const ChatView = ({ title = 'Direct Messages' }) => {
       (c) =>
         (c.fullName || '').toLowerCase().includes(q) ||
         (c.role || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
         (c.companyName || '').toLowerCase().includes(q) ||
         (c.projectTitle || '').toLowerCase().includes(q)
     );
@@ -234,7 +258,7 @@ export const ChatView = ({ title = 'Direct Messages' }) => {
             />
             <input
               type="text"
-              placeholder="Search conversations..."
+              placeholder="Search messages, people, or projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-xl bg-white dark:bg-[#1b1e2e] pl-9 pr-8 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 border border-slate-200 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
@@ -271,23 +295,23 @@ export const ChatView = ({ title = 'Direct Messages' }) => {
           </div>
         </div>
 
-        {/* Conversation List */}
+        {/* Conversation & People List */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
           {loading && conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent mb-2" />
               <p className="text-xs">Loading conversations...</p>
             </div>
-          ) : filteredConversations.length === 0 ? (
+          ) : filteredConversations.length === 0 && searchMatchingContacts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 mb-3">
                 <Search size={20} className="text-slate-400" />
               </div>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                No conversations found
+                {searchQuery ? `No matches found for "${searchQuery}"` : 'No conversations found'}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                {searchQuery ? 'Try adjusting your search' : 'Start a new conversation with a contact'}
+                {searchQuery ? 'Try searching by person name, role, or project' : 'Start a new conversation with a contact'}
               </p>
               <button
                 onClick={() => setShowNewChatModal(true)}
@@ -297,81 +321,142 @@ export const ChatView = ({ title = 'Direct Messages' }) => {
               </button>
             </div>
           ) : (
-            filteredConversations.map((c) => {
-              const other = c.otherParticipant;
-              const isSelected = c.id === activeConversationId;
-              const roleBadge = getRoleBadge(other?.role);
+            <>
+              {/* Existing Conversations */}
+              {filteredConversations.map((c) => {
+                const other = c.otherParticipant;
+                const isSelected = c.id === activeConversationId;
+                const roleBadge = getRoleBadge(other?.role);
 
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => selectConversation(c.id)}
-                  className={`w-full flex items-start gap-3 p-3.5 text-left transition-all ${
-                    isSelected
-                      ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-l-4 border-indigo-600'
-                      : 'hover:bg-white dark:hover:bg-[#1a1d2d]'
-                  }`}
-                >
-                  {/* Avatar with Instagram-style ring */}
-                  <div className="relative shrink-0">
-                    <div className="h-11 w-11 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600">
-                      <img
-                        src={
-                          other?.avatarUrl ||
-                          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                            other?.fullName || c.title || 'User'
-                          )}`
-                        }
-                        alt=""
-                        className="h-full w-full rounded-full object-cover bg-white dark:bg-slate-800"
-                      />
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => selectConversation(c.id)}
+                    className={`w-full flex items-start gap-3 p-3.5 text-left transition-all ${
+                      isSelected
+                        ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-l-4 border-indigo-600'
+                        : 'hover:bg-white dark:hover:bg-[#1a1d2d]'
+                    }`}
+                  >
+                    {/* Avatar with Instagram-style ring */}
+                    <div className="relative shrink-0">
+                      <div className="h-11 w-11 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600">
+                        <img
+                          src={
+                            other?.avatarUrl ||
+                            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                              other?.fullName || c.title || 'User'
+                            )}`
+                          }
+                          alt=""
+                          className="h-full w-full rounded-full object-cover bg-white dark:bg-slate-800"
+                        />
+                      </div>
+                      {other?.online && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141622]" />
+                      )}
                     </div>
-                    {other?.online && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141622]" />
-                    )}
-                  </div>
 
-                  {/* Metadata & Preview */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
-                          {c.title}
+                    {/* Metadata & Preview */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
+                            {c.title}
+                          </span>
+                          {other?.role && (
+                            <span
+                              className={`rounded px-1.5 py-0.2 text-[10px] font-medium border ${roleBadge.bg}`}
+                            >
+                              {roleBadge.label}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 shrink-0">
+                          {formatConversationTime(c.lastMessageTime)}
                         </span>
-                        {other?.role && (
-                          <span
-                            className={`rounded px-1.5 py-0.2 text-[10px] font-medium border ${roleBadge.bg}`}
-                          >
-                            {roleBadge.label}
+                      </div>
+
+                      {c.projectTitle && (
+                        <div className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-medium mb-1">
+                          <FolderKanban size={10} />
+                          <span className="truncate">{c.projectTitle}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          {c.lastMessage || 'No messages yet'}
+                        </p>
+                        {c.unreadCount > 0 && (
+                          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white shrink-0">
+                            {c.unreadCount}
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400 shrink-0">
-                        {formatConversationTime(c.lastMessageTime)}
-                      </span>
                     </div>
+                  </button>
+                );
+              })}
 
-                    {c.projectTitle && (
-                      <div className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-medium mb-1">
-                        <FolderKanban size={10} />
-                        <span className="truncate">{c.projectTitle}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                        {c.lastMessage || 'No messages yet'}
-                      </p>
-                      {c.unreadCount > 0 && (
-                        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white shrink-0">
-                          {c.unreadCount}
-                        </span>
-                      )}
-                    </div>
+              {/* People & Contacts Matching Search */}
+              {searchMatchingContacts.length > 0 && (
+                <div className="border-t border-slate-200/80 dark:border-white/10">
+                  <div className="px-3.5 py-2 bg-indigo-50/70 dark:bg-indigo-950/40 text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+                    <span>People ({searchMatchingContacts.length})</span>
+                    <span className="text-[9px] font-medium lowercase text-indigo-500 dark:text-indigo-400">Click to chat</span>
                   </div>
-                </button>
-              );
-            })
+                  {searchMatchingContacts.map((contact) => {
+                    const badge = getRoleBadge(contact.role);
+                    return (
+                      <button
+                        key={contact.id}
+                        onClick={async () => {
+                          setSearchQuery('');
+                          await openConversationWith({
+                            recipientUserId: contact.id,
+                            projectId: contact.projectId,
+                          });
+                        }}
+                        className="w-full flex items-center justify-between p-3.5 text-left hover:bg-white dark:hover:bg-[#1a1d2e] transition group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={
+                              contact.avatarUrl ||
+                              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                                contact.fullName || 'User'
+                              )}`
+                            }
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover bg-slate-100 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition">
+                                {contact.fullName}
+                              </span>
+                              <span
+                                className={`rounded px-1.5 py-0.2 text-[10px] font-medium border ${badge.bg}`}
+                              >
+                                {badge.label}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {contact.companyName || contact.email}
+                              {contact.projectTitle && ` • ${contact.projectTitle}`}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition shrink-0 ml-2">
+                          Message
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -433,13 +433,6 @@ const InlineSidebar = ({
       icon: CreditCard,
     },
     {
-      label: 'Messages',
-      path: '/admin/messages',
-      icon: MessageSquare,
-      badge: chatUnreadCount > 0 ? String(chatUnreadCount) : null,
-      badgeColor: 'bg-rose-500 text-white font-bold',
-    },
-    {
       label: 'Support Reports',
       path: '/admin/support-tickets',
       icon: LifeBuoy,
@@ -619,7 +612,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
       '/admin/payments': [{ label: 'Payments & Payout Management', path: '/admin/payments' }],
       '/admin/transactions': [{ label: 'Transaction Management', path: '/admin/transactions' }],
       '/admin/payouts': [{ label: 'Payout Management', path: '/admin/payouts' }],
-      '/admin/messages': [{ label: 'Direct Messages', path: '/admin/messages' }],
+      '/admin/messages': [{ label: 'Messages', path: '/admin/messages' }],
     };
 
     return map[path] || [{ label: 'Dashboard', path: '/admin/dashboard' }];

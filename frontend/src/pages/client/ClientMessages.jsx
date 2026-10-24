@@ -4,7 +4,7 @@ import ChatView from '../../components/chat/ChatView';
 export const ClientMessages = () => {
   return (
     <div className="w-full h-full p-4 lg:p-6">
-      <ChatView title="Client Direct Messages" />
+      <ChatView title="Messages" />
     </div>
   );
 };
