@@ -451,22 +451,32 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_clients');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingEmails = new Set(parsed.map(c => (c.email || '').toLowerCase().trim()));
+          const missing = initialClients.filter(c => !existingEmails.has((c.email || '').toLowerCase().trim()));
+          if (missing.length > 0) {
+            return [...parsed, ...missing];
+          }
+          return parsed;
+        }
       }
     } catch {
       // Ignore
     }
-    return DEFAULT_CLIENTS;
+    return initialClients;
   });
 
   const [partners, setPartners] = useState(() => {
     try {
       const saved = localStorage.getItem('flexistaff_partners');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // Ignore
     }
-    return [];
+    return initialPartners;
   });
   const [managers, setManagers] = useState(() => {
     let list = [];
@@ -474,14 +484,14 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_managers');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           list = parsed.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)));
         }
       }
     } catch {
       // Ignore
     }
-    return list;
+    return list.length > 0 ? list : initialManagers;
   });
 
   const [workforce, setWorkforce] = useState(() => {
@@ -490,8 +500,8 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_workforce');
       if (saved) list = JSON.parse(saved);
     } catch { }
-    if (!list || !Array.isArray(list)) {
-      list = [];
+    if (!list || !Array.isArray(list) || list.length === 0) {
+      list = initialWorkforce;
     }
 
     let deletedIds = new Set();
@@ -609,12 +619,15 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           list = parsed;
         }
       }
     } catch {
       // Ignore
+    }
+    if (!list || list.length === 0) {
+      list = initialProjects;
     }
     return list.map((p) => {
       if (!p) return p;
