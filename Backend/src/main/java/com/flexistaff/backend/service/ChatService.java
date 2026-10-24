@@ -28,6 +28,7 @@ public class ChatService {
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final ChatSecurityService chatSecurityService;
+    private final WorkforceAllocationRepository workforceAllocationRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional(readOnly = true)
@@ -44,7 +45,16 @@ public class ChatService {
     public ConversationDto getOrCreateConversation(User currentUser, CreateConversationRequest request) {
         if (currentUser == null) throw new AccessDeniedException("User must be authenticated");
 
+        // 1. PROJECT GROUP CHAT: A project chat is a unified group conversation
+        // between the Client, assigned Professionals, and Manager
+        if (request.getProjectId() != null && (request.getRecipientUserId() == null || Boolean.TRUE.equals(request.getIsGroup()))) {
+            return getOrCreateProjectGroupChat(currentUser, request.getProjectId(), request.getInitialMessage());
+        }
+
         Long recipientId = request.getRecipientUserId();
+        if (recipientId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required for direct conversations");
+        }
         if (currentUser.getId().equals(recipientId)) {
             throw new IllegalArgumentException("Cannot create a conversation with yourself");
         }
@@ -57,37 +67,36 @@ public class ChatService {
             project = projectRepository.findById(request.getProjectId()).orElse(null);
         }
 
-        // Verify role-based permission
-        boolean allowed = chatSecurityService.canCommunicate(currentUser, recipient, request.getProjectId());
+        // Verify role-based permission for direct chat
+        boolean allowed = chatSecurityService.canCommunicate(currentUser, recipient, project != null ? project.getId() : null);
         if (!allowed) {
-            log.warn("Communication rejected between user {} and user {} with project {}",
-                    currentUser.getId(), recipientId, request.getProjectId());
+            log.warn("Communication rejected between user {} and user {}",
+                    currentUser.getId(), recipientId);
             throw new AccessDeniedException("You are not authorized to start a conversation with this user.");
         }
 
-        // Check if conversation already exists
-        List<Conversation> existing = conversationRepository.findBetweenUsersAndOptionalProject(
-                currentUser.getId(), recipientId, request.getProjectId());
+        // Check if direct conversation already exists
+        List<Conversation> existing = conversationRepository.findDirectBetweenUsers(
+                currentUser.getId(), recipientId);
 
         Conversation conversation;
         if (!existing.isEmpty()) {
             conversation = existing.get(0);
+            if (conversation.getProject() == null && project != null) {
+                conversation.setProject(project);
+                conversation = conversationRepository.save(conversation);
+            }
         } else {
-            // Create new conversation
-            ConversationType type = (project != null) ? ConversationType.PROJECT : ConversationType.DIRECT;
-            String title = (project != null) ? project.getTitle() : recipient.getFullName();
-
             conversation = Conversation.builder()
-                    .conversationType(type)
+                    .conversationType(ConversationType.DIRECT)
                     .project(project)
                     .createdBy(currentUser)
-                    .title(title)
+                    .title(recipient.getFullName())
                     .lastMessageTime(LocalDateTime.now())
                     .build();
 
             conversation = conversationRepository.save(conversation);
 
-            // Add participants
             ConversationParticipant p1 = ConversationParticipant.builder()
                     .conversation(conversation)
                     .user(currentUser)
@@ -106,10 +115,77 @@ public class ChatService {
             conversation.getParticipants().add(p2);
         }
 
-        // Send initial message if provided
         if (request.getInitialMessage() != null && !request.getInitialMessage().trim().isEmpty()) {
             SendMessageRequest msgReq = SendMessageRequest.builder()
                     .content(request.getInitialMessage().trim())
+                    .messageType("TEXT")
+                    .build();
+            sendMessage(currentUser, conversation.getId(), msgReq);
+        }
+
+        return mapToConversationDto(conversation, currentUser);
+    }
+
+    @Transactional
+    public ConversationDto getOrCreateProjectGroupChat(User currentUser, Long projectId, String initialMessage) {
+        if (currentUser == null) throw new AccessDeniedException("User must be authenticated");
+        if (projectId == null) throw new IllegalArgumentException("Project ID is required");
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
+
+        boolean allowed = chatSecurityService.canAccessProjectChat(currentUser, projectId);
+        if (!allowed) {
+            log.warn("User {} unauthorized for project {} group chat", currentUser.getId(), projectId);
+            throw new AccessDeniedException("You are not authorized to access this project group chat.");
+        }
+
+        List<Conversation> existing = conversationRepository.findByProjectId(projectId);
+        Conversation conversation;
+        if (!existing.isEmpty()) {
+            conversation = existing.get(0);
+        } else {
+            conversation = Conversation.builder()
+                    .conversationType(ConversationType.PROJECT)
+                    .project(project)
+                    .createdBy(currentUser)
+                    .title(project.getTitle() + " (Project Squad)")
+                    .lastMessageTime(LocalDateTime.now())
+                    .build();
+            conversation = conversationRepository.save(conversation);
+        }
+
+        // Enroll all project stakeholders as participants (Client, Manager, Professionals, and CurrentUser)
+        Set<Long> stakeholderUserIds = new LinkedHashSet<>();
+        if (project.getClient() != null) stakeholderUserIds.add(project.getClient().getId());
+        if (project.getManager() != null) stakeholderUserIds.add(project.getManager().getId());
+
+        List<WorkforceAllocation> allocs = workforceAllocationRepository.findByProjectId(projectId);
+        for (WorkforceAllocation wa : allocs) {
+            if (wa.getProfessional() != null) {
+                stakeholderUserIds.add(wa.getProfessional().getId());
+            }
+        }
+        stakeholderUserIds.add(currentUser.getId());
+
+        final Conversation targetConv = conversation;
+        for (Long uId : stakeholderUserIds) {
+            if (!participantRepository.existsByConversationIdAndUserId(targetConv.getId(), uId)) {
+                userRepository.findById(uId).ifPresent(user -> {
+                    ConversationParticipant cp = ConversationParticipant.builder()
+                            .conversation(targetConv)
+                            .user(user)
+                            .lastReadAt(user.getId().equals(currentUser.getId()) ? LocalDateTime.now() : null)
+                            .build();
+                    participantRepository.save(cp);
+                    targetConv.getParticipants().add(cp);
+                });
+            }
+        }
+
+        if (initialMessage != null && !initialMessage.trim().isEmpty()) {
+            SendMessageRequest msgReq = SendMessageRequest.builder()
+                    .content(initialMessage.trim())
                     .messageType("TEXT")
                     .build();
             sendMessage(currentUser, conversation.getId(), msgReq);

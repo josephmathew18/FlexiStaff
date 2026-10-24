@@ -284,6 +284,16 @@ export const ClientProjectDetails = () => {
                 <span>Rate & Review Project</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => navigate(`/client/messages?projectId=${project.id}&isGroup=true`)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-[#7c3aed] text-xs font-bold border border-purple-200 transition-all cursor-pointer shadow-xs active:scale-95"
+              title="Open Unified Group Chat with Manager and Professionals"
+            >
+              <Users size={15} />
+              <span>Squad Group Chat</span>
+            </button>
             <div className="p-3 rounded-2xl bg-white border border-slate-200 shadow-xs text-right">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Workforce Squad</span>
               <p className="text-sm font-extrabold text-slate-900">

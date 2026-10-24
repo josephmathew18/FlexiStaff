@@ -21,6 +21,7 @@ import {
   Clock,
   Sparkles,
   ArrowUpRight,
+  Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChat } from '../../context/ChatContext';
@@ -60,14 +61,18 @@ export const ChatView = ({ title = 'Messages' }) => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Handle URL query params (e.g. ?userId=22&projectId=1) to auto-open conversation
+  // Handle URL query params (e.g. ?userId=22&projectId=1 or ?projectId=1&isGroup=true) to auto-open conversation
   useEffect(() => {
     const targetUserId = searchParams.get('userId');
     const targetProjectId = searchParams.get('projectId');
-    if (targetUserId) {
+    const isGroup = searchParams.get('isGroup') === 'true';
+
+    if (targetProjectId && (isGroup || !targetUserId)) {
+      openConversationWith({ projectId: Number(targetProjectId), isGroup: true });
+    } else if (targetUserId) {
       const uId = Number(targetUserId);
       const pId = targetProjectId ? Number(targetProjectId) : null;
-      openConversationWith({ recipientUserId: uId, projectId: pId });
+      openConversationWith({ recipientUserId: uId, projectId: pId, isGroup: false });
     }
   }, [searchParams, openConversationWith]);
 
@@ -340,19 +345,29 @@ export const ChatView = ({ title = 'Messages' }) => {
                   >
                     {/* Avatar with Instagram-style ring */}
                     <div className="relative shrink-0">
-                      <div className="h-11 w-11 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600">
-                        <img
-                          src={
-                            other?.avatarUrl ||
-                            `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                              other?.fullName || c.title || 'User'
-                            )}`
-                          }
-                          alt=""
-                          className="h-full w-full rounded-full object-cover bg-white dark:bg-slate-800"
-                        />
+                      <div className={`h-11 w-11 rounded-full p-[2px] ${
+                        c.conversationType === 'PROJECT'
+                          ? 'bg-gradient-to-tr from-purple-500 via-indigo-500 to-pink-500'
+                          : 'bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600'
+                      }`}>
+                        {c.conversationType === 'PROJECT' ? (
+                          <div className="h-full w-full rounded-full bg-purple-900/90 text-white flex items-center justify-center">
+                            <Users size={18} className="text-purple-200" />
+                          </div>
+                        ) : (
+                          <img
+                            src={
+                              other?.avatarUrl ||
+                              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                                other?.fullName || c.title || 'User'
+                              )}`
+                            }
+                            alt=""
+                            className="h-full w-full rounded-full object-cover bg-white dark:bg-slate-800"
+                          />
+                        )}
                       </div>
-                      {other?.online && (
+                      {c.conversationType !== 'PROJECT' && other?.online && (
                         <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141622]" />
                       )}
                     </div>
@@ -364,13 +379,17 @@ export const ChatView = ({ title = 'Messages' }) => {
                           <span className="font-semibold text-xs text-slate-900 dark:text-white truncate">
                             {c.title}
                           </span>
-                          {other?.role && (
+                          {c.conversationType === 'PROJECT' ? (
+                            <span className="rounded px-1.5 py-0.2 text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                              Squad Group
+                            </span>
+                          ) : other?.role ? (
                             <span
                               className={`rounded px-1.5 py-0.2 text-[10px] font-medium border ${roleBadge.bg}`}
                             >
                               {roleBadge.label}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                         <span className="text-[10px] text-slate-400 shrink-0">
                           {formatConversationTime(c.lastMessageTime)}
@@ -483,18 +502,26 @@ export const ChatView = ({ title = 'Messages' }) => {
                 </button>
 
                 <div className="relative">
-                  <img
-                    src={
-                      activeConversation.otherParticipant?.avatarUrl ||
-                      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                        activeConversation.title || 'User'
-                      )}`
-                    }
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover border border-slate-200 dark:border-white/10 bg-slate-100"
-                  />
-                  {activeConversation.otherParticipant?.online && (
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0f111a]" />
+                  {activeConversation.conversationType === 'PROJECT' ? (
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-purple-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-xs">
+                      <Users size={19} />
+                    </div>
+                  ) : (
+                    <>
+                      <img
+                        src={
+                          activeConversation.otherParticipant?.avatarUrl ||
+                          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                            activeConversation.title || 'User'
+                          )}`
+                        }
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover border border-slate-200 dark:border-white/10 bg-slate-100"
+                      />
+                      {activeConversation.otherParticipant?.online && (
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0f111a]" />
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -503,7 +530,11 @@ export const ChatView = ({ title = 'Messages' }) => {
                     <h3 className="font-bold text-sm text-slate-900 dark:text-white truncate">
                       {activeConversation.title}
                     </h3>
-                    {activeConversation.otherParticipant?.role && (
+                    {activeConversation.conversationType === 'PROJECT' ? (
+                      <span className="rounded px-1.5 py-0.5 text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
+                        Squad Group Chat
+                      </span>
+                    ) : activeConversation.otherParticipant?.role ? (
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-semibold border ${
                           getRoleBadge(activeConversation.otherParticipant.role).bg
@@ -511,11 +542,15 @@ export const ChatView = ({ title = 'Messages' }) => {
                       >
                         {getRoleBadge(activeConversation.otherParticipant.role).label}
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-slate-400">
-                    {activeConversation.projectTitle ? (
+                    {activeConversation.conversationType === 'PROJECT' ? (
+                      <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium">
+                        <Users size={12} /> Unified Squad • Client, Manager, Professionals
+                      </span>
+                    ) : activeConversation.projectTitle ? (
                       <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-medium">
                         <FolderKanban size={12} /> {activeConversation.projectTitle}
                       </span>
@@ -527,11 +562,15 @@ export const ChatView = ({ title = 'Messages' }) => {
               </div>
 
               {/* Header Context Action */}
-              {activeConversation.projectId && (
-                <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                  <Briefcase size={12} /> Project Chat
+              {activeConversation.conversationType === 'PROJECT' ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/40 px-2.5 py-1 rounded-lg font-bold">
+                  <Users size={12} /> Project Squad Group
                 </span>
-              )}
+              ) : activeConversation.projectId ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
+                  <Briefcase size={12} /> Direct Project Chat
+                </span>
+              ) : null}
             </div>
 
             {/* Message Stream */}
@@ -563,6 +602,24 @@ export const ChatView = ({ title = 'Messages' }) => {
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                     >
+                      {/* Sender label for incoming messages in group chats */}
+                      {!isMine && (
+                        <div className="flex items-center gap-1.5 mb-1 px-1">
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                            {m.senderName || 'Member'}
+                          </span>
+                          {m.senderRole && (
+                            <span
+                              className={`rounded px-1.5 py-0.2 text-[9px] font-semibold border ${
+                                getRoleBadge(m.senderRole).bg
+                              }`}
+                            >
+                              {getRoleBadge(m.senderRole).label}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Bubble */}
                       <div
                         className={`relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs ${

@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Layers,
+  Users,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -1578,7 +1579,38 @@ export const WorkforceAssignments = () => {
                   </p>
 
                   <div className="grid grid-cols-1 gap-3.5">
-                    {/* Option 1: HR Manager */}
+                    {/* Option 1: Project Squad Group Chat */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatModalAsg(null);
+                        navigate(`/workforce/messages?projectId=${resolvedPId}&isGroup=true`);
+                      }}
+                      className="group p-4 rounded-2xl border-2 border-purple-200 hover:border-purple-600 bg-gradient-to-r from-purple-50/80 via-indigo-50/50 to-white hover:from-purple-100/80 hover:to-indigo-50/70 transition-all text-left flex items-start gap-4 cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01]"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
+                        <Users size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-purple-700 transition-colors flex items-center gap-2">
+                            <span>Project Squad Group Chat</span>
+                          </h4>
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-600 text-white text-[10px] font-extrabold shadow-2xs uppercase tracking-wider">
+                            Group Chat
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-1 font-medium leading-relaxed">
+                          Unified squad group workspace with <strong>Client ({resolvedClientCompany})</strong>, <strong>HR Manager ({resolvedManagerName})</strong>, and all assigned <strong>Professionals</strong>.
+                        </p>
+                        <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-purple-700 group-hover:text-purple-900">
+                          <span>Enter Project Group Chat</span>
+                          <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Option 2: HR Manager */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1603,13 +1635,13 @@ export const WorkforceAssignments = () => {
                           Staffing, allocation, workload, contract queries & platform management.
                         </p>
                         <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-indigo-600 group-hover:text-indigo-800">
-                          <span>Chat with HR Manager</span>
+                          <span>Chat with HR Manager (1-on-1)</span>
                           <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
                     </button>
 
-                    {/* Option 2: Project Client */}
+                    {/* Option 3: Project Client */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1634,7 +1666,7 @@ export const WorkforceAssignments = () => {
                           Project specifications, deliverables, code reviews & sprint queries (Contact: {resolvedClientPerson}).
                         </p>
                         <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
-                          <span>Chat with Client</span>
+                          <span>Chat with Client (1-on-1)</span>
                           <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>

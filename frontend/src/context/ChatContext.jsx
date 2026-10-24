@@ -301,15 +301,16 @@ export const ChatProvider = ({ children }) => {
     }
   }, [refreshMessages, subscribeToConversation]);
 
-  // 6. Open or Create Conversation with a recipient
+  // 6. Open or Create Conversation with a recipient or Project Group
   const openConversationWith = useCallback(
-    async ({ recipientUserId, projectId, initialMessage, recipientUser }) => {
-      if (!recipientUserId) return null;
+    async ({ recipientUserId, projectId, isGroup, initialMessage, recipientUser }) => {
+      if (!recipientUserId && !projectId) return null;
       try {
         setLoading(true);
         const res = await api.chat.createConversation({
-          recipientUserId,
+          recipientUserId: recipientUserId || null,
           projectId: projectId || null,
+          isGroup: isGroup ?? (!recipientUserId && !!projectId),
           initialMessage: initialMessage || '',
         });
 

@@ -269,4 +269,37 @@ public class ChatSecurityService {
         return workforceAllocationRepository.findByProjectIdAndProfessionalId(projectId, user1Id).isPresent()
                 && workforceAllocationRepository.findByProjectIdAndProfessionalId(projectId, user2Id).isPresent();
     }
+
+    @Transactional(readOnly = true)
+    public boolean canAccessProjectChat(User currentUser, Long projectId) {
+        if (currentUser == null || projectId == null) return false;
+        if (currentUser.getRole() == Role.ROLE_ADMIN) return true;
+
+        Project p = projectRepository.findById(projectId).orElse(null);
+        if (p == null) return false;
+
+        // 1. Is Client of project
+        if (p.getClient() != null && p.getClient().getId().equals(currentUser.getId())) {
+            return true;
+        }
+
+        // 2. Is Manager of project or any active Manager
+        if (currentUser.getRole() == Role.ROLE_MANAGER) {
+            return true;
+        }
+
+        // 3. Is Professional assigned to project
+        if (workforceAllocationRepository.findByProjectIdAndProfessionalId(projectId, currentUser.getId()).isPresent()) {
+            return true;
+        }
+
+        List<WorkforceAllocation> allocs = workforceAllocationRepository.findByProjectId(projectId);
+        for (WorkforceAllocation wa : allocs) {
+            if (wa.getProfessional() != null && wa.getProfessional().getId().equals(currentUser.getId())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

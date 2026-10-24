@@ -11,10 +11,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateConversationRequest {
-    @NotNull(message = "Recipient user ID is required")
     private Long recipientUserId;
 
     private Long projectId;
+
+    private Boolean isGroup;
 
     private String initialMessage;
 }

@@ -75,6 +75,21 @@ public class ChatController {
                 .body(ApiResponse.success("Conversation ready", conv));
     }
 
+    @PostMapping("/projects/{projectId}")
+    public ResponseEntity<ApiResponse<ConversationDto>> getOrCreateProjectGroupChat(
+            @PathVariable Long projectId,
+            HttpServletRequest request,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Long userId) {
+        User currentUser = resolveUser(request, email, userId);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Unauthorized"));
+        }
+        ConversationDto conv = chatService.getOrCreateProjectGroupChat(currentUser, projectId, null);
+        return ResponseEntity.ok(ApiResponse.success("Project group chat ready", conv));
+    }
+
     @GetMapping("/conversations/{id}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageDto>>> getMessages(
             @PathVariable Long id,

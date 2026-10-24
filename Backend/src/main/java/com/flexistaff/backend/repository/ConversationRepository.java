@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
@@ -31,5 +30,10 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
            "JOIN c.participants p2 " +
            "WHERE p1.user.id = :user1Id AND p2.user.id = :user2Id AND c.project IS NULL")
     List<Conversation> findDirectBetweenUsers(@Param("user1Id") Long user1Id,
-                                             @Param("user2Id") Long user2Id);
+                                              @Param("user2Id") Long user2Id);
+
+    @Query("SELECT c FROM Conversation c " +
+           "WHERE c.project.id = :projectId " +
+           "ORDER BY COALESCE(c.lastMessageTime, c.createdAt) DESC")
+    List<Conversation> findByProjectId(@Param("projectId") Long projectId);
 }

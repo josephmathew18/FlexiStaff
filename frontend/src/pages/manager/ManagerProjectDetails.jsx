@@ -154,10 +154,21 @@ export const ManagerProjectDetails = () => {
           <button
             type="button"
             onClick={() => {
+              navigate(`/manager/messages?projectId=${activeProject.id}&isGroup=true`);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-purple-50 border border-purple-200 text-[#7c3aed] hover:bg-purple-100 px-3.5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+            title="Open Unified Group Chat with Client and Professionals"
+          >
+            <Users size={14} />
+            <span>Squad Group Chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               const clientUserId = activeProject.clientId || activeProject.client?.id || 8;
               navigate(`/manager/messages?userId=${clientUserId}&projectId=${activeProject.id}`);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2.5 text-xs font-bold transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer"
           >
             <MessageSquare size={14} />
             <span>Message Client</span>
