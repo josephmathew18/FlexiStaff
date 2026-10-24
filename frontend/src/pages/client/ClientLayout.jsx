@@ -24,6 +24,7 @@ import UserAvatar from '../../components/common/UserAvatar';
 import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +33,7 @@ export const ClientLayout = () => {
   const { user, logout } = useAuth();
   const { effectiveTheme } = useTheme();
   const { clientProfile, projects = [], clientNotifications = [], markAllNotificationsRead } = useData() || {};
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const navigate = useNavigate();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -54,6 +56,13 @@ export const ClientLayout = () => {
     },
     { label: 'Professionals', path: '/client/workforce', icon: Users },
     { label: 'Progress', path: '/client/progress', icon: TrendingUp },
+    {
+      label: 'Messages',
+      path: '/client/messages',
+      icon: MessageSquare,
+      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
+      badgeColor: 'bg-rose-500 text-white font-bold',
+    },
     {
       label: 'Notifications',
       path: '/client/notifications',
@@ -201,6 +210,20 @@ export const ClientLayout = () => {
           <div className="flex items-center gap-3">
             {/* Theme Selector Dropdown */}
             <ThemeDropdown />
+
+            {/* Direct Messages Icon */}
+            <Link
+              to="/client/messages"
+              className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              title="Direct Messages"
+            >
+              <MessageSquare size={18} />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white shadow-xs">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </Link>
             {/* Notifications Dropdown */}
             <div className="relative">
               <button

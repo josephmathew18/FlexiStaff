@@ -25,17 +25,20 @@ import {
   Briefcase,
   LifeBuoy,
   HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import UserAvatar from '../../components/common/UserAvatar';
 import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 export const ManagerLayout = () => {
   const { effectiveTheme } = useTheme();
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const {
     managers,
     managerProfile,
@@ -113,6 +116,13 @@ export const ManagerLayout = () => {
       icon: Bell,
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
+    },
+    {
+      label: 'Messages',
+      path: '/manager/messages',
+      icon: MessageSquare,
+      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
+      badgeColor: 'bg-rose-500 text-white font-bold',
     },
     { label: 'Profile', path: '/manager/profile', icon: User },
     { label: 'Support', path: '/manager/support', icon: LifeBuoy },
@@ -302,6 +312,20 @@ export const ManagerLayout = () => {
 
           <div className="flex items-center gap-3">
             <ThemeDropdown />
+            <Link
+              to="/manager/messages"
+              className={`relative rounded-xl border p-2 transition-colors shadow-2xs ${
+                effectiveTheme === 'dark' ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title="Direct Messages"
+            >
+              <MessageSquare size={18} />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </Link>
             <Link
               to="/manager/matching"
               className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#004ac6] to-[#2563eb] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:from-[#003da6] hover:to-[#1d4ed8] active:scale-95 transition-all"

@@ -23,18 +23,21 @@ import {
   ChevronDown,
   User,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import UserAvatar from '../../components/common/UserAvatar';
 import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 export const PartnerLayout = () => {
   const { user, logout } = useAuth();
   const { effectiveTheme } = useTheme();
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const { partnerProfile, partnerProjects, partnerWorkforce, partnerNotifications } = useData() || {};
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,6 +109,13 @@ export const PartnerLayout = () => {
       icon: Bell,
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
+    },
+    {
+      label: 'Messages',
+      path: '/partner/messages',
+      icon: MessageSquare,
+      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
+      badgeColor: 'bg-rose-500 text-white font-bold',
     },
     { label: 'Profile', path: '/partner/profile', icon: Building2 },
     { label: 'Support & Help', path: '/partner/support', icon: HelpCircle },
@@ -289,6 +299,20 @@ export const PartnerLayout = () => {
 
           <div className="flex items-center gap-3">
             <ThemeDropdown />
+            <Link
+              to="/partner/messages"
+              className={`relative rounded-xl border p-2 transition-colors shadow-2xs ${
+                effectiveTheme === 'dark' ? 'border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+              title="Direct Messages"
+            >
+              <MessageSquare size={18} />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </Link>
             {/* Notifications Popover */}
             <div className="relative">
               <button

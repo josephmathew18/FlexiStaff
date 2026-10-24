@@ -19,6 +19,7 @@ import {
   Check,
   Plus,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
@@ -150,6 +151,17 @@ export const ManagerProjectDetails = () => {
         </button>
 
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              const clientUserId = activeProject.clientId || activeProject.client?.id || 8;
+              navigate(`/manager/messages?userId=${clientUserId}&projectId=${activeProject.id}`);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2.5 text-xs font-bold transition shadow-xs"
+          >
+            <MessageSquare size={14} />
+            <span>Message Client</span>
+          </button>
           {!isCompletedProject ? (
             <button
               type="button"

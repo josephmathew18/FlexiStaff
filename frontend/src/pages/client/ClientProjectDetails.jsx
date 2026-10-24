@@ -20,6 +20,7 @@ import {
   CreditCard,
   Printer,
   RefreshCw,
+  MessageSquare,
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { StatusBadge, ProjectProgress } from '../../components/workflow';
@@ -605,9 +606,19 @@ export const ClientProjectDetails = () => {
             Timeline & Allocation Specs
           </h3>
           <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
-              <span className="text-slate-500 font-medium">Assigned Manager:</span>
-              <span className="font-bold text-slate-900">{(project.manager && project.manager !== 'Unassigned') ? project.manager : (project.managerName && project.managerName !== 'Unassigned') ? project.managerName : 'Thomas Mathew'}</span>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div>
+                <span className="text-slate-500 font-medium block text-[11px]">Assigned Manager</span>
+                <span className="font-bold text-slate-900">{(project.manager && project.manager !== 'Unassigned') ? project.manager : (project.managerName && project.managerName !== 'Unassigned') ? project.managerName : 'Thomas Mathew'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(`/client/messages?userId=22&projectId=${project.id}`)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11px] font-bold border border-indigo-200 transition"
+              >
+                <MessageSquare size={12} />
+                <span>Chat</span>
+              </button>
             </div>
             <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50">
               <span className="text-slate-500 font-medium">Project Duration:</span>
@@ -708,9 +719,22 @@ export const ClientProjectDetails = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[10px] text-slate-500">
-                  <span className="font-bold text-slate-900">{member.hourlyRate}</span>
-                  <span>{member.weeklyHours}h / week</span>
+                <div className="flex items-center justify-between pt-2.5 border-t border-slate-200/60 text-[10px] text-slate-500">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-900">{member.hourlyRate}</span>
+                    <span>{member.weeklyHours}h / week</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = member.userId || member.freelancerId || member.numericId || member.id;
+                      navigate(`/client/messages?userId=${targetId}&projectId=${project.id}`);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition shadow-2xs"
+                  >
+                    <MessageSquare size={11} />
+                    <span>Message</span>
+                  </button>
                 </div>
               </div>
             ))}

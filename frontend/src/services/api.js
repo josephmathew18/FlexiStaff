@@ -14,10 +14,23 @@ async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
+
   const token = localStorage.getItem('flexistaff_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  try {
+    const savedUserStr = localStorage.getItem('flexistaff_user');
+    if (savedUserStr) {
+      const u = JSON.parse(savedUserStr);
+      if (u?.id) headers['X-User-Id'] = String(u.id);
+      if (u?.email) headers['X-User-Email'] = String(u.email);
+    }
+  } catch {}
 
   const config = {
     ...options,
@@ -298,6 +311,37 @@ export const api = {
     getManager: () => request('/dashboard/manager'),
     getClient: () => request('/dashboard/client'),
     getProfessional: () => request('/dashboard/professional'),
+  },
+
+  // Real-time Chat & Messaging Module API endpoints
+  chat: {
+    getConversations: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/chat/conversations${query ? `?${query}` : ''}`);
+    },
+    createConversation: (data) =>
+      request('/chat/conversations', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getMessages: (conversationId) =>
+      request(`/chat/conversations/${conversationId}/messages`),
+    sendMessage: (conversationId, messageData) =>
+      request(`/chat/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify(messageData),
+      }),
+    markAsRead: (conversationId) =>
+      request(`/chat/conversations/${conversationId}/read`, {
+        method: 'PUT',
+      }),
+    getUnreadCount: () => request('/chat/unread-count'),
+    getContacts: () => request('/chat/contacts'),
+    uploadAttachment: (formData) =>
+      request('/chat/upload', {
+        method: 'POST',
+        body: formData,
+      }),
   },
 
   // Rating & Feedback API endpoints (Axios Client)

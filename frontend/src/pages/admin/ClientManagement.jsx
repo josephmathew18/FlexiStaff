@@ -29,6 +29,7 @@ import {
   Award,
   Trash2,
   FolderKanban,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -520,7 +521,19 @@ export const ClientManagement = () => {
       header: 'Actions',
       accessor: 'id',
       render: (row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const targetUserId = row.userId || row.numericId || row.id;
+              navigate(`/admin/messages?userId=${targetUserId}`);
+            }}
+            className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors"
+            title="Message Client"
+          >
+            <MessageSquare size={14} />
+          </button>
           <button
             type="button"
             onClick={(e) => {
@@ -834,6 +847,28 @@ export const ClientManagement = () => {
                 <p className="text-xs text-slate-700 dark:text-slate-300 italic">{selectedClient.description}</p>
               </div>
             )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  const targetUserId = selectedClient.userId || selectedClient.numericId || selectedClient.id;
+                  navigate(`/admin/messages?userId=${targetUserId}`);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 py-2.5 text-xs font-bold text-white shadow-xs transition"
+              >
+                <MessageSquare size={14} />
+                <span>Message Client</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedClient(null)}
+                className="rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </Modal>
       )}

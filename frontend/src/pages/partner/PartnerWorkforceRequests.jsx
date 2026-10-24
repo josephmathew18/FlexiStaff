@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Briefcase,
+  MessageSquare,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -176,13 +177,24 @@ export const PartnerWorkforceRequests = () => {
                     <StatusBadge status={req.status} />
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/partner/projects/${req.projectId}`)}
-                      className="text-xs font-bold text-[#004ac6] hover:underline"
-                    >
-                      View Project →
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/partner/messages?userId=22&projectId=${req.projectId}`)}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition"
+                        title="Chat with HR Manager"
+                      >
+                        <MessageSquare size={11} />
+                        <span>Chat HR</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/partner/projects/${req.projectId}`)}
+                        className="text-xs font-bold text-[#004ac6] hover:underline"
+                      >
+                        View Project →
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

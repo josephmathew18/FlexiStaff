@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Briefcase,
   CheckCircle2,
@@ -24,12 +25,14 @@ import {
   Code2,
   FileCode,
   Tag,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const WorkforceAssignments = () => {
+  const navigate = useNavigate();
   const {
     workforceUserProfile,
     projects = [],
@@ -978,18 +981,29 @@ export const WorkforceAssignments = () => {
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 min-w-[150px]">
+                      <td className="py-3.5 px-4 min-w-[170px]">
                         {isProjectRejected ? (
                           <span className="text-[11px] text-rose-600 font-bold">Project Rejected</span>
                         ) : isActive || asg.status === 'Completed' ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
-                              <div
-                                className="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full transition-all duration-300"
-                                style={{ width: `${calculatedProg}%` }}
-                              />
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
+                                <div
+                                  className="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${calculatedProg}%` }}
+                                />
+                              </div>
+                              <span className="font-extrabold text-slate-900 text-xs">{calculatedProg}%</span>
                             </div>
-                            <span className="font-extrabold text-slate-900 text-xs">{calculatedProg}%</span>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
+                              className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                              title="Chat with HR Manager"
+                            >
+                              <MessageSquare size={12} />
+                              <span>Chat</span>
+                            </button>
                           </div>
                         ) : isPendingStatus(asg.status) ? (
                           <div className="flex items-center gap-1.5">
@@ -1012,9 +1026,27 @@ export const WorkforceAssignments = () => {
                               <X size={12} />
                               <span>Decline</span>
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition"
+                              title="Ask HR Manager about this offer"
+                            >
+                              <MessageSquare size={13} />
+                            </button>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400">{asg.progress || 0}%</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-slate-400">{asg.progress || 0}%</span>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
+                              className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-[11px] font-medium flex items-center gap-1 transition"
+                            >
+                              <MessageSquare size={12} />
+                              <span>Chat</span>
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

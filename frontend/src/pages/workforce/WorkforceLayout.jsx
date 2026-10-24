@@ -17,12 +17,14 @@ import {
   ChevronDown,
   HelpCircle,
   DollarSign,
+  MessageSquare,
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import UserAvatar from '../../components/common/UserAvatar';
 import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +32,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const WorkforceLayout = () => {
   const { user, logout } = useAuth();
   const { effectiveTheme } = useTheme();
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const { workforceUserProfile, managerAssignments = [], workforceNotifications = [] } = useData() || {};
   const navigate = useNavigate();
 
@@ -52,6 +55,13 @@ export const WorkforceLayout = () => {
       badgeColor: 'bg-indigo-100 text-indigo-800',
     },
     { label: 'Live Availability', path: '/workforce/availability', icon: CheckCircle2 },
+    {
+      label: 'Messages',
+      path: '/workforce/messages',
+      icon: MessageSquare,
+      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
+      badgeColor: 'bg-rose-500 text-white font-bold',
+    },
     { label: 'Earnings & Payouts', path: '/workforce/earnings', icon: DollarSign },
     { label: 'Profile & Settings', path: '/workforce/profile', icon: User },
     { label: 'Support & Feedback', path: '/workforce/support', icon: LifeBuoy },
@@ -226,6 +236,21 @@ export const WorkforceLayout = () => {
           <div className="flex items-center gap-3">
             {/* Theme Selector Dropdown */}
             <ThemeDropdown />
+            {/* Direct Messages Icon */}
+            <Link
+              to="/workforce/messages"
+              className={`relative p-2 rounded-xl transition-colors ${
+                effectiveTheme === 'dark' ? 'border border-white/10 bg-[#1c1a36] text-white hover:bg-white/10' : 'border border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+              }`}
+              title="Direct Messages"
+            >
+              <MessageSquare size={18} />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-bold text-white shadow-xs">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </Link>
             {/* Notifications Dropdown */}
             <div className="relative">
               <button

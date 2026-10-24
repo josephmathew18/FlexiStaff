@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   HelpCircle,
   MessageSquare,
@@ -17,6 +18,7 @@ import { useData } from '../../context/DataContext';
 import { toast } from 'react-toastify';
 
 export const ClientSupport = () => {
+  const navigate = useNavigate();
   const { clientProfile, supportTickets = [], submitSupportTicket } = useData() || {};
 
   const clientTickets = useMemo(() => {
@@ -86,7 +88,15 @@ export const ClientSupport = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate('/client/messages?userId=4')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition"
+          >
+            <MessageSquare size={14} />
+            <span>Chat with Admin</span>
+          </button>
           <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
             <ShieldCheck size={14} className="text-emerald-600" />
             <span>24/7 Priority Support SLA</span>

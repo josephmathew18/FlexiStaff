@@ -66,6 +66,7 @@ public class SecurityConfig {
                                 "/api/v1/partners", "/api/v1/partners/**", "/api/v1/clients", "/api/v1/clients/**",
                                 "/api/v1/professionals", "/api/v1/professionals/**", "/api/v1/workforce", "/api/v1/workforce/**",
                                 "/api/v1/managers", "/api/v1/managers/**", "/api/v1/users", "/api/v1/users/**",
+                                "/api/v1/chat/**", "/ws/**", "/ws",
                                 "/api/v1/support/**", "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()

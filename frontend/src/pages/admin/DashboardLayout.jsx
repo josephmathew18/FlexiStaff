@@ -31,11 +31,13 @@ import {
   ShieldCheck,
   LifeBuoy,
   CreditCard,
+  MessageSquare,
 } from 'lucide-react';
 import { MdHub } from 'react-icons/md';
 
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { ThemeDropdown } from '../../components/common/ThemeDropdown';
 
@@ -395,7 +397,7 @@ const InlineSidebar = ({
   const pendingTicketsCount = (supportTickets || []).filter(
     (t) => t.status === 'Pending Admin Review' || t.status === 'Open'
   ).length;
-
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Company', path: '/admin/company', icon: Building2 },
@@ -423,6 +425,13 @@ const InlineSidebar = ({
       label: 'Payments & Payouts',
       path: '/admin/payments',
       icon: CreditCard,
+    },
+    {
+      label: 'Messages',
+      path: '/admin/messages',
+      icon: MessageSquare,
+      badge: chatUnreadCount > 0 ? String(chatUnreadCount) : null,
+      badgeColor: 'bg-rose-500 text-white font-bold',
     },
     {
       label: 'Support Reports',
@@ -571,6 +580,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { adminProfile } = useData();
+  const { unreadCount: chatUnreadCount = 0 } = useChat() || {};
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -603,6 +613,7 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
       '/admin/payments': [{ label: 'Payments & Payout Management', path: '/admin/payments' }],
       '/admin/transactions': [{ label: 'Transaction Management', path: '/admin/transactions' }],
       '/admin/payouts': [{ label: 'Payout Management', path: '/admin/payouts' }],
+      '/admin/messages': [{ label: 'Direct Messages', path: '/admin/messages' }],
     };
 
     return map[path] || [{ label: 'Dashboard', path: '/admin/dashboard' }];
@@ -644,6 +655,22 @@ const InlineNavbar = ({ onOpenMobileSidebar, onOpenCreateProject }) => {
 
       <div className="flex items-center gap-2 sm:gap-3">
         <ThemeDropdown />
+        <Link
+          to="/admin/messages"
+          className={`relative flex h-9 w-9 items-center justify-center rounded-xl border text-xs transition-colors shadow-2xs ${
+            effectiveTheme === 'dark'
+              ? 'border-white/10 bg-[#1e1c38] text-slate-300 hover:text-white hover:bg-white/10'
+              : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+          title="Direct Messages"
+        >
+          <MessageSquare size={16} />
+          {chatUnreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white shadow-xs">
+              {chatUnreadCount}
+            </span>
+          )}
+        </Link>
         <InlineNotificationMenu />
 
         {/* Profile Dropdown */}

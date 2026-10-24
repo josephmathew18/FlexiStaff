@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { ChatProvider } from './context/ChatContext';
 import { ThemeProvider } from './context/ThemeContext';
 
 // Public Shared Pages (Root of pages/)
@@ -28,6 +29,7 @@ import AdminAssignmentApprovals from './pages/admin/AdminAssignmentApprovals';
 import AdminProfile from './pages/admin/AdminProfile';
 import AdminSupportTickets from './pages/admin/AdminSupportTickets';
 import AdminPaymentManagement from './pages/admin/AdminPaymentManagement';
+import AdminMessages from './pages/admin/AdminMessages';
 
 // Enterprise Client Portal Pages (/client/*)
 import ClientLayout from './pages/client/ClientLayout';
@@ -56,6 +58,7 @@ import PartnerWorkforceRequests from './pages/partner/PartnerWorkforceRequests';
 import PartnerNotifications from './pages/partner/PartnerNotifications';
 import PartnerProfile from './pages/partner/PartnerProfile';
 import PartnerSupport from './pages/partner/PartnerSupport';
+import PartnerMessages from './pages/partner/PartnerMessages';
 
 // Manager Portal Pages (/manager/*)
 import ManagerLayout from './pages/manager/ManagerLayout';
@@ -69,6 +72,7 @@ import ManagerAssignments from './pages/manager/ManagerAssignments';
 import ManagerNotifications from './pages/manager/ManagerNotifications';
 import ManagerProfile from './pages/manager/ManagerProfile';
 import ManagerSupport from './pages/manager/ManagerSupport';
+import ManagerMessages from './pages/manager/ManagerMessages';
 
 // Workforce Portal Pages (/workforce/*)
 import WorkforceLayout from './pages/workforce/WorkforceLayout';
@@ -78,6 +82,7 @@ import WorkforceAvailability from './pages/workforce/WorkforceAvailability';
 import WorkforceProfile from './pages/workforce/WorkforceProfile';
 import WorkforceSupport from './pages/workforce/WorkforceSupport';
 import WorkforceEarnings from './pages/workforce/WorkforceEarnings';
+import WorkforceMessages from './pages/workforce/WorkforceMessages';
 
 // Authentication & Protected Routes
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -136,6 +141,7 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <DataProvider>
+            <ChatProvider>
           <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
@@ -182,6 +188,7 @@ function App() {
               <Route path="/admin/payments" element={<AdminPaymentManagement />} />
               <Route path="/admin/transactions" element={<AdminPaymentManagement />} />
               <Route path="/admin/payouts" element={<AdminPaymentManagement />} />
+              <Route path="/admin/messages" element={<AdminMessages />} />
               <Route path="/admin/profile" element={<Navigate to="/admin/company" replace />} />
             </Route>
 
@@ -242,6 +249,7 @@ function App() {
               <Route path="/partner/workforce-requests" element={<PartnerWorkforceRequests />} />
               <Route path="/partner/project-progress" element={<PartnerProjectProgress />} />
               <Route path="/partner/notifications" element={<PartnerNotifications />} />
+              <Route path="/partner/messages" element={<PartnerMessages />} />
               <Route path="/partner/profile" element={<PartnerProfile />} />
               <Route path="/partner/support" element={<PartnerSupport />} />
             </Route>
@@ -270,6 +278,7 @@ function App() {
               <Route path="/manager/assignments" element={<ManagerAssignments />} />
               <Route path="/manager/project-progress" element={<ManagerProjectProgress />} />
               <Route path="/manager/notifications" element={<ManagerNotifications />} />
+              <Route path="/manager/messages" element={<ManagerMessages />} />
               <Route path="/manager/profile" element={<ManagerProfile />} />
               <Route path="/manager/support" element={<ManagerSupport />} />
             </Route>
@@ -289,6 +298,7 @@ function App() {
               <Route path="/workforce/availability" element={<WorkforceAvailability />} />
               <Route path="/workforce/profile" element={<WorkforceProfile />} />
               <Route path="/workforce/support" element={<WorkforceSupport />} />
+              <Route path="/workforce/messages" element={<WorkforceMessages />} />
               <Route path="/workforce/earnings" element={<WorkforceEarnings />} />
               <Route path="/workforce/payments" element={<WorkforceEarnings />} />
             </Route>
@@ -310,6 +320,7 @@ function App() {
             pauseOnHover
             theme="colored"
           />
+            </ChatProvider>
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>
