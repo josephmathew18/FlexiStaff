@@ -11,17 +11,22 @@ import org.springframework.context.annotation.Primary;
 import javax.sql.DataSource;
 import java.net.URI;
 import java.sql.Connection;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Custom DataSource Configuration supporting Render PostgreSQL DATABASE_URL
- * and automatic graceful fallback to embedded in-memory H2 (PostgreSQL compatibility mode)
- * when PostgreSQL is unreachable or not yet configured.
+ * Enterprise DataSource Configuration supporting:
+ * 1. Supabase PostgreSQL (Direct IPv6 connection + Supabase IPv4 Pooler auto-negotiation)
+ * 2. Render DATABASE_URL & standard JDBC URLs
+ * 3. Automatic graceful fallback to embedded in-memory H2 (PostgreSQL compatibility mode)
  */
 @Slf4j
 @Configuration
 public class DataSourceConfig {
 
-    @Value("${spring.datasource.url:jdbc:postgresql://localhost:5432/flexistaff}")
+    private static final Pattern SUPABASE_HOST_PATTERN = Pattern.compile("db\\.([a-zA-Z0-9_-]+)\\.supabase\\.co", Pattern.CASE_INSENSITIVE);
+
+    @Value("${spring.datasource.url:jdbc:postgresql://localhost:5432/postgres}")
     private String configuredUrl;
 
     @Value("${spring.datasource.username:postgres}")
@@ -29,6 +34,9 @@ public class DataSourceConfig {
 
     @Value("${spring.datasource.password:4272}")
     private String configuredPassword;
+
+    @Value("${app.supabase.pooler-host:aws-0-ap-northeast-2.pooler.supabase.com}")
+    private String defaultPoolerHost;
 
     @Bean
     @Primary
@@ -38,16 +46,17 @@ public class DataSourceConfig {
             databaseUrl = System.getenv("SPRING_DATASOURCE_URL");
         }
 
-        HikariConfig config = new HikariConfig();
-        boolean hasRemoteUrl = false;
+        String primaryJdbcUrl;
+        String primaryUser;
+        String primaryPassword;
 
         if (databaseUrl != null && !databaseUrl.isBlank() && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
             try {
-                log.info("Render DATABASE_URL environment variable detected. Converting to JDBC URL...");
+                log.info("DATABASE_URL environment variable detected. Converting to JDBC URL...");
                 URI dbUri = new URI(databaseUrl);
                 String userInfo = dbUri.getUserInfo();
-                String username = null;
-                String password = null;
+                String username = configuredUsername;
+                String password = configuredPassword;
                 if (userInfo != null && userInfo.contains(":")) {
                     String[] parts = userInfo.split(":", 2);
                     username = parts[0];
@@ -59,65 +68,125 @@ public class DataSourceConfig {
                 if (path != null && path.startsWith("/")) {
                     path = path.substring(1);
                 }
+                if (path == null || path.isBlank()) {
+                    path = "postgres";
+                }
 
-                String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s?sslmode=require", dbUri.getHost(), port, path);
-                config.setJdbcUrl(jdbcUrl);
-                if (username != null) config.setUsername(username);
-                if (password != null) config.setPassword(password);
-                config.setDriverClassName("org.postgresql.Driver");
-                hasRemoteUrl = true;
-                log.info("Successfully converted Render PostgreSQL URL to JDBC target: jdbc:postgresql://{}:{}/{}", dbUri.getHost(), port, path);
+                String sslParam = (dbUri.getQuery() != null && dbUri.getQuery().contains("sslmode")) ? "" : "?sslmode=require";
+                if (dbUri.getQuery() != null && !dbUri.getQuery().isBlank()) {
+                    sslParam = "?" + dbUri.getQuery();
+                }
+
+                primaryJdbcUrl = String.format("jdbc:postgresql://%s:%d/%s%s", dbUri.getHost(), port, path, sslParam);
+                primaryUser = username;
+                primaryPassword = password;
+                log.info("Converted DATABASE_URL to JDBC target: jdbc:postgresql://{}:{}/{}", dbUri.getHost(), port, path);
             } catch (Exception e) {
-                log.error("Failed to parse DATABASE_URL: {}, falling back to standard datasource configuration", e.getMessage());
+                log.error("Failed to parse DATABASE_URL: {}, using standard datasource configuration", e.getMessage());
+                primaryJdbcUrl = configuredUrl;
+                primaryUser = configuredUsername;
+                primaryPassword = configuredPassword;
+            }
+        } else {
+            primaryJdbcUrl = configuredUrl;
+            primaryUser = configuredUsername;
+            primaryPassword = configuredPassword;
+        }
+
+        // Auto-enforce SSL for Supabase or remote PostgreSQL if not already present
+        if ((primaryJdbcUrl.contains("supabase.co") || primaryJdbcUrl.contains("supabase.com") || primaryJdbcUrl.contains("render.com"))
+                && !primaryJdbcUrl.contains("sslmode=")) {
+            primaryJdbcUrl += (primaryJdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
+        }
+
+        // 1. Attempt connection with Primary DataSource
+        HikariDataSource primaryDs = tryCreateDataSource(primaryJdbcUrl, primaryUser, primaryPassword, "Primary DataSource");
+        if (primaryDs != null) {
+            return primaryDs;
+        }
+
+        // 2. Check for Supabase IPv4 Pooler Auto-Negotiation
+        // Supabase direct host (db.[ref].supabase.co) resolves to IPv6 only.
+        // On IPv4-only networks (Render free web services, standard ISPs), direct IPv6 fails.
+        // We automatically attempt connecting via the Supabase Connection Pooler (Supavisor).
+        Matcher supabaseMatcher = SUPABASE_HOST_PATTERN.matcher(primaryJdbcUrl);
+        if (supabaseMatcher.find()) {
+            String projectRef = supabaseMatcher.group(1);
+            String poolerUser = primaryUser.contains(".") ? primaryUser : primaryUser + "." + projectRef;
+            String poolerUrl = String.format("jdbc:postgresql://%s:5432/postgres?sslmode=require", defaultPoolerHost);
+
+            log.info("Direct Supabase host failed (likely IPv6 network limitation). Attempting connection via Supabase IPv4 pooler ({}) with user '{}'...",
+                    defaultPoolerHost, poolerUser);
+
+            HikariDataSource poolerDs = tryCreateDataSource(poolerUrl, poolerUser, primaryPassword, "Supabase IPv4 Pooler DataSource");
+            if (poolerDs != null) {
+                log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via IPv4 connection pooler!");
+                return poolerDs;
+            }
+
+            // Also try pooler transaction port 6543
+            String poolerTxUrl = String.format("jdbc:postgresql://%s:6543/postgres?sslmode=require", defaultPoolerHost);
+            log.info("Attempting Supabase pooler on transaction port 6543...");
+            HikariDataSource poolerTxDs = tryCreateDataSource(poolerTxUrl, poolerUser, primaryPassword, "Supabase Pooler Port 6543 DataSource");
+            if (poolerTxDs != null) {
+                log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via port 6543!");
+                return poolerTxDs;
             }
         }
 
-        if (!hasRemoteUrl) {
-            config.setJdbcUrl(configuredUrl);
-            config.setUsername(configuredUsername);
-            config.setPassword(configuredPassword);
-            config.setDriverClassName("org.postgresql.Driver");
-        }
+        // 3. Graceful Fallback to In-Memory H2 (PostgreSQL compatibility mode)
+        log.warn("Could not connect to external PostgreSQL database. Initiating automatic graceful fallback to embedded in-memory H2 database (PostgreSQL mode)...");
+        return createH2FallbackDataSource();
+    }
+
+    private HikariDataSource tryCreateDataSource(String jdbcUrl, String username, String password, String name) {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(jdbcUrl);
+        config.setUsername(username);
+        config.setPassword(password);
+        config.setDriverClassName("org.postgresql.Driver");
 
         // Tuned for 512MB RAM environment
         config.setMaximumPoolSize(5);
         config.setMinimumIdle(1);
         config.setIdleTimeout(300000);
-        config.setConnectionTimeout(8000); // 8s
+        config.setConnectionTimeout(8000);
         config.setMaxLifetime(600000);
-        config.setInitializationFailTimeout(1500); // Fail fast in 1.5s if host is unreachable so fallback triggers immediately
+        config.setInitializationFailTimeout(3000); // Fail fast in 3s so alternatives/fallbacks trigger promptly
 
-        HikariDataSource primaryDs = null;
+        HikariDataSource ds = null;
         try {
-            log.info("Attempting to connect to primary DataSource: {}", config.getJdbcUrl());
-            primaryDs = new HikariDataSource(config);
-            try (Connection conn = primaryDs.getConnection()) {
-                log.info("Successfully established connection to primary database: {}", config.getJdbcUrl());
+            log.info("Testing connection to {}: {}", name, jdbcUrl);
+            ds = new HikariDataSource(config);
+            try (Connection conn = ds.getConnection()) {
+                log.info("Successfully established connection to {}: {}", name, jdbcUrl);
+                return ds;
             }
-            return primaryDs;
         } catch (Exception e) {
-            if (primaryDs != null) {
+            log.warn("Failed connection to {} ({}): {}", name, jdbcUrl, e.getMessage());
+            if (ds != null) {
                 try {
-                    primaryDs.close();
+                    ds.close();
                 } catch (Exception ignored) {
                 }
             }
-            log.warn("Could not connect to primary database ({}): {}. Initiating automatic fallback to embedded in-memory H2 database (PostgreSQL mode)...",
-                    config.getJdbcUrl(), e.getMessage());
-
-            HikariConfig h2Config = new HikariConfig();
-            h2Config.setJdbcUrl("jdbc:h2:mem:flexistaff;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
-            h2Config.setDriverClassName("org.h2.Driver");
-            h2Config.setUsername("sa");
-            h2Config.setPassword("");
-            h2Config.setMaximumPoolSize(5);
-            h2Config.setMinimumIdle(1);
-            h2Config.setIdleTimeout(300000);
-            h2Config.setConnectionTimeout(10000);
-            h2Config.setMaxLifetime(600000);
-
-            log.info("Embedded H2 in-memory DataSource successfully initialized.");
-            return new HikariDataSource(h2Config);
+            return null;
         }
+    }
+
+    private HikariDataSource createH2FallbackDataSource() {
+        HikariConfig h2Config = new HikariConfig();
+        h2Config.setJdbcUrl("jdbc:h2:mem:flexistaff;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
+        h2Config.setDriverClassName("org.h2.Driver");
+        h2Config.setUsername("sa");
+        h2Config.setPassword("");
+        h2Config.setMaximumPoolSize(5);
+        h2Config.setMinimumIdle(1);
+        h2Config.setIdleTimeout(300000);
+        h2Config.setConnectionTimeout(10000);
+        h2Config.setMaxLifetime(600000);
+
+        log.info("Embedded H2 in-memory DataSource successfully initialized.");
+        return new HikariDataSource(h2Config);
     }
 }

@@ -7,9 +7,9 @@ spring:
   application:
     name: flexistaff-backend
 
-  # PostgreSQL Database Configuration
+  # PostgreSQL Database Configuration (Supabase, Render PostgreSQL, Local PostgreSQL)
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:flexistaff}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?sslmode=${DB_SSLMODE:prefer}}
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:4272}
@@ -17,15 +17,20 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
+        default_schema: public
 
-# Security & JWT Configuration
+# Supabase Specific Configuration
 app:
+  supabase:
+    pooler-host: ${SUPABASE_POOLER_HOST:aws-0-ap-northeast-2.pooler.supabase.com}
+
+  # Security & JWT Configuration
   jwt:
-    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    secret: ${APP_JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-milliseconds: 86400000 # 24 Hours
     refresh-expiration-milliseconds: 604800000 # 7 Days
 
