@@ -26,6 +26,9 @@ import {
   FileCode,
   Tag,
   MessageSquare,
+  UserCheck,
+  Building2,
+  ArrowRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -52,6 +55,9 @@ export const WorkforceAssignments = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Chat Recipient Modal state
+  const [chatModalAsg, setChatModalAsg] = useState(null);
 
   // Decline Modal states
   const [selectedAsgForDecline, setSelectedAsgForDecline] = useState(null);
@@ -147,7 +153,12 @@ export const WorkforceAssignments = () => {
           results.push({
             ...a,
             projectName: a.projectName || matchedProj?.title || matchedProj?.name || (a.projectId ? `Project #${a.projectId}` : 'Project Assignment'),
-            client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName,
+            client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName || 'todz',
+            clientId: a.clientId || matchedProj?.clientId || 8,
+            clientCompanyName: a.clientCompanyName || matchedProj?.clientCompanyName || a.client || 'todz',
+            clientName: a.clientName || matchedProj?.clientName || 'mathew',
+            managerId: a.managerId || matchedProj?.managerId || 22,
+            managerName: a.managerName || matchedProj?.managerName || 'Thomas Mathew',
             progress: actualProg,
             milestones: matchedProj?.milestones || a.milestones || [],
             status: isWorkingOnIt && (a.status === 'Pending' || a.status === 'Pending Assignment Approval' || a.status === 'Awaiting Workforce Response')
@@ -185,7 +196,12 @@ export const WorkforceAssignments = () => {
             id: `prj-asg-${p.id}`,
             projectId: p.id,
             projectName: p.title || p.name || 'Enterprise Project',
-            client: p.client || '',
+            client: p.client || p.clientCompanyName || 'todz',
+            clientId: p.clientId || 8,
+            clientCompanyName: p.clientCompanyName || p.client || 'todz',
+            clientName: p.clientName || 'mathew',
+            managerId: p.managerId || 22,
+            managerName: p.managerName || 'Thomas Mathew',
             role: p.requiredSkills?.[0] ? `${p.requiredSkills[0]} Developer` : 'Specialist Software Engineer',
             hourlyRate: '$95/hr',
             workload: 40,
@@ -749,6 +765,15 @@ export const WorkforceAssignments = () => {
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <button
                     type="button"
+                    onClick={() => setChatModalAsg(asg)}
+                    className="px-3.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Chat with HR Manager or Client"
+                  >
+                    <MessageSquare size={14} />
+                    <span>Chat</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleOpenAddMilestoneModal(asg)}
                     className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                   >
@@ -1020,9 +1045,9 @@ export const WorkforceAssignments = () => {
                             </div>
                             <button
                               type="button"
-                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
-                              className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
-                              title="Chat with HR Manager"
+                              onClick={() => setChatModalAsg(asg)}
+                              className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Chat with HR Manager or Client"
                             >
                               <MessageSquare size={12} />
                               <span>Chat</span>
@@ -1051,9 +1076,9 @@ export const WorkforceAssignments = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
-                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition"
-                              title="Ask HR Manager about this offer"
+                              onClick={() => setChatModalAsg(asg)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                              title="Chat with HR Manager or Client"
                             >
                               <MessageSquare size={13} />
                             </button>
@@ -1063,8 +1088,9 @@ export const WorkforceAssignments = () => {
                             <span className="text-[11px] text-slate-400">{calculatedProg}%</span>
                             <button
                               type="button"
-                              onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}
-                              className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-[11px] font-medium flex items-center gap-1 transition"
+                              onClick={() => setChatModalAsg(asg)}
+                              className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-[11px] font-medium flex items-center gap-1 transition cursor-pointer"
+                              title="Chat with HR Manager or Client"
                             >
                               <MessageSquare size={12} />
                               <span>Chat</span>
@@ -1412,6 +1438,143 @@ export const WorkforceAssignments = () => {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Project Chat Recipient Selection Modal */}
+      <AnimatePresence>
+        {chatModalAsg && (() => {
+          const matchedProj = (projects || []).find((p) => {
+            if (!p) return false;
+            const pId = String(p.id || '').toLowerCase().trim();
+            const asgPId = String(chatModalAsg.projectId || chatModalAsg.id || '').toLowerCase().trim();
+            const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+            const asgTitle = String(chatModalAsg.projectName || '').toLowerCase().trim();
+            return (asgPId && pId === asgPId) || (asgTitle && pTitle === asgTitle);
+          });
+
+          const resolvedPId = chatModalAsg.projectId || matchedProj?.id || 1;
+          const resolvedPName = chatModalAsg.projectName || matchedProj?.title || matchedProj?.name || 'Project Assignment';
+          const resolvedManagerId = chatModalAsg.managerId || matchedProj?.managerId || 22;
+          const resolvedManagerName = chatModalAsg.managerName || chatModalAsg.manager || matchedProj?.managerName || 'Thomas Mathew';
+          const resolvedClientId = chatModalAsg.clientId || matchedProj?.clientId || 8;
+          const resolvedClientCompany = chatModalAsg.clientCompanyName || chatModalAsg.client || matchedProj?.clientCompanyName || matchedProj?.client || 'todz';
+          const resolvedClientPerson = chatModalAsg.clientName || matchedProj?.clientName || 'mathew';
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-white/10 text-indigo-300 flex items-center justify-center border border-white/10 shadow-xs">
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-white tracking-tight">Project Stakeholder Chat</h3>
+                      <p className="text-xs text-indigo-200 font-medium">
+                        {resolvedPName} • Project #{resolvedPId}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChatModalAsg(null)}
+                    className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 space-y-4">
+                  <p className="text-xs text-slate-600 font-medium">
+                    Choose who you would like to message regarding <strong>{resolvedPName}</strong>:
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-3.5">
+                    {/* Option 1: HR Manager */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatModalAsg(null);
+                        navigate(`/workforce/messages?userId=${resolvedManagerId}&projectId=${resolvedPId}`);
+                      }}
+                      className="group p-4 rounded-2xl border-2 border-indigo-100 hover:border-indigo-500 bg-indigo-50/30 hover:bg-indigo-50/70 transition-all text-left flex items-start gap-4 cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01]"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+                        <UserCheck size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                            {resolvedManagerName}
+                          </h4>
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold border border-purple-200 uppercase tracking-wider">
+                            HR Manager
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">
+                          Staffing, allocation, workload, contract queries & platform management.
+                        </p>
+                        <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-indigo-600 group-hover:text-indigo-800">
+                          <span>Chat with HR Manager</span>
+                          <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Option 2: Project Client */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatModalAsg(null);
+                        navigate(`/workforce/messages?userId=${resolvedClientId}&projectId=${resolvedPId}`);
+                      }}
+                      className="group p-4 rounded-2xl border-2 border-emerald-100 hover:border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/70 transition-all text-left flex items-start gap-4 cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.01]"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                        <Building2 size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                            {resolvedClientCompany}
+                          </h4>
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-200 uppercase tracking-wider">
+                            Client
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium leading-relaxed">
+                          Project specifications, deliverables, code reviews & sprint queries (Contact: {resolvedClientPerson}).
+                        </p>
+                        <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+                          <span>Chat with Client</span>
+                          <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-slate-100 p-4 bg-slate-50 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setChatModalAsg(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-white transition-colors cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );

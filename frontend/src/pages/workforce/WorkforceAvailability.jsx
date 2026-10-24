@@ -211,13 +211,9 @@ export const WorkforceAvailability = () => {
 
   const hasAssignedProject = Boolean(activeAssignment);
 
-  const rawStatus = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability || 'Available';
-
-  // If user is assigned to an active project, their status is Currently Assigned unless they explicitly chose Temporarily Unavailable
-  const currentAvailability =
-    hasAssignedProject && rawStatus !== 'Temporarily Unavailable'
-      ? 'Currently Assigned'
-      : rawStatus;
+  // Directly respect user's selected availability mode, falling back to Currently Assigned if on active project, else Available
+  const rawStatus = workforceUserProfile?.availabilityStatus || workforceUserProfile?.availability;
+  const currentAvailability = rawStatus || (hasAssignedProject ? 'Currently Assigned' : 'Available');
 
   const isAvailable = currentAvailability === 'Available' || currentAvailability === 'Immediate';
   const isAssigned =
@@ -229,32 +225,21 @@ export const WorkforceAvailability = () => {
     currentAvailability === 'Unavailable' ||
     currentAvailability === 'On Leave';
 
-  // Auto-sync status on mount if project is assigned but state still held Available
-  React.useEffect(() => {
-    if (hasAssignedProject && rawStatus !== 'Currently Assigned' && rawStatus !== 'Temporarily Unavailable') {
-      const targetId = workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId;
-      if (updateProfessionalAvailability && targetId) {
-        updateProfessionalAvailability(targetId, 'Currently Assigned').catch(() => {});
-      } else if (updateWorkforceUserProfile) {
-        updateWorkforceUserProfile({
-          availability: 'Currently Assigned',
-          availabilityStatus: 'Currently Assigned',
-          isCurrentlyWorking: true,
-          currentProject: activeAssignment?.projectName,
-        });
-      }
-    }
-  }, [hasAssignedProject, rawStatus, activeAssignment]);
-
   const handleAvailabilityChange = async (newStatus) => {
     if (isUpdating) return;
     setIsUpdating(true);
     try {
+      // 1. Instantly update local workforce profile state & localStorage so UI immediately activates the card
+      if (updateWorkforceUserProfile) {
+        updateWorkforceUserProfile({
+          availability: newStatus,
+          availabilityStatus: newStatus,
+        });
+      }
+      // 2. Persist to backend database & REST API
       const targetId = workforceUserProfile?.numericId || workforceUserProfile?.id || workforceUserProfile?.userId;
       if (updateProfessionalAvailability) {
         await updateProfessionalAvailability(targetId || workforceUserProfile, newStatus);
-      } else if (updateWorkforceUserProfile) {
-        await updateWorkforceUserProfile({ availability: newStatus, availabilityStatus: newStatus });
       }
       toast.success(`Availability mode updated to: ${newStatus}`);
     } catch (err) {
@@ -308,7 +293,7 @@ export const WorkforceAvailability = () => {
               <span>{isAvailable ? 'Available' : isAssigned ? 'Assigned' : 'Unavailable'}</span>
             </span>
 
-            {isAssigned && activeAssignment?.projectName && (
+            {activeAssignment?.projectName && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                 <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                 <span>Project: {activeAssignment.projectName}</span>

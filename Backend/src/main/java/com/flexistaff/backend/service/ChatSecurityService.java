@@ -43,6 +43,12 @@ public class ChatSecurityService {
         if (currentRole == Role.ROLE_CLIENT) {
             if (targetRole == Role.ROLE_MANAGER) return true;
             if (targetRole == Role.ROLE_PROFESSIONAL) {
+                if (projectId != null) {
+                    Project p = projectRepository.findById(projectId).orElse(null);
+                    if (p != null && p.getClient() != null && p.getClient().getId().equals(currentUser.getId())) {
+                        return true;
+                    }
+                }
                 return isProfessionalAssignedToClient(targetUser.getId(), currentUser.getId());
             }
             return false;
@@ -50,6 +56,12 @@ public class ChatSecurityService {
         if (targetRole == Role.ROLE_CLIENT) {
             if (currentRole == Role.ROLE_MANAGER) return true;
             if (currentRole == Role.ROLE_PROFESSIONAL) {
+                if (projectId != null) {
+                    Project p = projectRepository.findById(projectId).orElse(null);
+                    if (p != null && p.getClient() != null && p.getClient().getId().equals(targetUser.getId())) {
+                        return true;
+                    }
+                }
                 return isProfessionalAssignedToClient(currentUser.getId(), targetUser.getId());
             }
             return false;
@@ -141,18 +153,42 @@ public class ChatSecurityService {
                 }
             }
         } else if (role == Role.ROLE_PROFESSIONAL) {
-            // Professional can contact HR Managers, Clients of their assigned projects, and their Partner Company (if any)
-            userRepository.findByRole(Role.ROLE_MANAGER).forEach(u -> addContact(contacts, u, "HR Manager", "FlexiStaff", null));
-
+            // 1. Prioritize assigned project stakeholders: HR Manager and Client of each assigned project
             List<WorkforceAllocation> allocations = workforceAllocationRepository.findByProfessionalId(currentUser.getId());
             for (WorkforceAllocation wa : allocations) {
                 Project p = wa.getProject();
-                if (p != null && p.getClient() != null) {
-                    addContact(contacts, p.getClient(), "Project Client", p.getTitle(), p.getId());
+                if (p != null) {
+                    if (p.getManager() != null) {
+                        addContact(contacts, p.getManager(), "HR Manager", p.getTitle(), p.getId());
+                    }
+                    if (p.getClient() != null) {
+                        addContact(contacts, p.getClient(), "Project Client", p.getTitle(), p.getId());
+                    }
                 }
             }
 
-            // Check if professional belongs to a partner company
+            // Also check all projects for direct allocations
+            List<Project> allProjects = projectRepository.findAll();
+            for (Project p : allProjects) {
+                if (p.getAllocations() != null) {
+                    boolean isAssigned = p.getAllocations().stream().anyMatch(
+                            a -> a.getProfessional() != null && a.getProfessional().getId().equals(currentUser.getId())
+                    );
+                    if (isAssigned) {
+                        if (p.getManager() != null) {
+                            addContact(contacts, p.getManager(), "HR Manager", p.getTitle(), p.getId());
+                        }
+                        if (p.getClient() != null) {
+                            addContact(contacts, p.getClient(), "Project Client", p.getTitle(), p.getId());
+                        }
+                    }
+                }
+            }
+
+            // 2. Add general HR Managers for general platform support
+            userRepository.findByRole(Role.ROLE_MANAGER).forEach(u -> addContact(contacts, u, "HR Manager", "FlexiStaff", null));
+
+            // 3. Check if professional belongs to a partner company
             Optional<Freelancer> fOpt = freelancerRepository.findByUserId(currentUser.getId());
             if (fOpt.isPresent() && fOpt.get().getPartnerCompanyId() != null) {
                 partnerCompanyRepository.findById(fOpt.get().getPartnerCompanyId()).ifPresent(pc -> {
@@ -175,10 +211,21 @@ public class ChatSecurityService {
             String company = null;
             if (user.getClientProfile() != null) company = user.getClientProfile().getCompanyName();
             else if (user.getPartnerCompany() != null) company = user.getPartnerCompany().getCompanyName();
+            if (company == null) {
+                Optional<Client> clientOpt = clientRepository.findByUserId(user.getId());
+                if (clientOpt.isPresent() && clientOpt.get().getCompanyName() != null) {
+                    company = clientOpt.get().getCompanyName();
+                }
+            }
+
+            String displayName = user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getEmail();
+            if (company != null && !company.isBlank() && !displayName.toLowerCase().contains(company.toLowerCase())) {
+                displayName = displayName + " (" + company + ")";
+            }
 
             dto = ChatContactDto.builder()
                     .id(user.getId())
-                    .fullName(user.getFullName() != null ? user.getFullName() : user.getEmail())
+                    .fullName(displayName)
                     .email(user.getEmail())
                     .role(roleName)
                     .avatarUrl(user.getAvatarUrl())
@@ -200,6 +247,12 @@ public class ChatSecurityService {
         for (Project p : clientProjects) {
             if (workforceAllocationRepository.findByProjectIdAndProfessionalId(p.getId(), professionalUserId).isPresent()) {
                 return true;
+            }
+            List<WorkforceAllocation> allocs = workforceAllocationRepository.findByProjectId(p.getId());
+            for (WorkforceAllocation wa : allocs) {
+                if (wa.getProfessional() != null && wa.getProfessional().getId().equals(professionalUserId)) {
+                    return true;
+                }
             }
         }
         return false;

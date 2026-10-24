@@ -1060,9 +1060,7 @@ export const DataProvider = ({ children }) => {
             });
             if (matched) {
               const isAssigned = matched.isCurrentlyWorking || matched.availabilityStatus === 'Currently Assigned' || (matched.currentProject && matched.currentProject !== 'None');
-              const resolvedAvail = isAssigned && matched.availabilityStatus !== 'Temporarily Unavailable'
-                ? 'Currently Assigned'
-                : (matched.availabilityStatus || matched.availability || prev.availabilityStatus || prev.availability || 'Available');
+              const resolvedAvail = matched.availabilityStatus || matched.availability || prev.availabilityStatus || prev.availability || (isAssigned ? 'Currently Assigned' : 'Available');
               const updated = {
                 ...prev,
                 ...matched,
@@ -1270,8 +1268,8 @@ export const DataProvider = ({ children }) => {
                 currentProjectName: projName,
                 currentProjectRole: myAlloc.role || prev.role || 'Employee',
                 isCurrentlyWorking: true,
-                availability: prev.availabilityStatus === 'Temporarily Unavailable' ? 'Temporarily Unavailable' : 'Currently Assigned',
-                availabilityStatus: prev.availabilityStatus === 'Temporarily Unavailable' ? 'Temporarily Unavailable' : 'Currently Assigned',
+                availability: prev.availabilityStatus || prev.availability || 'Currently Assigned',
+                availabilityStatus: prev.availabilityStatus || prev.availability || 'Currently Assigned',
                 currentAssignment: {
                   projectName: projName,
                   role: myAlloc.role || prev.role || 'Employee',
@@ -2651,10 +2649,8 @@ export const DataProvider = ({ children }) => {
           matchedWf?.availability === 'Currently Assigned' ||
           matchedWf?.availabilityStatus === 'Currently Assigned'
         );
-        const initAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability || 'Available';
-        const resolvedInitAvail = isAssigned && initAvail !== 'Temporarily Unavailable'
-          ? 'Currently Assigned'
-          : initAvail;
+        const initAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability;
+        const resolvedInitAvail = initAvail || (isAssigned ? 'Currently Assigned' : 'Available');
 
         return {
           id: matchedWf?.id || savedUser.id || 'wf-101',
@@ -2889,10 +2885,8 @@ export const DataProvider = ({ children }) => {
               matchedAsg
             );
 
-            const initialAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability || 'Available';
-            const resolvedAvail = isAssignedToProject && initialAvail !== 'Temporarily Unavailable'
-              ? 'Currently Assigned'
-              : initialAvail;
+            const initialAvail = matchedWf?.availabilityStatus || matchedWf?.availability || savedUser.availabilityStatus || savedUser.availability;
+            const resolvedAvail = initialAvail || (isAssignedToProject ? 'Currently Assigned' : 'Available');
 
             let activeProjName = matchedAsg?.projectName || matchedAsg?.title;
             if (!activeProjName || activeProjName === 'Active Project Assignment' || activeProjName === 'None') {
