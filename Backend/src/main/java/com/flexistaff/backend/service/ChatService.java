@@ -235,7 +235,9 @@ public class ChatService {
                 .orElse(null);
 
         String displayTitle = c.getTitle();
-        if ((displayTitle == null || displayTitle.isBlank()) && other != null) {
+        if (c.getConversationType() == ConversationType.DIRECT && other != null) {
+            displayTitle = other.getFullName();
+        } else if ((displayTitle == null || displayTitle.isBlank()) && other != null) {
             displayTitle = other.getFullName();
         }
 

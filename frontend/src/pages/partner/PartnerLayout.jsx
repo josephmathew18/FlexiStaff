@@ -110,13 +110,6 @@ export const PartnerLayout = () => {
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
-    {
-      label: 'Messages',
-      path: '/partner/messages',
-      icon: MessageSquare,
-      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
-      badgeColor: 'bg-rose-500 text-white font-bold',
-    },
     { label: 'Profile', path: '/partner/profile', icon: Building2 },
     { label: 'Support & Help', path: '/partner/support', icon: HelpCircle },
   ];

@@ -117,13 +117,6 @@ export const ManagerLayout = () => {
       badge: unreadNotifCount > 0 ? unreadNotifCount : null,
       badgeColor: 'bg-rose-500 text-white',
     },
-    {
-      label: 'Messages',
-      path: '/manager/messages',
-      icon: MessageSquare,
-      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
-      badgeColor: 'bg-rose-500 text-white font-bold',
-    },
     { label: 'Profile', path: '/manager/profile', icon: User },
     { label: 'Support', path: '/manager/support', icon: LifeBuoy },
   ];

@@ -55,13 +55,6 @@ export const WorkforceLayout = () => {
       badgeColor: 'bg-indigo-100 text-indigo-800',
     },
     { label: 'Live Availability', path: '/workforce/availability', icon: CheckCircle2 },
-    {
-      label: 'Messages',
-      path: '/workforce/messages',
-      icon: MessageSquare,
-      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
-      badgeColor: 'bg-rose-500 text-white font-bold',
-    },
     { label: 'Earnings & Payouts', path: '/workforce/earnings', icon: DollarSign },
     { label: 'Profile & Settings', path: '/workforce/profile', icon: User },
     { label: 'Support & Feedback', path: '/workforce/support', icon: LifeBuoy },

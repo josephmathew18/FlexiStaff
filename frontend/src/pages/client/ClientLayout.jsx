@@ -57,13 +57,6 @@ export const ClientLayout = () => {
     { label: 'Professionals', path: '/client/workforce', icon: Users },
     { label: 'Progress', path: '/client/progress', icon: TrendingUp },
     {
-      label: 'Messages',
-      path: '/client/messages',
-      icon: MessageSquare,
-      badge: chatUnreadCount > 0 ? `${chatUnreadCount}` : null,
-      badgeColor: 'bg-rose-500 text-white font-bold',
-    },
-    {
       label: 'Notifications',
       path: '/client/notifications',
       icon: Bell,
