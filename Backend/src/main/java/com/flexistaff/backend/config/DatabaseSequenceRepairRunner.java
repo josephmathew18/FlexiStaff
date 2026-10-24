@@ -4,15 +4,15 @@ import com.flexistaff.backend.entity.User;
 import com.flexistaff.backend.entity.enums.Role;
 import com.flexistaff.backend.repository.ProjectRepository;
 import com.flexistaff.backend.repository.UserRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.util.List;
 
 @Component
@@ -20,82 +20,42 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DatabaseSequenceRepairRunner implements CommandLineRunner {
 
-    @PersistenceContext
-    private EntityManager entityManager;
-
+    private final JdbcTemplate jdbcTemplate;
+    private final DataSource dataSource;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
 
     @Override
-    @Transactional
     public void run(String... args) {
-        repairDatabaseSequences();
+        try {
+            repairDatabaseSequences();
+        } catch (Throwable t) {
+            log.warn("Database repair runner completed with notice: {}", t.getMessage());
+        }
     }
 
-    @Transactional
     public void repairDatabaseSequences() {
-        log.info("Checking and repairing database sequences and initial data...");
-
-        List<String> tables = List.of(
-                "users",
-                "clients",
-                "partner_companies",
-                "freelancers",
-                "client_profiles",
-                "professional_profiles",
-                "projects",
-                "milestones",
-                "workforce_allocations",
-                "hr_managers",
-                "feedback",
-                "payments"
-        );
-
-        for (String table : tables) {
-            try {
-                // 1. Resolve PostgreSQL sequence name using pg_get_serial_sequence
-                Object seqNameObj = entityManager.createNativeQuery(
-                        "SELECT pg_get_serial_sequence('" + table + "', 'id')"
-                ).getSingleResult();
-
-                String seqName = (seqNameObj != null) ? seqNameObj.toString() : null;
-
-                if (seqName == null || seqName.trim().isEmpty()) {
-                    seqName = table + "_id_seq";
-                }
-
-                // 2. Obtain current max ID from table
-                Object maxIdObj = entityManager.createNativeQuery(
-                        "SELECT COALESCE(MAX(id), 0) FROM " + table
-                ).getSingleResult();
-
-                long maxId = 0L;
-                if (maxIdObj instanceof Number) {
-                    maxId = ((Number) maxIdObj).longValue();
-                }
-
-                // 3. Set PostgreSQL sequence val to MAX(id)
-                long targetVal = maxId > 0 ? maxId : 1;
-                boolean isCalled = maxId > 0;
-
-                String resetSql = "SELECT setval('" + seqName + "', " + targetVal + ", " + isCalled + ")";
-                entityManager.createNativeQuery(resetSql).getSingleResult();
-
-                log.info("Successfully repaired sequence for table '{}' (seq: '{}', maxId: {}, targetVal: {})",
-                        table, seqName, maxId, targetVal);
-            } catch (Exception e) {
-                log.debug("Sequence synchronization notice for table '{}': {}", table, e.getMessage());
-            }
+        boolean isPostgres = false;
+        try (Connection conn = dataSource.getConnection()) {
+            String dbProduct = conn.getMetaData().getDatabaseProductName();
+            isPostgres = dbProduct != null && dbProduct.toLowerCase().contains("postgres");
+            log.info("Detected database engine: {}", dbProduct);
+        } catch (Exception e) {
+            log.debug("Notice inspecting database metadata: {}", e.getMessage());
         }
 
-        // Schema constraint and column updates (isolated so errors on one do not prevent others)
-        safeExecuteQuery("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
-        safeExecuteQuery("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT', 'ROLE_PROFESSIONAL', 'ROLE_PARTNER'))");
-        safeExecuteQuery("ALTER TABLE freelancers ALTER COLUMN phone TYPE VARCHAR(50)");
-        safeExecuteQuery("ALTER TABLE clients ALTER COLUMN phone TYPE VARCHAR(50)");
-        safeExecuteQuery("ALTER TABLE client_profiles ALTER COLUMN contact_phone TYPE VARCHAR(50)");
-        safeExecuteQuery("ALTER TABLE users ALTER COLUMN profile_pic TYPE TEXT");
-        safeExecuteQuery("ALTER TABLE client_profiles ALTER COLUMN logo_url TYPE TEXT");
+        if (isPostgres) {
+            repairPostgresSequences();
+        }
+
+        // Schema constraint and column updates (isolated safe execution)
+        safeExecute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check");
+        safeExecute("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_CLIENT', 'ROLE_PROFESSIONAL', 'ROLE_PARTNER'))");
+        safeExecute("ALTER TABLE freelancers ALTER COLUMN phone TYPE VARCHAR(50)");
+        safeExecute("ALTER TABLE clients ALTER COLUMN phone TYPE VARCHAR(50)");
+        safeExecute("ALTER TABLE client_profiles ALTER COLUMN contact_phone TYPE VARCHAR(50)");
+        safeExecute("ALTER TABLE users ALTER COLUMN profile_pic TYPE TEXT");
+        safeExecute("ALTER TABLE client_profiles ALTER COLUMN logo_url TYPE TEXT");
 
         // Seed / Verify Admin user
         try {
@@ -160,9 +120,53 @@ public class DatabaseSequenceRepairRunner implements CommandLineRunner {
         }
     }
 
-    private void safeExecuteQuery(String sql) {
+    private void repairPostgresSequences() {
+        log.info("Synchronizing PostgreSQL table sequences...");
+
+        List<String> tables = List.of(
+                "users",
+                "clients",
+                "partner_companies",
+                "freelancers",
+                "client_profiles",
+                "professional_profiles",
+                "projects",
+                "milestones",
+                "workforce_allocations",
+                "hr_managers",
+                "feedback",
+                "payments"
+        );
+
+        for (String table : tables) {
+            try {
+                String seqName = null;
+                try {
+                    seqName = jdbcTemplate.queryForObject("SELECT pg_get_serial_sequence(?, 'id')", String.class, table);
+                } catch (Exception ignored) {
+                }
+
+                if (seqName == null || seqName.trim().isEmpty()) {
+                    seqName = table + "_id_seq";
+                }
+
+                Long maxId = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(id), 0) FROM " + table, Long.class);
+                if (maxId == null) maxId = 0L;
+
+                long targetVal = maxId > 0 ? maxId : 1;
+                boolean isCalled = maxId > 0;
+
+                jdbcTemplate.execute("SELECT setval('" + seqName + "', " + targetVal + ", " + isCalled + ")");
+                log.info("Synchronized PostgreSQL sequence for table '{}' to {}", table, targetVal);
+            } catch (Exception e) {
+                log.debug("Sequence notice for table '{}': {}", table, e.getMessage());
+            }
+        }
+    }
+
+    private void safeExecute(String sql) {
         try {
-            entityManager.createNativeQuery(sql).executeUpdate();
+            jdbcTemplate.execute(sql);
         } catch (Exception e) {
             log.debug("Notice executing '{}': {}", sql, e.getMessage());
         }
