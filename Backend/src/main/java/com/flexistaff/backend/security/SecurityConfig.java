@@ -53,7 +53,20 @@ public class SecurityConfig {
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin) // For H2 console
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/api/v1/auth/**", "/api/v1/dashboard/**", "/api/v1/projects", "/api/v1/projects/**", "/api/v1/milestones", "/api/v1/milestones/**", "/api/v1/payments", "/api/v1/payments/**", "/api/v1/admin/**", "/api/v1/payouts/**", "/api/v1/freelancers", "/api/v1/freelancers/**", "/api/v1/partners", "/api/v1/partners/**", "/api/v1/clients", "/api/v1/clients/**", "/api/v1/professionals", "/api/v1/professionals/**", "/api/v1/workforce", "/api/v1/workforce/**", "/api/v1/managers", "/api/v1/managers/**", "/api/v1/users", "/api/v1/users/**", "/api/v1/support/**", "/h2-console/**").permitAll()
+                        .requestMatchers(
+                                "/", "/index.html", "/assets/**", "/*.svg", "/*.ico", "/*.png", "/*.jpg", "/*.jpeg", "/*.js", "/*.css",
+                                "/api/status", "/login", "/register", "/apply", "/dashboard", "/dashboard/**", "/admin", "/admin/**",
+                                "/client", "/client/**", "/partner", "/partner/**", "/professional", "/professional/**",
+                                "/manager", "/manager/**", "/projects", "/projects/**", "/freelancers", "/freelancers/**",
+                                "/support", "/support/**", "/feedback", "/feedback/**",
+                                "/api/v1/auth/**", "/api/v1/dashboard/**", "/api/v1/projects", "/api/v1/projects/**",
+                                "/api/v1/milestones", "/api/v1/milestones/**", "/api/v1/payments", "/api/v1/payments/**",
+                                "/api/v1/admin/**", "/api/v1/payouts/**", "/api/v1/freelancers", "/api/v1/freelancers/**",
+                                "/api/v1/partners", "/api/v1/partners/**", "/api/v1/clients", "/api/v1/clients/**",
+                                "/api/v1/professionals", "/api/v1/professionals/**", "/api/v1/workforce", "/api/v1/workforce/**",
+                                "/api/v1/managers", "/api/v1/managers/**", "/api/v1/users", "/api/v1/users/**",
+                                "/api/v1/support/**", "/h2-console/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 );
 
