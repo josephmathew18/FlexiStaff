@@ -113,24 +113,25 @@ public class DataSourceConfig {
         if (supabaseMatcher.find()) {
             String projectRef = supabaseMatcher.group(1);
             String poolerUser = primaryUser.contains(".") ? primaryUser : primaryUser + "." + projectRef;
-            String poolerUrl = String.format("jdbc:postgresql://%s:5432/postgres?sslmode=require", defaultPoolerHost);
 
-            log.info("Direct Supabase host failed (likely IPv6 network limitation). Attempting connection via Supabase IPv4 pooler ({}) with user '{}'...",
+            // Try port 6543 first (Transaction pooler - standard for Supabase cloud connections)
+            String poolerTxUrl = String.format("jdbc:postgresql://%s:6543/postgres?sslmode=require", defaultPoolerHost);
+            log.info("Direct Supabase host failed (likely IPv6 network limitation). Attempting connection via Supabase pooler ({}:6543) with user '{}'...",
                     defaultPoolerHost, poolerUser);
 
-            HikariDataSource poolerDs = tryCreateDataSource(poolerUrl, poolerUser, primaryPassword, "Supabase IPv4 Pooler DataSource");
-            if (poolerDs != null) {
-                log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via IPv4 connection pooler!");
-                return poolerDs;
-            }
-
-            // Also try pooler transaction port 6543
-            String poolerTxUrl = String.format("jdbc:postgresql://%s:6543/postgres?sslmode=require", defaultPoolerHost);
-            log.info("Attempting Supabase pooler on transaction port 6543...");
             HikariDataSource poolerTxDs = tryCreateDataSource(poolerTxUrl, poolerUser, primaryPassword, "Supabase Pooler Port 6543 DataSource");
             if (poolerTxDs != null) {
                 log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via port 6543!");
                 return poolerTxDs;
+            }
+
+            // Also try port 5432 (Session pooler)
+            String poolerUrl = String.format("jdbc:postgresql://%s:5432/postgres?sslmode=require", defaultPoolerHost);
+            log.info("Attempting Supabase pooler on session port 5432...");
+            HikariDataSource poolerDs = tryCreateDataSource(poolerUrl, poolerUser, primaryPassword, "Supabase IPv4 Pooler DataSource");
+            if (poolerDs != null) {
+                log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via IPv4 connection pooler port 5432!");
+                return poolerDs;
             }
         }
 
