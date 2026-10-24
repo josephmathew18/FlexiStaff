@@ -61,10 +61,11 @@ export const WorkforceAvailability = () => {
       return matches && isActive;
     });
     if (asgMatch) {
+      const matchedProj = (projects || []).find((p) => String(p.id) === String(asgMatch.projectId) || p.title === asgMatch.projectName);
       return {
         projectName: asgMatch.projectName || asgMatch.title || 'Enterprise Project',
         role: asgMatch.role || asgMatch.roleInProject || 'Specialist',
-        progress: asgMatch.progress || 40,
+        progress: typeof asgMatch.progress === 'number' && asgMatch.progress > 0 ? asgMatch.progress : (matchedProj?.progress ?? 100),
       };
     }
 

@@ -175,18 +175,58 @@ export const WorkforceDashboard = () => {
   };
 
   const validAssignments = React.useMemo(() => {
-    return myAssignments.filter((a) => {
-      if (!a) return false;
-      const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-      const isProjRejected = rejectedProjectIds.has(normProj);
-      const isAsgRejected = ['reject', 'decline', 'cancel'].some((st) => String(a.status || '').toLowerCase().includes(st));
-      return !isProjRejected && !isAsgRejected;
-    });
-  }, [myAssignments, rejectedProjectIds]);
+    return myAssignments
+      .filter((a) => {
+        if (!a) return false;
+        const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const isProjRejected = rejectedProjectIds.has(normProj);
+        const isAsgRejected = ['reject', 'decline', 'cancel'].some((st) => String(a.status || '').toLowerCase().includes(st));
+        return !isProjRejected && !isAsgRejected;
+      })
+      .map((a) => {
+        const normProj = String(a.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+        const matchedProj = (projects || []).find((p) => {
+          if (!p) return false;
+          const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+          const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+          const aTitle = String(a.projectName || a.title || '').toLowerCase().trim();
+          return (normProj && pNorm === normProj) || (pTitle && aTitle && pTitle === aTitle);
+        });
+
+        // Determine accurate sprint progress from project & milestones
+        let actualProgress = typeof a.progress === 'number' && a.progress > 0
+          ? a.progress
+          : (typeof matchedProj?.progress === 'number' ? matchedProj.progress : 0);
+
+        if (matchedProj?.milestones && matchedProj.milestones.length > 0) {
+          const completedCount = matchedProj.milestones.filter(
+            (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.progressPercentage === 100
+          ).length;
+          actualProgress = Math.round((completedCount / matchedProj.milestones.length) * 100);
+        }
+
+        const isProjCompleted = actualProgress >= 100 || matchedProj?.status === 'Completed' || matchedProj?.stage === 'Completed';
+
+        return {
+          ...a,
+          projectName: a.projectName || matchedProj?.title || matchedProj?.name || (a.projectId ? `Project #${a.projectId}` : 'Project Assignment'),
+          client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName,
+          progress: actualProgress,
+          currentTask: isProjCompleted
+            ? 'Sprint milestones 100% completed & delivered'
+            : (a.currentTask && a.currentTask !== 'Sprint Execution' ? a.currentTask : (matchedProj?.recentUpdate || 'Sprint Execution')),
+        };
+      });
+  }, [myAssignments, rejectedProjectIds, projects]);
 
   const pendingOffers = validAssignments.filter((a) => isPendingStatus(a.status));
-  const activeAssignments = validAssignments.filter((a) => a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress');
-  const completedAssignments = validAssignments.filter((a) => a.status === 'Completed');
+  const completedAssignments = validAssignments.filter((a) => a.status === 'Completed' || Number(a.progress) >= 100);
+  const activeAssignments = validAssignments.filter(
+    (a) => !isPendingStatus(a.status) && (a.status === 'Accepted' || a.status === 'Working' || a.status === 'In Progress') && Number(a.progress) < 100
+  );
+  const displayAssignments = activeAssignments.length > 0
+    ? activeAssignments
+    : validAssignments.filter((a) => !isPendingStatus(a.status));
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -322,12 +362,12 @@ export const WorkforceDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeAssignments.length === 0 ? (
+          {displayAssignments.length === 0 ? (
             <div className="col-span-2 p-8 rounded-3xl bg-white border border-dashed border-slate-200 text-center text-xs text-slate-500">
-              No active project assignments. Review pending invitations to get started.
+              No project assignments found. Review pending invitations to get started.
             </div>
           ) : (
-            activeAssignments.map((asg) => (
+            displayAssignments.map((asg) => (
               <div
                 key={asg.id}
                 className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between"
@@ -335,8 +375,12 @@ export const WorkforceDashboard = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-bold text-slate-400">{asg.projectId}</span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                      {asg.status}
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                      asg.progress >= 100
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      {asg.progress >= 100 ? 'Completed' : asg.status}
                     </span>
                   </div>
 
@@ -349,11 +393,13 @@ export const WorkforceDashboard = () => {
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                       <span>Sprint Progress</span>
-                      <span>{asg.progress || 0}%</span>
+                      <span className={asg.progress >= 100 ? 'text-emerald-600 font-extrabold' : 'text-slate-700 font-extrabold'}>
+                        {asg.progress || 0}%
+                      </span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-[#7c3aed]"
+                        className={`h-full rounded-full transition-all duration-500 ${asg.progress >= 100 ? 'bg-emerald-500' : 'bg-[#7c3aed]'}`}
                         style={{ width: `${asg.progress || 0}%` }}
                       />
                     </div>

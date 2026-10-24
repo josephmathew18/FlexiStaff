@@ -126,8 +126,30 @@ export const WorkforceAssignments = () => {
           const currProj = String(workforceUserProfile?.currentProject || workforceUserProfile?.assignedProject || '').toLowerCase().trim();
           const isWorkingOnIt = currProj && projName && currProj !== 'none' && (currProj === projName || currProj.includes(projName) || projName.includes(currProj));
 
+          const matchedProj = (projects || []).find((p) => {
+            if (!p) return false;
+            const pNorm = String(p.id || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+            const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+            return (normProj && pNorm === normProj) || (pTitle && projName && pTitle === projName);
+          });
+
+          let actualProg = typeof a.progress === 'number' && a.progress > 0
+            ? a.progress
+            : (typeof matchedProj?.progress === 'number' ? matchedProj.progress : 0);
+
+          if (matchedProj?.milestones && matchedProj.milestones.length > 0) {
+            const completedCount = matchedProj.milestones.filter(
+              (m) => m.completed || String(m.status || '').toLowerCase() === 'completed' || m.progressPercentage === 100
+            ).length;
+            actualProg = Math.round((completedCount / matchedProj.milestones.length) * 100);
+          }
+
           results.push({
             ...a,
+            projectName: a.projectName || matchedProj?.title || matchedProj?.name || (a.projectId ? `Project #${a.projectId}` : 'Project Assignment'),
+            client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName,
+            progress: actualProg,
+            milestones: matchedProj?.milestones || a.milestones || [],
             status: isWorkingOnIt && (a.status === 'Pending' || a.status === 'Pending Assignment Approval' || a.status === 'Awaiting Workforce Response')
               ? 'Accepted'
               : a.status,
@@ -927,16 +949,17 @@ export const WorkforceAssignments = () => {
                   const isProjectRejected = rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st));
                   const isActive = !isProjectRejected && (asg.status === 'Accepted' || asg.status === 'Working' || asg.status === 'In Progress');
                   const pIdKey = asg.projectId || asg.id;
-                  const msListForAsg = (projectMilestones && (projectMilestones[pIdKey] || projectMilestones[normProj])) || asg.milestones || [];
+                  const matchedProj = (projects || []).find((p) => String(p.id) === String(asg.projectId) || p.title === asg.projectName);
+                  const msListForAsg = (projectMilestones && (projectMilestones[pIdKey] || projectMilestones[normProj])) || matchedProj?.milestones || asg.milestones || [];
                   let completedWeightSum = 0;
                   (msListForAsg || []).forEach((m) => {
-                    if (String(m.status || '').toLowerCase() === 'completed') {
+                    if (String(m.status || '').toLowerCase() === 'completed' || m.completed || m.progressPercentage === 100) {
                       completedWeightSum += Number(m.weight || m.weightage || 20);
                     }
                   });
                   const calculatedProg = msListForAsg.length > 0
                     ? Math.min(100, Math.round(completedWeightSum))
-                    : (asg.progress || 0);
+                    : (typeof asg.progress === 'number' && asg.progress > 0 ? asg.progress : (matchedProj?.progress || 0));
 
                   return (
                     <tr key={asg.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1037,7 +1060,7 @@ export const WorkforceAssignments = () => {
                           </div>
                         ) : (
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-slate-400">{asg.progress || 0}%</span>
+                            <span className="text-[11px] text-slate-400">{calculatedProg}%</span>
                             <button
                               type="button"
                               onClick={() => navigate(`/workforce/messages?userId=22&projectId=${asg.projectId || asg.id}`)}

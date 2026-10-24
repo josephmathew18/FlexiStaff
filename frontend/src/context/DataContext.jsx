@@ -1326,6 +1326,44 @@ export const DataProvider = ({ children }) => {
           try {
             localStorage.setItem('flexistaff_projects', JSON.stringify(mappedList));
           } catch {}
+
+          // Synchronize projectMilestones dictionary with mapped project milestones
+          setProjectMilestones((prev) => {
+            const next = { ...prev };
+            mappedList.forEach((p) => {
+              if (p && p.id && Array.isArray(p.milestones)) {
+                next[p.id] = p.milestones;
+                next[String(p.id)] = p.milestones;
+              }
+            });
+            try { localStorage.setItem('flexistaff_project_milestones', JSON.stringify(next)); } catch {}
+            return next;
+          });
+
+          // Synchronize managerAssignments progress and status with mapped projects
+          setManagerAssignments((prev) => {
+            const updated = (prev || []).map((asg) => {
+              if (!asg) return asg;
+              const matchedP = mappedList.find(
+                (p) => String(p.id) === String(asg.projectId) || p.title === asg.projectName
+              );
+              if (!matchedP) return asg;
+              const pProg = typeof matchedP.progress === 'number' ? matchedP.progress : 0;
+              const isComp = pProg >= 100 || matchedP.status === 'Completed' || matchedP.stage === 'Completed';
+              return {
+                ...asg,
+                progress: pProg,
+                milestones: matchedP.milestones || asg.milestones || [],
+                status: isComp ? 'Completed' : asg.status,
+                currentTask: isComp
+                  ? 'Milestones Completed & Delivered'
+                  : (asg.currentTask || matchedP.recentUpdate || 'Sprint Execution'),
+              };
+            });
+            try { localStorage.setItem('flexistaff_manager_assignments', JSON.stringify(updated)); } catch {}
+            return updated;
+          });
+
           return mappedList;
         }
       }
