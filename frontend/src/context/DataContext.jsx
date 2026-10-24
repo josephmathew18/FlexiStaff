@@ -1,30 +1,109 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import { useAuth } from './AuthContext';
-import {
-  initialCompanyProfile,
-  initialClients,
-  initialPartners,
-  initialManagers,
-  initialWorkforce,
-  initialProjects,
-  initialActivities,
-  initialNotifications,
-  initialPartnerProfile,
-  initialPartnerProjects,
-  initialPartnerWorkforce,
-  initialPartnerWorkforceRequests,
-  initialPartnerNotifications,
-  initialPartnerActivities,
-  initialPartnerSupportTickets,
-  initialManagerProfile,
-  initialManagerAssignments,
-  initialManagerNotifications,
-  initialWorkforceUserProfile,
-  initialWorkforceNotifications,
-  initialClientProfile,
-  initialAdminProfile,
-} from '../data/mockData';
+const defaultCompanyProfile = {
+  id: 'comp-01',
+  name: 'FlexiStaff Technologies Pvt Ltd',
+  legalName: 'FlexiStaff AI Solutions LLC',
+  logoUrl: 'https://images.unsplash.com/photo-1572021335469-31706a17aaef?auto=format&fit=crop&w=200&q=80',
+  registrationNumber: 'REG-2024-884920-US',
+  taxId: 'EIN-98-3498210',
+  industry: 'Enterprise Workforce & AI Staffing',
+  companyType: 'Privately Held Enterprise',
+  founded: '2021',
+  employeeCount: '50 - 100 Employees',
+  status: 'Verified Enterprise',
+  email: 'admin@flexistaff.com',
+  phone: '+91 98765 43210',
+  website: 'https://flexistaff.onrender.com',
+  headquarters: {
+    address: 'Infopark Technology Campus',
+    city: 'Kochi',
+    state: 'Kerala',
+    postalCode: '682042',
+    country: 'India',
+  },
+  billingAddress: {
+    address: 'Infopark Technology Campus',
+    city: 'Kochi',
+    state: 'Kerala',
+    postalCode: '682042',
+    country: 'India',
+  },
+  primaryContact: {
+    name: 'System Administrator',
+    title: 'Platform Administrator',
+    email: 'admin@flexistaff.com',
+    phone: '+91 98765 43210',
+  },
+  secondaryContact: {
+    name: 'Thomas Mathew',
+    title: 'Lead Workforce Manager',
+    email: 'thomas@flexistaff.com',
+    phone: '+91 98765 43210',
+  },
+};
+
+const defaultAdminProfile = {
+  id: 'adm-001',
+  email: 'admin@flexistaff.com',
+  name: 'System Administrator',
+  fullName: 'System Administrator',
+  role: 'ROLE_ADMIN',
+  userRole: 'ROLE_ADMIN',
+  phone: '+91 98765 43210',
+  department: 'Executive Administration',
+  status: 'Active',
+};
+
+const defaultClientProfile = {
+  id: null,
+  name: '',
+  email: '',
+  companyName: '',
+  industry: 'Enterprise Software & Services',
+  location: 'India',
+  phone: '',
+  status: 'Active',
+  tier: 'Enterprise Client',
+};
+
+const defaultPartnerProfile = {
+  id: null,
+  name: '',
+  companyName: '',
+  contactPerson: '',
+  email: '',
+  phone: '',
+  location: '',
+  industry: 'IT Staffing & Consulting',
+  status: 'Active',
+  tier: 'Strategic Partner',
+};
+
+const defaultManagerProfile = {
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  jobTitle: 'Manager',
+  department: 'Operations',
+  status: 'Active',
+};
+
+const defaultWorkforceUserProfile = {
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  title: '',
+  role: '',
+  skills: [],
+  hourlyRate: '$0/hr',
+  availabilityStatus: 'Available',
+  isCurrentlyWorking: false,
+  currentProject: null,
+};
 
 export const getNextGlobalUserId = (role, clients = [], managers = [], partners = [], workforce = []) => {
   const allUserIds = [
@@ -366,7 +445,7 @@ const DataContext = createContext(null);
 
 export const DataProvider = ({ children }) => {
   const { user: authUser, isAuthenticated, role: authRole } = useAuth() || {};
-  const [companyProfile, setCompanyProfile] = useState(initialCompanyProfile);
+  const [companyProfile, setCompanyProfile] = useState(defaultCompanyProfile);
   const [adminProfile, setAdminProfile] = useState(() => {
     try {
       const savedAdmin = localStorage.getItem('flexistaff_admin_profile');
@@ -395,7 +474,7 @@ export const DataProvider = ({ children }) => {
         }
       }
     } catch {}
-    return initialAdminProfile;
+    return defaultAdminProfile;
   });
 
   // Sync Admin Profile with active user data
@@ -432,7 +511,7 @@ export const DataProvider = ({ children }) => {
             }));
           }
         } else if (authUser === null) {
-          setAdminProfile(initialAdminProfile);
+          setAdminProfile(defaultAdminProfile);
         }
       } catch {}
     };
@@ -487,7 +566,7 @@ export const DataProvider = ({ children }) => {
     } catch {
       // Ignore
     }
-    return initialClients;
+    return [];
   });
 
   const [partners, setPartners] = useState(() => {
@@ -503,7 +582,7 @@ export const DataProvider = ({ children }) => {
     } catch {
       // Ignore
     }
-    return initialPartners;
+    return [];
   });
   const [managers, setManagers] = useState(() => {
     let list = [];
@@ -518,7 +597,7 @@ export const DataProvider = ({ children }) => {
     } catch {
       // Ignore
     }
-    return list.length > 0 ? list : initialManagers;
+    return list.length > 0 ? list : [];
   });
 
   const [workforce, setWorkforce] = useState(() => {
@@ -533,7 +612,7 @@ export const DataProvider = ({ children }) => {
       }
     } catch { }
     if (!list || !Array.isArray(list) || list.length === 0) {
-      list = initialWorkforce;
+      list = [];
     }
 
     let deletedIds = new Set();
@@ -657,7 +736,7 @@ export const DataProvider = ({ children }) => {
       // Ignore
     }
     if (!list || list.length === 0) {
-      list = initialProjects;
+      list = [];
     }
     return list.map((p) => {
       if (!p) return p;
@@ -701,8 +780,8 @@ export const DataProvider = ({ children }) => {
     });
   });
 
-  const [activities, setActivities] = useState(initialActivities);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [activities, setActivities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -1210,8 +1289,8 @@ export const DataProvider = ({ children }) => {
         }
       }
     } catch { }
-    setManagers(initialManagers);
-    return initialManagers;
+    setManagers([]);
+    return [];
   };
 
   const refreshAllData = async () => {
@@ -1770,21 +1849,21 @@ export const DataProvider = ({ children }) => {
         const savedUser = JSON.parse(savedUserStr);
         if (savedUser && (savedUser.role === 'Client' || savedUser.role === 'ROLE_CLIENT')) {
           return {
-            ...initialClientProfile,
-            id: savedUser.id || savedUser.numericId || savedUser.userId || initialClientProfile.id,
-            name: savedUser.name || savedUser.fullName || initialClientProfile.name,
-            contactPerson: savedUser.name || savedUser.fullName || initialClientProfile.contactPerson,
-            email: savedUser.email || initialClientProfile.email,
-            phone: savedUser.phone || initialClientProfile.phone,
-            company: savedUser.companyName || savedUser.company || initialClientProfile.company,
-            companyName: savedUser.companyName || savedUser.company || initialClientProfile.company,
+            ...defaultClientProfile,
+            id: savedUser.id || savedUser.numericId || savedUser.userId || null,
+            name: savedUser.name || savedUser.fullName || '',
+            contactPerson: savedUser.name || savedUser.fullName || '',
+            email: savedUser.email || '',
+            phone: savedUser.phone || '',
+            company: savedUser.companyName || savedUser.company || '',
+            companyName: savedUser.companyName || savedUser.company || '',
           };
         }
       }
     } catch {
       // Ignore
     }
-    return initialClientProfile;
+    return defaultClientProfile;
   });
   const [clientNotifications, setClientNotifications] = useState([]);
 
@@ -1809,7 +1888,7 @@ export const DataProvider = ({ children }) => {
             }));
           }
         } else if (authUser === null) {
-          setClientProfile(initialClientProfile);
+          setClientProfile(defaultClientProfile);
         }
       } catch {
         // Ignore
@@ -1826,7 +1905,7 @@ export const DataProvider = ({ children }) => {
   }, [authUser]);
 
   // Partner Portal State
-  const [partnerProfile, setPartnerProfile] = useState(initialPartnerProfile);
+  const [partnerProfile, setPartnerProfile] = useState(defaultPartnerProfile);
 
   // Sync partner profile whenever flexistaff_user or flexistaff_partners updates
   useEffect(() => {
@@ -1987,7 +2066,7 @@ export const DataProvider = ({ children }) => {
             }
           }
         } else {
-          setPartnerProfile(initialPartnerProfile);
+          setPartnerProfile(defaultPartnerProfile);
         }
       } catch (err) {
         console.error('Error in syncPartnerProfileData:', err);
@@ -2003,7 +2082,7 @@ export const DataProvider = ({ children }) => {
     };
   }, [authUser, partners]);
 
-  const [partnerProjects, setPartnerProjects] = useState(initialPartnerProjects);
+  const [partnerProjects, setPartnerProjects] = useState([]);
   const [partnerWorkforce, setPartnerWorkforce] = useState(() => {
     let list = [];
     try {
@@ -2026,7 +2105,7 @@ export const DataProvider = ({ children }) => {
       } catch {}
     }
 
-    if (!list || list.length === 0) list = initialPartnerWorkforce || [];
+    if (!list || list.length === 0) list = [];
     return list;
   });
 
@@ -2132,10 +2211,10 @@ export const DataProvider = ({ children }) => {
 
     return unique;
   }, [workforce, partnerWorkforce, partnerProfile, partners, clients]);
-  const [partnerWorkforceRequests, setPartnerWorkforceRequests] = useState(initialPartnerWorkforceRequests);
-  const [partnerNotifications, setPartnerNotifications] = useState(initialPartnerNotifications);
-  const [partnerActivities, setPartnerActivities] = useState(initialPartnerActivities);
-  const [partnerSupportTickets, setPartnerSupportTickets] = useState(initialPartnerSupportTickets);
+  const [partnerWorkforceRequests, setPartnerWorkforceRequests] = useState([]);
+  const [partnerNotifications, setPartnerNotifications] = useState([]);
+  const [partnerActivities, setPartnerActivities] = useState([]);
+  const [partnerSupportTickets, setPartnerSupportTickets] = useState([]);
 
   // Manager Portal State
   // Manager Portal State
@@ -2194,7 +2273,7 @@ export const DataProvider = ({ children }) => {
         }
       }
     } catch { }
-    return initialManagerProfile;
+    return defaultManagerProfile;
   });
 
   const [managerAssignments, setManagerAssignments] = useState(() => {
@@ -2206,7 +2285,7 @@ export const DataProvider = ({ children }) => {
         if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
       }
     } catch { }
-    if (list.length === 0) list = initialManagerAssignments || [];
+    if (list.length === 0) list = [];
 
     const uniqueList = [];
     const seen = new Set();
@@ -2236,7 +2315,7 @@ export const DataProvider = ({ children }) => {
     return uniqueList;
   });
 
-  const [managerNotifications, setManagerNotifications] = useState(initialManagerNotifications);
+  const [managerNotifications, setManagerNotifications] = useState([]);
 
   const [freelancerRequests, setFreelancerRequests] = useState(() => {
     try {
@@ -2358,7 +2437,7 @@ export const DataProvider = ({ children }) => {
             });
           }
         } else if (authUser === null) {
-          setManagerProfile(initialManagerProfile);
+          setManagerProfile(defaultManagerProfile);
         }
       } catch { }
     };
@@ -2512,10 +2591,10 @@ export const DataProvider = ({ children }) => {
     } catch (err) {
       console.warn('Initial workforce user profile hydration error:', err);
     }
-    return initialWorkforceUserProfile;
+    return defaultWorkforceUserProfile;
   });
 
-  const [workforceNotifications, setWorkforceNotifications] = useState(initialWorkforceNotifications);
+  const [workforceNotifications, setWorkforceNotifications] = useState([]);
 
   // Sync Workforce User Profile with registered user data
   useEffect(() => {
@@ -2755,7 +2834,7 @@ export const DataProvider = ({ children }) => {
             }
           }
         } else if (authUser === null) {
-          setWorkforceUserProfile(initialWorkforceUserProfile);
+          setWorkforceUserProfile(defaultWorkforceUserProfile);
         }
       } catch { }
     };
@@ -3091,7 +3170,7 @@ export const DataProvider = ({ children }) => {
             });
           }
         } else if (authUser === null) {
-          setClientProfile(initialClientProfile);
+          setClientProfile(defaultClientProfile);
         }
       } catch { }
     };

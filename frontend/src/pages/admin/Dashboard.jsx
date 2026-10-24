@@ -44,13 +44,7 @@ import {
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import {
-  initialProjects,
-  initialWorkforce,
-  initialPartners,
-  initialManagers,
-  initialClients,
-} from '../../data/mockData';
+
 import AdminFeedbackSection from '../../components/feedback/AdminFeedbackSection';
 
 // --- INLINE REUSABLE COMPONENTS ---
@@ -138,11 +132,11 @@ export const Dashboard = () => {
   } = useData();
   const navigate = useNavigate();
 
-  const projects = contextProjects && contextProjects.length > 0 ? contextProjects : initialProjects;
-  const workforce = contextWorkforce && contextWorkforce.length > 0 ? contextWorkforce : initialWorkforce;
-  const partners = contextPartners && contextPartners.length > 0 ? contextPartners : initialPartners;
-  const managers = contextManagers && contextManagers.length > 0 ? contextManagers : initialManagers;
-  const clients = contextClients && contextClients.length > 0 ? contextClients : initialClients;
+  const projects = Array.isArray(contextProjects) ? contextProjects : [];
+  const workforce = Array.isArray(contextWorkforce) ? contextWorkforce : [];
+  const partners = Array.isArray(contextPartners) ? contextPartners : [];
+  const managers = Array.isArray(contextManagers) ? contextManagers : [];
+  const clients = Array.isArray(contextClients) ? contextClients : [];
 
   // General Metrics calculation for Admin
   const totalProjects = projects.length;
