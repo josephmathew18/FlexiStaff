@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Briefcase,
   CheckCircle2,
@@ -29,6 +29,9 @@ import {
   UserCheck,
   Building2,
   ArrowRight,
+  ArrowLeft,
+  ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -36,6 +39,7 @@ import { toast } from 'react-toastify';
 
 export const WorkforceAssignments = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     workforceUserProfile,
     projects = [],
@@ -55,6 +59,9 @@ export const WorkforceAssignments = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Selected project for viewing GitHub-Style Milestone Commit System
+  const [selectedProjectForMilestones, setSelectedProjectForMilestones] = useState(null);
 
   // Chat Recipient Modal state
   const [chatModalAsg, setChatModalAsg] = useState(null);
@@ -153,9 +160,9 @@ export const WorkforceAssignments = () => {
           results.push({
             ...a,
             projectName: a.projectName || matchedProj?.title || matchedProj?.name || (a.projectId ? `Project #${a.projectId}` : 'Project Assignment'),
-            client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName || 'todz',
+            client: a.client || matchedProj?.client || matchedProj?.clientCompanyName || a.partnerName || 'tedz',
             clientId: a.clientId || matchedProj?.clientId || 8,
-            clientCompanyName: a.clientCompanyName || matchedProj?.clientCompanyName || a.client || 'todz',
+            clientCompanyName: a.clientCompanyName || matchedProj?.clientCompanyName || a.client || 'tedz',
             clientName: a.clientName || matchedProj?.clientName || 'mathew',
             managerId: a.managerId || matchedProj?.managerId || 22,
             managerName: a.managerName || matchedProj?.managerName || 'Thomas Mathew',
@@ -196,9 +203,9 @@ export const WorkforceAssignments = () => {
             id: `prj-asg-${p.id}`,
             projectId: p.id,
             projectName: p.title || p.name || 'Enterprise Project',
-            client: p.client || p.clientCompanyName || 'todz',
+            client: p.client || p.clientCompanyName || 'tedz',
             clientId: p.clientId || 8,
-            clientCompanyName: p.clientCompanyName || p.client || 'todz',
+            clientCompanyName: p.clientCompanyName || p.client || 'tedz',
             clientName: p.clientName || 'mathew',
             managerId: p.managerId || 22,
             managerName: p.managerName || 'Thomas Mathew',
@@ -295,6 +302,23 @@ export const WorkforceAssignments = () => {
     return results;
   }, [managerAssignments, projects, freelancerRequests, partnerWorkforceRequests, workforceUserProfile]);
 
+  // Sync selectedProjectForMilestones from URL query if user reloads on ?projectId=...
+  useEffect(() => {
+    const pIdParam = searchParams.get('projectId');
+    if (pIdParam && myAssignments.length > 0) {
+      const match = myAssignments.find(
+        (a) =>
+          String(a.projectId || a.id) === String(pIdParam) ||
+          String(a.projectName || '').toLowerCase() === pIdParam.toLowerCase()
+      );
+      if (match) {
+        setSelectedProjectForMilestones(match);
+      }
+    } else if (!pIdParam) {
+      setSelectedProjectForMilestones(null);
+    }
+  }, [searchParams, myAssignments]);
+
   const rejectedProjectIds = useMemo(() => {
     const setObj = new Set();
     (projects || []).forEach((p) => {
@@ -341,6 +365,16 @@ export const WorkforceAssignments = () => {
       return !isDeclinedOrRejected && (s === 'accepted' || s === 'working' || s === 'in progress' || s === 'approved');
     });
   }, [myAssignments, rejectedProjectIds]);
+
+  const activeMilestoneAsg = useMemo(() => {
+    if (!selectedProjectForMilestones) return null;
+    const match = myAssignments.find(
+      (a) =>
+        String(a.projectId || a.id) === String(selectedProjectForMilestones.projectId || selectedProjectForMilestones.id) ||
+        String(a.projectName || '').toLowerCase() === String(selectedProjectForMilestones.projectName || '').toLowerCase()
+    );
+    return match || selectedProjectForMilestones;
+  }, [selectedProjectForMilestones, myAssignments]);
 
   const filteredAssignments = useMemo(() => {
     return myAssignments.filter((asg) => {
@@ -549,563 +583,610 @@ export const WorkforceAssignments = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto font-sans antialiased text-[#191b23]">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#8b5cf6] text-white flex items-center justify-center shadow-md">
-              <Briefcase size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Project Assignments & Milestone Commits
-              </h1>
-              <p className="text-xs text-slate-500">
-                Accept invitations, log GitHub-style milestone commits, and update sprint deliverables.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1.5">
-            <GitCommit size={14} className="text-purple-600" />
-            <span>{myAssignments.length} Total Assignments</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Pending Invitations Section */}
-      {pendingInvitations.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-extrabold text-slate-900">
-              Project Recruitment Offers ({pendingInvitations.length})
-            </h2>
-            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold animate-pulse">
-              Action Required – Accept or Decline Offer
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pendingInvitations.map((inv) => (
-              <div
-                key={inv.id}
-                className="p-6 rounded-3xl bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-white border-2 border-purple-300 shadow-md flex flex-col justify-between space-y-4"
+      {activeMilestoneAsg ? (
+        /* ========================================================================= */
+        /* GITHUB-STYLE MILESTONE COMMIT SYSTEM FOR CLICKED PROJECT */
+        /* ========================================================================= */
+        <div className="space-y-6">
+          {/* Back Navigation Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProjectForMilestones(null);
+                  setSearchParams({});
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-purple-50 hover:text-purple-700 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer shadow-2xs active:scale-95"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-200">
-                      {inv.projectId}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
-                      <CheckCircle2 size={11} className="text-emerald-600" />
-                      <span>Company Authorized</span>
-                    </span>
-                  </div>
+                <ArrowLeft size={14} />
+                <span>← Back to Assignment Offers & Tasks</span>
+              </button>
 
+              <div className="hidden sm:block h-6 w-px bg-slate-200" />
+
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                  {activeMilestoneAsg.projectId || activeMilestoneAsg.id}
+                </span>
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
+                  {activeMilestoneAsg.projectName}
+                </h2>
+                <span className="hidden md:inline-block px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-bold border border-purple-200">
+                  Client: {activeMilestoneAsg.client || activeMilestoneAsg.clientCompanyName || 'tedz'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setChatModalAsg(activeMilestoneAsg)}
+                className="px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Chat with HR Manager or Client"
+              >
+                <MessageSquare size={14} />
+                <span>Chat Stakeholders</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenCommitModal(activeMilestoneAsg)}
+                className="px-4 py-2 rounded-xl bg-[#7c3aed] hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <GitCommit size={15} />
+                <span>+ Submit Commit Update</span>
+              </button>
+            </div>
+          </div>
+
+          {/* GitHub-Style Milestone Commit Timeline Content */}
+          {(() => {
+            const asg = activeMilestoneAsg;
+            const pId = asg.projectId;
+            const normProj = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+            const targetProj = (projects || []).find((p) => {
+              if (!p) return false;
+              const pIdStr = String(p.id || '').toLowerCase().trim();
+              const pNorm = pIdStr.replace(/[\s_]/g, '-');
+              const pTitle = String(p.title || p.name || '').toLowerCase().trim();
+              const asgTitle = String(asg.projectName || '').toLowerCase().trim();
+              return (
+                (pId && (pIdStr === String(pId).toLowerCase() || pNorm === normProj)) ||
+                (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
+              );
+            });
+            const resolvedPId = targetProj?.id || pId;
+            const pMsFromStore = (projectMilestones && (projectMilestones[resolvedPId] || projectMilestones[pId] || projectMilestones[normProj]));
+            const msList = (pMsFromStore && pMsFromStore.length > 0)
+              ? pMsFromStore
+              : (targetProj?.milestones && targetProj.milestones.length > 0)
+              ? targetProj.milestones
+              : (asg.milestones && asg.milestones.length > 0)
+              ? asg.milestones
+              : [
+                  { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: targetProj?.startDate || '2026-10-15', commits: [] },
+                  { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: targetProj?.startDate || '2026-11-01', commits: [] },
+                  { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: targetProj?.endDate || '2026-12-15', commits: [] },
+                  { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: targetProj?.endDate || '2027-01-20', commits: [] },
+                  { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: targetProj?.endDate || '2027-02-28', commits: [] },
+                ];
+
+            return (
+              <div key={asg.id} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+                {/* Project Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block mb-0.5">
-                      Project Recruitment Offer
-                    </span>
-                    <h3 className="text-base font-extrabold text-slate-900">{inv.projectName}</h3>
-                    <p className="text-xs font-bold text-purple-700 mt-0.5">Offered Role: {inv.role}</p>
-                    <p className="text-xs text-slate-500 mt-1">Client Organization: {inv.client}</p>
-                  </div>
-
-                  {/* Availability Verification Box */}
-                  <div className="p-3 rounded-2xl bg-white border border-purple-200 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Rate</span>
-                      <p className="font-extrabold text-slate-900">{inv.hourlyRate || '$95/hr'}</p>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Workload Capacity</span>
-                      <p className="font-extrabold text-slate-900">{inv.workload || 40}% Allocation (40h/wk)</p>
-                    </div>
-                    <div className="pt-2 border-t border-purple-100 flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold">
-                      <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
-                      <span>Availability Status: Verified Available for Project Execution</span>
-                    </div>
-                  </div>
-
-                  {inv.notes && (
-                    <p className="text-[11px] text-slate-600 italic bg-purple-50/60 p-2.5 rounded-xl border border-purple-100">
-                      Manager Note: "{inv.notes}"
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-1">
-                    {(Array.isArray(inv.skills) ? inv.skills : (inv.skills || '').split(/[,+]/)).map((s, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded-md bg-purple-100/70 text-purple-800 text-[10px] font-semibold"
-                      >
-                        {String(s).trim()}
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                        {resolvedPId || asg.projectId}
                       </span>
-                    ))}
+                      <h3 className="text-base font-extrabold text-slate-900">{asg.projectName || targetProj?.title || targetProj?.name}</h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Client: <strong className="text-purple-700">{asg.client || targetProj?.client || 'tedz'}</strong> • Role: {asg.role} • Rate: {asg.hourlyRate || '$100/hr'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddMilestoneModal(asg)}
+                      className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>Add Milestone</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCommitModal(asg)}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <GitCommit size={14} />
+                      <span>Commit Work</span>
+                    </button>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-purple-100 flex items-center justify-end gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedAsgForDecline(inv);
-                      setIsDeclineModalOpen(true);
-                    }}
-                    className="flex items-center gap-1 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors"
-                  >
-                    <X size={13} />
-                    <span>Decline Offer</span>
-                  </button>
+                {/* Milestones & Commit Timelines */}
+                <div className="space-y-6">
+                  {msList.map((ms) => {
+                    const isCompleted = ms.status === 'Completed';
+                    const isInProgress = ms.status === 'In Progress';
+                    const isPending = ms.status === 'Pending';
 
-                  <button
-                    type="button"
-                    onClick={() => handleAccept(inv)}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
-                  >
-                    <Check size={14} />
-                    <span>Accept Assignment</span>
-                  </button>
+                    return (
+                      <div key={ms.id} className="rounded-2xl border border-slate-200/80 p-5 bg-slate-50/40 space-y-4">
+                        {/* Milestone Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-extrabold text-slate-900">
+                                {(ms.title || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
+                              </h4>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                  isCompleted
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                    : isInProgress
+                                    ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                    : 'bg-amber-100 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                {ms.status}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-400 font-medium">Target Date: {ms.dueDate || 'Sprint Target'}</span>
+                          </div>
+
+                          {/* Status Fast-Switcher Buttons */}
+                          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Set Status:</span>
+                            {['Pending', 'In Progress', 'Completed'].map((st) => (
+                              <button
+                                key={st}
+                                type="button"
+                                onClick={() => {
+                                  if (updateMilestoneStatus) {
+                                    updateMilestoneStatus(resolvedPId || pId, ms.id, st);
+                                    toast.info(`Updated "${ms.title}" status to ${st}`);
+                                  }
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  ms.status === st
+                                    ? 'bg-slate-900 text-white shadow-2xs'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {st}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Commit Timeline Feed (GitHub Style) */}
+                        <div className="space-y-3 pl-2">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                            <span className="flex items-center gap-1.5">
+                              <GitCommit size={14} className="text-purple-600" />
+                              <span>Chronological Commits ({ms.commits?.length || 0})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCommitModal(asg, ms.id)}
+                              className="text-[#7c3aed] font-bold hover:underline cursor-pointer"
+                            >
+                              + Add Commit Log
+                            </button>
+                          </div>
+
+                          {(!ms.commits || ms.commits.length === 0) ? (
+                            <div className="p-4 rounded-xl bg-white border border-dashed border-slate-200 text-center text-xs text-slate-400 space-y-1">
+                              <Code2 size={18} className="mx-auto text-slate-300" />
+                              <p>No commits logged for this milestone yet.</p>
+                              <p className="text-[10px]">Click "+ Add Commit Log" to submit your work progress.</p>
+                            </div>
+                          ) : (
+                            <div className="relative border-l-2 border-slate-200 pl-4 ml-2 space-y-4 py-1">
+                              {ms.commits.map((cmt) => (
+                                <div key={cmt.id} className="relative group">
+                                  {/* Git Commit Node Dot */}
+                                  <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-[#7c3aed] ring-4 ring-purple-100" />
+
+                                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2 hover:border-purple-300 transition-colors">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-mono text-[10px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                          #{cmt.commitHash}
+                                        </span>
+                                        <h5 className="text-xs font-extrabold text-slate-900">{cmt.commitMessage}</h5>
+                                      </div>
+                                      <span className="text-[10px] font-semibold text-slate-400">{cmt.dateTime}</span>
+                                    </div>
+
+                                    <p className="text-xs text-slate-700 leading-relaxed font-sans bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                      {cmt.workCompleted}
+                                    </p>
+
+                                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                                      <span>Author: <strong className="text-slate-700">{cmt.authorName}</strong></span>
+                                      <span className="text-purple-600 font-bold">Verified Commit</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+            );
+          })()}
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* MAIN PROJECT OFFERS & ASSIGNMENTS LIST VIEW (EXACTLY AS PIC 2) */
+        /* ========================================================================= */
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#8b5cf6] text-white flex items-center justify-center shadow-md">
+                  <Briefcase size={20} />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                    Assignment Offers & Tasks
+                  </h1>
+                  <p className="text-xs text-slate-500">
+                    Review assigned projects, accept invitations, and click any project to access milestone commits.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1.5">
+                <GitCommit size={14} className="text-purple-600" />
+                <span>{myAssignments.length} Total Assignments</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Pending Invitations Section */}
+          {pendingInvitations.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900">
+                  Project Recruitment Offers ({pendingInvitations.length})
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold animate-pulse">
+                  Action Required – Accept or Decline Offer
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingInvitations.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="p-6 rounded-3xl bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-white border-2 border-purple-300 shadow-md flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-200">
+                          {inv.projectId}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
+                          <CheckCircle2 size={11} className="text-emerald-600" />
+                          <span>Company Authorized</span>
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 block mb-0.5">
+                          Project Recruitment Offer
+                        </span>
+                        <h3 className="text-base font-extrabold text-slate-900">{inv.projectName}</h3>
+                        <p className="text-xs font-bold text-purple-700 mt-0.5">Offered Role: {inv.role}</p>
+                        <p className="text-xs text-slate-500 mt-1">Client Organization: {inv.client}</p>
+                      </div>
+
+                      {/* Availability Verification Box */}
+                      <div className="p-3 rounded-2xl bg-white border border-purple-200 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Rate</span>
+                          <p className="font-extrabold text-slate-900">{inv.hourlyRate || '$95/hr'}</p>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Workload Capacity</span>
+                          <p className="font-extrabold text-slate-900">{inv.workload || 40}% Allocation (40h/wk)</p>
+                        </div>
+                        <div className="pt-2 border-t border-purple-100 flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold">
+                          <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                          <span>Availability Status: Verified Available for Project Execution</span>
+                        </div>
+                      </div>
+
+                      {inv.notes && (
+                        <p className="text-[11px] text-slate-600 italic bg-purple-50/60 p-2.5 rounded-xl border border-purple-100">
+                          Manager Note: "{inv.notes}"
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-1">
+                        {(Array.isArray(inv.skills) ? inv.skills : (inv.skills || '').split(/[,+]/)).map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-md bg-purple-100/70 text-purple-800 text-[10px] font-semibold"
+                          >
+                            {String(s).trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-purple-100 flex items-center justify-end gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAsgForDecline(inv);
+                          setIsDeclineModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        <X size={13} />
+                        <span>Decline Offer</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAccept(inv)}
+                        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Check size={14} />
+                        <span>Accept Assignment</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Filter Tabs & Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="relative flex-1 max-w-md">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search my projects, client, sprint..."
+                className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-purple-600"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {[
+                { label: 'All', value: 'all' },
+                { label: 'Active Sprints', value: 'active' },
+                { label: 'Invitations', value: 'invitations' },
+                { label: 'Completed', value: 'completed' },
+                { label: 'Declined', value: 'declined' },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.value)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === tab.value
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Assignments Table (Pic 2) */}
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="py-3.5 px-4">Project & Client</th>
+                    <th className="py-3.5 px-4">Client</th>
+                    <th className="py-3.5 px-4">Current Sprint Task</th>
+                    <th className="py-3.5 px-4">Rate & Workload</th>
+                    <th className="py-3.5 px-4">Sprint Progress</th>
+                    <th className="py-3.5 px-4 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAssignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-slate-400">
+                        No project assignments found matching this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAssignments.map((asg) => {
+                      const normProj = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
+                      const isProjectRejected = rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st));
+                      const isActive = !isProjectRejected && (asg.status === 'Accepted' || asg.status === 'Working' || asg.status === 'In Progress');
+                      const pIdKey = asg.projectId || asg.id;
+                      const matchedProj = (projects || []).find((p) => String(p.id) === String(asg.projectId) || p.title === asg.projectName);
+                      const msListForAsg = (projectMilestones && (projectMilestones[pIdKey] || projectMilestones[normProj])) || matchedProj?.milestones || asg.milestones || [];
+                      let completedWeightSum = 0;
+                      (msListForAsg || []).forEach((m) => {
+                        if (String(m.status || '').toLowerCase() === 'completed' || m.completed || m.progressPercentage === 100) {
+                          completedWeightSum += Number(m.weight || m.weightage || 20);
+                        }
+                      });
+                      const calculatedProg = msListForAsg.length > 0
+                        ? Math.min(100, Math.round(completedWeightSum))
+                        : (typeof asg.progress === 'number' && asg.progress > 0 ? asg.progress : (matchedProj?.progress || 0));
+
+                      return (
+                        <tr
+                          key={asg.id}
+                          className="hover:bg-purple-50/40 transition-colors cursor-pointer group"
+                          onClick={() => {
+                            setSelectedProjectForMilestones(asg);
+                            setSearchParams({ projectId: asg.projectId || asg.id });
+                          }}
+                        >
+                          <td className="py-3.5 px-4">
+                            <div>
+                              <span className="text-[10px] font-mono text-slate-400 block">{asg.projectId || asg.id || '1'}</span>
+                              <h4 className="font-extrabold text-slate-900 group-hover:text-[#7c3aed] transition-colors flex items-center gap-1.5">
+                                <span>{asg.projectName}</span>
+                                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                                  <span>View Milestones</span>
+                                  <ChevronRight size={10} />
+                                </span>
+                              </h4>
+                              <p className="text-[10px] text-slate-400 font-medium">{asg.client || asg.clientCompanyName || 'tedz'}</p>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <p className="font-extrabold text-[#7c3aed]">{asg.client || asg.clientCompanyName || 'tedz'}</p>
+                          </td>
+
+                          <td className="py-3.5 px-4 max-w-[200px]">
+                            <p className="text-slate-700 font-medium truncate">
+                              {isProjectRejected ? 'Project rejected by client/admin.' : (asg.currentTask || 'Milestones Completed & Delivered')}
+                            </p>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <p className="font-bold text-slate-900">{asg.hourlyRate || '$100/hr'}</p>
+                            <span className="text-[10px] text-slate-400">{asg.workload || 40}h/wk workload</span>
+                          </td>
+
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3.5">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isProjectRejected
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    : asg.status === 'Awaiting Workforce Response'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : isActive
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : asg.status === 'Completed'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}
+                              >
+                                {isProjectRejected ? 'Project Rejected' : asg.status}
+                              </span>
+
+                              {(isActive || asg.status === 'Completed') && (
+                                <div
+                                  className="flex items-center gap-2 cursor-pointer group-hover:opacity-90"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedProjectForMilestones(asg);
+                                    setSearchParams({ projectId: asg.projectId || asg.id });
+                                  }}
+                                  title="Click to view milestones"
+                                >
+                                  <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
+                                    <div
+                                      className="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full transition-all duration-300"
+                                      style={{ width: `${calculatedProg}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-extrabold text-slate-900 text-xs">{calculatedProg}%</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                            {isProjectRejected ? (
+                              <span className="text-[11px] text-rose-600 font-bold">Project Rejected</span>
+                            ) : isActive || asg.status === 'Completed' ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setChatModalAsg(asg);
+                                }}
+                                className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-[#7c3aed] text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                                title="Chat with HR Manager or Client"
+                              >
+                                <MessageSquare size={13} />
+                                <span>Chat</span>
+                              </button>
+                            ) : isPendingStatus(asg.status) ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAccept(asg)}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                                >
+                                  <Check size={12} />
+                                  <span>Accept Offer</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedAsgForDecline(asg);
+                                    setIsDeclineModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+                                >
+                                  <X size={12} />
+                                  <span>Decline</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setChatModalAsg(asg);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                                  title="Chat with HR Manager or Client"
+                                >
+                                  <MessageSquare size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setChatModalAsg(asg);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-[#7c3aed] text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                                  title="Chat with HR Manager or Client"
+                                >
+                                  <MessageSquare size={13} />
+                                  <span>Chat</span>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
-
-      {/* ========================================================================= */}
-      {/* GITHUB-STYLE MILESTONE COMMIT TIMELINE FOR ACTIVE ASSIGNMENTS */}
-      {/* ========================================================================= */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-              <GitBranch size={18} />
-            </div>
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">GitHub-Style Milestone Commit System</h2>
-              <p className="text-xs text-slate-500">
-                Log technical commits, track milestone completion, and view chronological delivery timelines.
-              </p>
-            </div>
-          </div>
-
-          {activeAssignments.length > 0 && (
-            <button
-              type="button"
-              onClick={() => handleOpenCommitModal(activeAssignments[0])}
-              className="px-4 py-2 rounded-xl bg-[#7c3aed] hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-500/20 active:scale-95 transition-all flex items-center gap-2 self-start sm:self-auto"
-            >
-              <GitCommit size={15} />
-              <span>+ Submit Commit Update</span>
-            </button>
-          )}
-        </div>
-
-        {/* Milestone Cards for Active Assignments */}
-        {activeAssignments.length === 0 ? (
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs text-center py-8 space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center">
-              <GitCommit size={24} />
-            </div>
-            <h3 className="text-sm font-extrabold text-slate-900">No Active Project Milestone Commits</h3>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              You do not have any active, accepted project assignments at the moment. Milestone commit tracking and work submission are enabled once you accept an assignment offer.
-            </p>
-          </div>
-        ) : (
-          activeAssignments.map((asg) => {
-          const pId = asg.projectId;
-          const normProj = String(pId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-          const targetProj = (projects || []).find((p) => {
-            if (!p) return false;
-            const pIdStr = String(p.id || '').toLowerCase().trim();
-            const pNorm = pIdStr.replace(/[\s_]/g, '-');
-            const pTitle = String(p.title || p.name || '').toLowerCase().trim();
-            const asgTitle = String(asg.projectName || '').toLowerCase().trim();
-            return (
-              (pId && (pIdStr === String(pId).toLowerCase() || pNorm === normProj)) ||
-              (asgTitle && (pTitle === asgTitle || pTitle.includes(asgTitle) || asgTitle.includes(pTitle)))
-            );
-          });
-          const resolvedPId = targetProj?.id || pId;
-          const pMsFromStore = (projectMilestones && (projectMilestones[resolvedPId] || projectMilestones[pId] || projectMilestones[normProj]));
-          const msList = (pMsFromStore && pMsFromStore.length > 0)
-            ? pMsFromStore
-            : (targetProj?.milestones && targetProj.milestones.length > 0)
-            ? targetProj.milestones
-            : (asg.milestones && asg.milestones.length > 0)
-            ? asg.milestones
-            : [
-                { id: 'ms-01', title: 'Requirement Analysis', status: 'Pending', dueDate: targetProj?.startDate || '2026-10-15', commits: [] },
-                { id: 'ms-02', title: 'UI/UX & System Design', status: 'Pending', dueDate: targetProj?.startDate || '2026-11-01', commits: [] },
-                { id: 'ms-03', title: 'Backend & Database Development', status: 'Pending', dueDate: targetProj?.endDate || '2026-12-15', commits: [] },
-                { id: 'ms-04', title: 'Frontend & Integration', status: 'Pending', dueDate: targetProj?.endDate || '2027-01-20', commits: [] },
-                { id: 'ms-05', title: 'Testing, Deployment & Final Delivery', status: 'Pending', dueDate: targetProj?.endDate || '2027-02-28', commits: [] },
-              ];
-
-          return (
-            <div key={asg.id} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
-              {/* Project Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                      {resolvedPId || asg.projectId}
-                    </span>
-                    <h3 className="text-base font-extrabold text-slate-900">{asg.projectName || targetProj?.title || targetProj?.name}</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Assigned Role: <strong className="text-purple-700">{asg.role}</strong> • Client: {asg.client || targetProj?.client || 'Enterprise Client'}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setChatModalAsg(asg)}
-                    className="px-3.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    title="Chat with HR Manager or Client"
-                  >
-                    <MessageSquare size={14} />
-                    <span>Chat</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAddMilestoneModal(asg)}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus size={14} />
-                    <span>Add Milestone</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCommitModal(asg)}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <GitCommit size={14} />
-                    <span>Commit Work</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Milestones & Commit Timelines */}
-              <div className="space-y-6">
-                {msList.map((ms) => {
-                  const isCompleted = ms.status === 'Completed';
-                  const isInProgress = ms.status === 'In Progress';
-                  const isPending = ms.status === 'Pending';
-
-                  return (
-                    <div key={ms.id} className="rounded-2xl border border-slate-200/80 p-5 bg-slate-50/40 space-y-4">
-                      {/* Milestone Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-extrabold text-slate-900">
-                              {(ms.title || '').replace(/^Milestone \d+:\s*/i, '').replace(/\s*\(\d+%\)/g, '').replace(/\s*-\s*\d+%/g, '').trim()}
-                            </h4>
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                                isCompleted
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                  : isInProgress
-                                  ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                  : 'bg-amber-100 text-amber-800 border-amber-200'
-                              }`}
-                            >
-                              {ms.status}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-slate-400 font-medium">Target Date: {ms.dueDate || 'Sprint Target'}</span>
-                        </div>
-
-                        {/* Status Fast-Switcher Buttons */}
-                        <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Set Status:</span>
-                          {['Pending', 'In Progress', 'Completed'].map((st) => (
-                            <button
-                              key={st}
-                              type="button"
-                              onClick={() => {
-                                if (updateMilestoneStatus) {
-                                  updateMilestoneStatus(resolvedPId || pId, ms.id, st);
-                                  toast.info(`Updated "${ms.title}" status to ${st}`);
-                                }
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                                ms.status === st
-                                  ? 'bg-slate-900 text-white shadow-2xs'
-                                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {st}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Commit Timeline Feed (GitHub Style) */}
-                      <div className="space-y-3 pl-2">
-                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                          <span className="flex items-center gap-1.5">
-                            <GitCommit size={14} className="text-purple-600" />
-                            <span>Chronological Commits ({ms.commits?.length || 0})</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenCommitModal(asg, ms.id)}
-                            className="text-[#7c3aed] font-bold hover:underline"
-                          >
-                            + Add Commit Log
-                          </button>
-                        </div>
-
-                        {(!ms.commits || ms.commits.length === 0) ? (
-                          <div className="p-4 rounded-xl bg-white border border-dashed border-slate-200 text-center text-xs text-slate-400 space-y-1">
-                            <Code2 size={18} className="mx-auto text-slate-300" />
-                            <p>No commits logged for this milestone yet.</p>
-                            <p className="text-[10px]">Click "+ Add Commit Log" to submit your work progress.</p>
-                          </div>
-                        ) : (
-                          <div className="relative border-l-2 border-slate-200 pl-4 ml-2 space-y-4 py-1">
-                            {ms.commits.map((cmt) => (
-                              <div key={cmt.id} className="relative group">
-                                {/* Git Commit Node Dot */}
-                                <div className="absolute -left-[23px] top-1.5 w-3 h-3 rounded-full bg-[#7c3aed] ring-4 ring-purple-100" />
-
-                                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2 hover:border-purple-300 transition-colors">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono text-[10px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                        #{cmt.commitHash}
-                                      </span>
-                                      <h5 className="text-xs font-extrabold text-slate-900">{cmt.commitMessage}</h5>
-                                    </div>
-                                    <span className="text-[10px] font-semibold text-slate-400">{cmt.dateTime}</span>
-                                  </div>
-
-                                  <p className="text-xs text-slate-700 leading-relaxed font-sans bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                                    {cmt.workCompleted}
-                                  </p>
-
-                                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                                    <span>Author: <strong className="text-slate-700">{cmt.authorName}</strong></span>
-                                    <span className="text-purple-600 font-bold">Verified Commit</span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })
-        )}
-      </div>
-
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search my projects, roles, client..."
-            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-purple-600"
-          />
-        </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {[
-            { label: 'All', value: 'all' },
-            { label: 'Active Sprints', value: 'active' },
-            { label: 'Invitations', value: 'invitations' },
-            { label: 'Completed', value: 'completed' },
-            { label: 'Declined', value: 'declined' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setStatusFilter(tab.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                statusFilter === tab.value
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Assignments Table / List */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              <tr>
-                <th className="py-3.5 px-4">Project & Client</th>
-                <th className="py-3.5 px-4">Your Role</th>
-                <th className="py-3.5 px-4">Current Sprint Task</th>
-                <th className="py-3.5 px-4">Rate & Workload</th>
-                <th className="py-3.5 px-4">Sprint Progress</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredAssignments.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-slate-400">
-                    No project assignments found matching this filter.
-                  </td>
-                </tr>
-              ) : (
-                filteredAssignments.map((asg) => {
-                  const normProj = String(asg.projectId || '').toLowerCase().replace(/[\s_]/g, '-').trim();
-                  const isProjectRejected = rejectedProjectIds.has(normProj) || ['reject', 'decline', 'cancel'].some((st) => String(asg.status || '').toLowerCase().includes(st));
-                  const isActive = !isProjectRejected && (asg.status === 'Accepted' || asg.status === 'Working' || asg.status === 'In Progress');
-                  const pIdKey = asg.projectId || asg.id;
-                  const matchedProj = (projects || []).find((p) => String(p.id) === String(asg.projectId) || p.title === asg.projectName);
-                  const msListForAsg = (projectMilestones && (projectMilestones[pIdKey] || projectMilestones[normProj])) || matchedProj?.milestones || asg.milestones || [];
-                  let completedWeightSum = 0;
-                  (msListForAsg || []).forEach((m) => {
-                    if (String(m.status || '').toLowerCase() === 'completed' || m.completed || m.progressPercentage === 100) {
-                      completedWeightSum += Number(m.weight || m.weightage || 20);
-                    }
-                  });
-                  const calculatedProg = msListForAsg.length > 0
-                    ? Math.min(100, Math.round(completedWeightSum))
-                    : (typeof asg.progress === 'number' && asg.progress > 0 ? asg.progress : (matchedProj?.progress || 0));
-
-                  return (
-                    <tr key={asg.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div>
-                          <span className="text-[10px] font-mono text-slate-400 block">{asg.projectId}</span>
-                          <h4 className="font-bold text-slate-900 line-clamp-1">{asg.projectName}</h4>
-                          <span className="text-[10px] text-slate-500">{asg.client || asg.partnerName}</span>
-                        </div>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <p className="font-bold text-purple-700">{asg.role}</p>
-                      </td>
-
-                      <td className="py-3.5 px-4 max-w-[200px]">
-                        <p className="text-slate-700 font-medium truncate">
-                          {isProjectRejected ? 'Project rejected by client/admin.' : (asg.currentTask || 'Sprint execution & milestone deliverables')}
-                        </p>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <p className="font-bold text-slate-900">{asg.hourlyRate || '$95/hr'}</p>
-                        <span className="text-[10px] text-slate-400">{asg.workload || 0}% workload</span>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            isProjectRejected
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : asg.status === 'Awaiting Workforce Response'
-                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                              : isActive
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : asg.status === 'Completed'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}
-                        >
-                          {isProjectRejected ? 'Project Rejected' : asg.status}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 min-w-[170px]">
-                        {isProjectRejected ? (
-                          <span className="text-[11px] text-rose-600 font-bold">Project Rejected</span>
-                        ) : isActive || asg.status === 'Completed' ? (
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
-                                <div
-                                  className="bg-gradient-to-r from-purple-600 to-indigo-600 h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${calculatedProg}%` }}
-                                />
-                              </div>
-                              <span className="font-extrabold text-slate-900 text-xs">{calculatedProg}%</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setChatModalAsg(asg)}
-                              className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                              title="Chat with HR Manager or Client"
-                            >
-                              <MessageSquare size={12} />
-                              <span>Chat</span>
-                            </button>
-                          </div>
-                        ) : isPendingStatus(asg.status) ? (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleAccept(asg)}
-                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all"
-                            >
-                              <Check size={12} />
-                              <span>Accept Offer</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedAsgForDecline(asg);
-                                setIsDeclineModalOpen(true);
-                              }}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                            >
-                              <X size={12} />
-                              <span>Decline</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setChatModalAsg(asg)}
-                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-slate-200 transition cursor-pointer"
-                              title="Chat with HR Manager or Client"
-                            >
-                              <MessageSquare size={13} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-slate-400">{calculatedProg}%</span>
-                            <button
-                              type="button"
-                              onClick={() => setChatModalAsg(asg)}
-                              className="px-2 py-1 rounded-lg bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-[11px] font-medium flex items-center gap-1 transition cursor-pointer"
-                              title="Chat with HR Manager or Client"
-                            >
-                              <MessageSquare size={12} />
-                              <span>Chat</span>
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Decline Modal */}
       <AnimatePresence>
@@ -1457,7 +1538,7 @@ export const WorkforceAssignments = () => {
           const resolvedManagerId = chatModalAsg.managerId || matchedProj?.managerId || 22;
           const resolvedManagerName = chatModalAsg.managerName || chatModalAsg.manager || matchedProj?.managerName || 'Thomas Mathew';
           const resolvedClientId = chatModalAsg.clientId || matchedProj?.clientId || 8;
-          const resolvedClientCompany = chatModalAsg.clientCompanyName || chatModalAsg.client || matchedProj?.clientCompanyName || matchedProj?.client || 'todz';
+          const resolvedClientCompany = chatModalAsg.clientCompanyName || chatModalAsg.client || matchedProj?.clientCompanyName || matchedProj?.client || 'tedz';
           const resolvedClientPerson = chatModalAsg.clientName || matchedProj?.clientName || 'mathew';
 
           return (
