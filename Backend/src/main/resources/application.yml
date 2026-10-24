@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
   servlet:
     context-path: /
 
@@ -30,7 +30,7 @@ app:
     refresh-expiration-milliseconds: 604800000 # 7 Days
 
   cors:
-    allowed-origins: "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    allowed-origins: "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://*.onrender.com,https://flexistaff.onrender.com"
     allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     allowed-headers: "*"
     allow-credentials: true
