@@ -9,10 +9,20 @@ spring:
 
   # PostgreSQL Database Configuration (Supabase, Render PostgreSQL, Local PostgreSQL)
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://${DB_HOST:aws-0-ap-northeast-2.pooler.supabase.com}:${DB_PORT:6543}/${DB_NAME:postgres}?sslmode=${DB_SSLMODE:require}}}
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://${DB_HOST:aws-0-ap-northeast-2.pooler.supabase.com}:${DB_PORT:6543}/${DB_NAME:postgres}?sslmode=${DB_SSLMODE:require}&prepareThreshold=0}}
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:postgres.wrlpzqqxwsihupmeeios}
     password: ${DB_PASSWORD:josephthekkel2255}
+    hikari:
+      pool-name: FlexiStaffHikariPool
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 60000
+      max-lifetime: 180000
+      connection-timeout: 10000
+      keepalive-time: 25000
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
 
   jpa:
     hibernate:

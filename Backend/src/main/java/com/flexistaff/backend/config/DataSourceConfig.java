@@ -98,6 +98,10 @@ public class DataSourceConfig {
                 && !primaryJdbcUrl.contains("sslmode=")) {
             primaryJdbcUrl += (primaryJdbcUrl.contains("?") ? "&" : "?") + "sslmode=require";
         }
+        if ((primaryJdbcUrl.contains("pooler.supabase.com") || primaryJdbcUrl.contains(":6543"))
+                && !primaryJdbcUrl.contains("prepareThreshold=")) {
+            primaryJdbcUrl += (primaryJdbcUrl.contains("?") ? "&" : "?") + "prepareThreshold=0";
+        }
 
         // 1. Attempt connection with Primary DataSource
         HikariDataSource primaryDs = tryCreateDataSource(primaryJdbcUrl, primaryUser, primaryPassword, "Primary DataSource");
@@ -115,7 +119,7 @@ public class DataSourceConfig {
             String poolerUser = primaryUser.contains(".") ? primaryUser : primaryUser + "." + projectRef;
 
             // Try port 6543 first (Transaction pooler - standard for Supabase cloud connections)
-            String poolerTxUrl = String.format("jdbc:postgresql://%s:6543/postgres?sslmode=require", defaultPoolerHost);
+            String poolerTxUrl = String.format("jdbc:postgresql://%s:6543/postgres?sslmode=require&prepareThreshold=0", defaultPoolerHost);
             log.info("Direct Supabase host failed (likely IPv6 network limitation). Attempting connection via Supabase pooler ({}:6543) with user '{}'...",
                     defaultPoolerHost, poolerUser);
 
@@ -126,7 +130,7 @@ public class DataSourceConfig {
             }
 
             // Also try port 5432 (Session pooler)
-            String poolerUrl = String.format("jdbc:postgresql://%s:5432/postgres?sslmode=require", defaultPoolerHost);
+            String poolerUrl = String.format("jdbc:postgresql://%s:5432/postgres?sslmode=require&prepareThreshold=0", defaultPoolerHost);
             log.info("Attempting Supabase pooler on session port 5432...");
             HikariDataSource poolerDs = tryCreateDataSource(poolerUrl, poolerUser, primaryPassword, "Supabase IPv4 Pooler DataSource");
             if (poolerDs != null) {
@@ -136,7 +140,7 @@ public class DataSourceConfig {
         }
 
         // 2b. Attempt connection via default Supabase pooler port 6543
-        String defaultPoolerUrl = "jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require";
+        String defaultPoolerUrl = "jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0";
         String defaultPoolerUser = "postgres.wrlpzqqxwsihupmeeios";
         String defaultPoolerPass = "josephthekkel2255";
         log.info("Attempting fallback connection to standard Supabase pooler: {}", defaultPoolerUrl);
@@ -152,19 +156,27 @@ public class DataSourceConfig {
     }
 
     private HikariDataSource tryCreateDataSource(String jdbcUrl, String username, String password, String name) {
+        if ((jdbcUrl.contains("6543") || jdbcUrl.contains("pooler.supabase.com")) && !jdbcUrl.contains("prepareThreshold=")) {
+            jdbcUrl += (jdbcUrl.contains("?") ? "&" : "?") + "prepareThreshold=0";
+        }
+
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(username);
         config.setPassword(password);
         config.setDriverClassName("org.postgresql.Driver");
 
-        // Tuned for 512MB RAM environment
+        // Tuned for 512MB RAM environment & Supabase/PgBouncer pooler stability
+        config.setPoolName("FlexiStaff-" + name.replaceAll("[^a-zA-Z0-9]", ""));
         config.setMaximumPoolSize(5);
         config.setMinimumIdle(1);
-        config.setIdleTimeout(300000);
-        config.setConnectionTimeout(8000);
-        config.setMaxLifetime(600000);
-        config.setInitializationFailTimeout(3000); // Fail fast in 3s so alternatives/fallbacks trigger promptly
+        config.setIdleTimeout(60000);              // 1 minute
+        config.setMaxLifetime(180000);             // 3 minutes (replaces connections before Supabase pooler drops idle sockets)
+        config.setConnectionTimeout(10000);         // 10s timeout
+        config.setKeepaliveTime(25000);            // 25s keepalive ping prevents idle connection termination
+        config.setConnectionTestQuery("SELECT 1");  // Proactively validates connection health before handing to Hibernate
+        config.setValidationTimeout(3000);         // 3s validation timeout
+        config.setInitializationFailTimeout(3000);  // Fail fast in 3s so alternatives/fallbacks trigger promptly
 
         HikariDataSource ds = null;
         try {
@@ -188,15 +200,17 @@ public class DataSourceConfig {
 
     private HikariDataSource createH2FallbackDataSource() {
         HikariConfig h2Config = new HikariConfig();
+        h2Config.setPoolName("FlexiStaff-H2Fallback");
         h2Config.setJdbcUrl("jdbc:h2:mem:flexistaff;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
         h2Config.setDriverClassName("org.h2.Driver");
         h2Config.setUsername("sa");
         h2Config.setPassword("");
         h2Config.setMaximumPoolSize(5);
         h2Config.setMinimumIdle(1);
-        h2Config.setIdleTimeout(300000);
+        h2Config.setIdleTimeout(60000);
         h2Config.setConnectionTimeout(10000);
-        h2Config.setMaxLifetime(600000);
+        h2Config.setMaxLifetime(180000);
+        h2Config.setConnectionTestQuery("SELECT 1");
 
         log.info("Embedded H2 in-memory DataSource successfully initialized.");
         return new HikariDataSource(h2Config);
