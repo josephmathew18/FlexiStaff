@@ -446,18 +446,42 @@ export const DataProvider = ({ children }) => {
     };
   }, [authUser]);
 
+  const isDemoRecord = (item) => {
+    if (!item) return false;
+    const str = JSON.stringify(item).toLowerCase();
+    return (
+      str.includes('finovate') ||
+      str.includes('medix') ||
+      str.includes('omnibank') ||
+      str.includes('aerocargo') ||
+      str.includes('apex defense') ||
+      str.includes('starlight') ||
+      str.includes('quantumleap') ||
+      str.includes('retailpulse') ||
+      str.includes('cloudscale') ||
+      str.includes('devcraft') ||
+      str.includes('apex ai talent') ||
+      str.includes('brody') ||
+      str.includes('rostova') ||
+      str.includes('david.miller') ||
+      str.includes('alex.rivera') ||
+      str.includes('sophia.chen') ||
+      str.includes('rohan.m') ||
+      str.includes('dr. aris') ||
+      str.includes('aris.vance') ||
+      str.includes('acme financial') ||
+      str.includes('sarah@acmefinance')
+    );
+  };
+
   const [clients, setClients] = useState(() => {
     try {
       const saved = localStorage.getItem('flexistaff_clients');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingEmails = new Set(parsed.map(c => (c.email || '').toLowerCase().trim()));
-          const missing = initialClients.filter(c => !existingEmails.has((c.email || '').toLowerCase().trim()));
-          if (missing.length > 0) {
-            return [...parsed, ...missing];
-          }
-          return parsed;
+          const clean = parsed.filter(c => !isDemoRecord(c));
+          if (clean.length > 0) return clean;
         }
       }
     } catch {
@@ -471,7 +495,10 @@ export const DataProvider = ({ children }) => {
       const saved = localStorage.getItem('flexistaff_partners');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const clean = parsed.filter(p => !isDemoRecord(p));
+          if (clean.length > 0) return clean;
+        }
       }
     } catch {
       // Ignore
@@ -485,7 +512,7 @@ export const DataProvider = ({ children }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)));
+          list = parsed.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)) && !isDemoRecord(m));
         }
       }
     } catch {
@@ -498,7 +525,12 @@ export const DataProvider = ({ children }) => {
     let list = [];
     try {
       const saved = localStorage.getItem('flexistaff_workforce');
-      if (saved) list = JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed.filter(w => !isDemoRecord(w));
+        }
+      }
     } catch { }
     if (!list || !Array.isArray(list) || list.length === 0) {
       list = initialWorkforce;
@@ -620,7 +652,7 @@ export const DataProvider = ({ children }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed;
+          list = parsed.filter(p => !isDemoRecord(p));
         }
       }
     } catch {
