@@ -31,14 +31,24 @@ public class RootController {
             "/professional/**",
             "/manager",
             "/manager/**",
-            "/projects",
-            "/projects/**",
+            "/workforce",
+            "/workforce/**",
+            "/freelancer",
+            "/freelancer/**",
             "/freelancers",
             "/freelancers/**",
+            "/company",
+            "/clients",
+            "/partners",
+            "/managers",
+            "/projects",
+            "/projects/**",
             "/support",
             "/support/**",
             "/feedback",
-            "/feedback/**"
+            "/feedback/**",
+            "/messages",
+            "/messages/**"
     })
     public String forwardSpaRoutes() {
         return "forward:/index.html";

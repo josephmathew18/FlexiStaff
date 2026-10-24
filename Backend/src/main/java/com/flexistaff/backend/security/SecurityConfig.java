@@ -54,12 +54,19 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Ensure all browser SPA page navigations and static assets are permitted
+                        .requestMatchers(request -> {
+                            String path = request.getServletPath();
+                            return path != null && !path.startsWith("/api") && !path.startsWith("/ws") && !path.startsWith("/h2-console");
+                        }).permitAll()
                         .requestMatchers(
                                 "/", "/index.html", "/assets/**", "/*.svg", "/*.ico", "/*.png", "/*.jpg", "/*.jpeg", "/*.js", "/*.css",
                                 "/api/status", "/login", "/register", "/apply", "/dashboard", "/dashboard/**", "/admin", "/admin/**",
                                 "/client", "/client/**", "/partner", "/partner/**", "/professional", "/professional/**",
-                                "/manager", "/manager/**", "/projects", "/projects/**", "/freelancers", "/freelancers/**",
-                                "/support", "/support/**", "/feedback", "/feedback/**",
+                                "/manager", "/manager/**", "/workforce", "/workforce/**", "/freelancer", "/freelancer/**",
+                                "/freelancers", "/freelancers/**", "/company", "/clients", "/partners", "/managers",
+                                "/projects", "/projects/**", "/support", "/support/**", "/feedback", "/feedback/**",
+                                "/messages", "/messages/**",
                                 "/api/v1/auth/**", "/api/v1/dashboard/**", "/api/v1/projects", "/api/v1/projects/**",
                                 "/api/v1/milestones", "/api/v1/milestones/**", "/api/v1/payments", "/api/v1/payments/**",
                                 "/api/v1/admin/**", "/api/v1/payouts/**", "/api/v1/freelancers", "/api/v1/freelancers/**",
