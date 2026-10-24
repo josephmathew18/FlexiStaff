@@ -106,7 +106,7 @@ public class DataSourceConfig {
                     config.getJdbcUrl(), e.getMessage());
 
             HikariConfig h2Config = new HikariConfig();
-            h2Config.setJdbcUrl("jdbc:h2:mem:flexistaff;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERINGS=HIGH");
+            h2Config.setJdbcUrl("jdbc:h2:mem:flexistaff;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
             h2Config.setDriverClassName("org.h2.Driver");
             h2Config.setUsername("sa");
             h2Config.setPassword("");
