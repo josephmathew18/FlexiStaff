@@ -9,10 +9,10 @@ spring:
 
   # PostgreSQL Database Configuration (Supabase, Render PostgreSQL, Local PostgreSQL)
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}?sslmode=${DB_SSLMODE:prefer}}
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://${DB_HOST:aws-0-ap-northeast-2.pooler.supabase.com}:${DB_PORT:6543}/${DB_NAME:postgres}?sslmode=${DB_SSLMODE:require}}}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:4272}
+    username: ${DB_USERNAME:postgres.wrlpzqqxwsihupmeeios}
+    password: ${DB_PASSWORD:josephthekkel2255}
 
   jpa:
     hibernate:

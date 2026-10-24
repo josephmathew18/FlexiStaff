@@ -292,6 +292,14 @@ export const api = {
     getKeyId: () => request('/payments/config/key-id'),
   },
 
+  // Dashboard Metrics API endpoints
+  dashboard: {
+    getAdmin: () => request('/dashboard/admin'),
+    getManager: () => request('/dashboard/manager'),
+    getClient: () => request('/dashboard/client'),
+    getProfessional: () => request('/dashboard/professional'),
+  },
+
   // Rating & Feedback API endpoints (Axios Client)
   feedback: feedbackApi,
 };

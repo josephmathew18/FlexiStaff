@@ -612,8 +612,6 @@ export const DataProvider = ({ children }) => {
         const uIdStr = String(w.userId || '').toLowerCase().trim();
 
         if (
-          nameLower.includes('prince') ||
-          nameLower.includes('abraham') ||
           idStr.includes('00003') ||
           numIdStr.includes('00003')
         ) {
@@ -796,9 +794,11 @@ export const DataProvider = ({ children }) => {
         try {
           const mgrList = JSON.parse(mgrStr);
           if (Array.isArray(mgrList)) {
-            const cleanMgr = mgrList.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)));
-            localStorage.setItem('flexistaff_managers', JSON.stringify(cleanMgr));
-            setManagers(cleanMgr);
+            const cleanMgr = mgrList.filter((m) => Boolean(m && (m.id || m.employeeId || m.name || m.email)) && !isDemoRecord(m));
+            if (cleanMgr.length > 0) {
+              localStorage.setItem('flexistaff_managers', JSON.stringify(cleanMgr));
+              setManagers(cleanMgr);
+            }
           }
         } catch { }
       }
@@ -861,11 +861,13 @@ export const DataProvider = ({ children }) => {
             rating: p.rating || 4.8,
           };
         });
-        setPartners(mapped);
-        try {
-          localStorage.setItem('flexistaff_partners', JSON.stringify(mapped));
-        } catch {}
-        return mapped;
+        if (mapped.length > 0) {
+          setPartners(mapped);
+          try {
+            localStorage.setItem('flexistaff_partners', JSON.stringify(mapped));
+          } catch {}
+          return mapped;
+        }
       }
     } catch (err) {
       console.warn('Could not refresh partners from backend API:', err);
@@ -960,43 +962,45 @@ export const DataProvider = ({ children }) => {
           };
         });
 
-        setWorkforce(mapped);
-        try {
-          localStorage.setItem('flexistaff_workforce', JSON.stringify(mapped));
-        } catch {}
+        if (mapped.length > 0) {
+          setWorkforce(mapped);
+          try {
+            localStorage.setItem('flexistaff_workforce', JSON.stringify(mapped));
+          } catch {}
 
-        setWorkforceUserProfile((prev) => {
-          if (!prev) return prev;
-          const pEmail = (prev.email || '').toLowerCase().trim();
-          const pId = String(prev.numericId || prev.id || prev.userId || '').trim();
-          const pName = (prev.name || '').toLowerCase().trim();
-          const matched = mapped.find((w) => {
-            const wEmail = (w.email || '').toLowerCase().trim();
-            const wId = String(w.numericId || w.id || w.userId || '').trim();
-            const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
-            return (pEmail && wEmail && pEmail === wEmail) || (pId && wId && pId === wId) || (pName && wName && pName === wName);
+          setWorkforceUserProfile((prev) => {
+            if (!prev) return prev;
+            const pEmail = (prev.email || '').toLowerCase().trim();
+            const pId = String(prev.numericId || prev.id || prev.userId || '').trim();
+            const pName = (prev.name || '').toLowerCase().trim();
+            const matched = mapped.find((w) => {
+              const wEmail = (w.email || '').toLowerCase().trim();
+              const wId = String(w.numericId || w.id || w.userId || '').trim();
+              const wName = (w.name || w.pseudonym || '').toLowerCase().trim();
+              return (pEmail && wEmail && pEmail === wEmail) || (pId && wId && pId === wId) || (pName && wName && pName === wName);
+            });
+            if (matched) {
+              const isAssigned = matched.isCurrentlyWorking || matched.availabilityStatus === 'Currently Assigned' || (matched.currentProject && matched.currentProject !== 'None');
+              const resolvedAvail = isAssigned && matched.availabilityStatus !== 'Temporarily Unavailable'
+                ? 'Currently Assigned'
+                : (matched.availabilityStatus || matched.availability || prev.availabilityStatus || prev.availability || 'Available');
+              const updated = {
+                ...prev,
+                ...matched,
+                availability: resolvedAvail,
+                availabilityStatus: resolvedAvail,
+                isCurrentlyWorking: isAssigned,
+                currentProject: matched.currentProject || prev.currentProject,
+                assignedProject: matched.currentProject || prev.assignedProject,
+              };
+              try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
+              return updated;
+            }
+            return prev;
           });
-          if (matched) {
-            const isAssigned = matched.isCurrentlyWorking || matched.availabilityStatus === 'Currently Assigned' || (matched.currentProject && matched.currentProject !== 'None');
-            const resolvedAvail = isAssigned && matched.availabilityStatus !== 'Temporarily Unavailable'
-              ? 'Currently Assigned'
-              : (matched.availabilityStatus || matched.availability || prev.availabilityStatus || prev.availability || 'Available');
-            const updated = {
-              ...prev,
-              ...matched,
-              availability: resolvedAvail,
-              availabilityStatus: resolvedAvail,
-              isCurrentlyWorking: isAssigned,
-              currentProject: matched.currentProject || prev.currentProject,
-              assignedProject: matched.currentProject || prev.assignedProject,
-            };
-            try { localStorage.setItem('flexistaff_workforce_profile', JSON.stringify(updated)); } catch {}
-            return updated;
-          }
-          return prev;
-        });
 
-        return mapped;
+          return mapped;
+        }
       }
     } catch (err) {
       console.warn('Could not refresh workforce from backend API:', err);
@@ -1206,7 +1210,8 @@ export const DataProvider = ({ children }) => {
         }
       }
     } catch { }
-    return [];
+    setManagers(initialManagers);
+    return initialManagers;
   };
 
   const refreshAllData = async () => {
@@ -1237,11 +1242,13 @@ export const DataProvider = ({ children }) => {
             return mapBackendProjectToFrontend({ ...p, milestones: pMilestones });
           })
         );
-        setProjects(mappedList);
-        try {
-          localStorage.setItem('flexistaff_projects', JSON.stringify(mappedList));
-        } catch {}
-        return mappedList;
+        if (mappedList.length > 0) {
+          setProjects(mappedList);
+          try {
+            localStorage.setItem('flexistaff_projects', JSON.stringify(mappedList));
+          } catch {}
+          return mappedList;
+        }
       }
     } catch (err) {
       console.warn('Could not refresh projects from backend API:', err);

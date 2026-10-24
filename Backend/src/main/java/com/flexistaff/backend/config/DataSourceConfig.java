@@ -26,13 +26,13 @@ public class DataSourceConfig {
 
     private static final Pattern SUPABASE_HOST_PATTERN = Pattern.compile("db\\.([a-zA-Z0-9_-]+)\\.supabase\\.co", Pattern.CASE_INSENSITIVE);
 
-    @Value("${spring.datasource.url:jdbc:postgresql://localhost:5432/postgres}")
+    @Value("${spring.datasource.url:jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require}")
     private String configuredUrl;
 
-    @Value("${spring.datasource.username:postgres}")
+    @Value("${spring.datasource.username:postgres.wrlpzqqxwsihupmeeios}")
     private String configuredUsername;
 
-    @Value("${spring.datasource.password:4272}")
+    @Value("${spring.datasource.password:josephthekkel2255}")
     private String configuredPassword;
 
     @Value("${app.supabase.pooler-host:aws-0-ap-northeast-2.pooler.supabase.com}")
@@ -133,6 +133,17 @@ public class DataSourceConfig {
                 log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via IPv4 connection pooler port 5432!");
                 return poolerDs;
             }
+        }
+
+        // 2b. Attempt connection via default Supabase pooler port 6543
+        String defaultPoolerUrl = "jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require";
+        String defaultPoolerUser = "postgres.wrlpzqqxwsihupmeeios";
+        String defaultPoolerPass = "josephthekkel2255";
+        log.info("Attempting fallback connection to standard Supabase pooler: {}", defaultPoolerUrl);
+        HikariDataSource fallbackSupabaseDs = tryCreateDataSource(defaultPoolerUrl, defaultPoolerUser, defaultPoolerPass, "Standard Supabase Pooler DataSource");
+        if (fallbackSupabaseDs != null) {
+            log.info(">>> SUCCESS: Connected to Supabase PostgreSQL via standard pooler!");
+            return fallbackSupabaseDs;
         }
 
         // 3. Graceful Fallback to In-Memory H2 (PostgreSQL compatibility mode)
