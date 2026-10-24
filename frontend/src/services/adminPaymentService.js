@@ -1,7 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api/v1' : 'http://localhost:8080/api/v1');
+import { getApiBaseUrl } from './apiConfig';
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getApiBaseUrl()}${endpoint}`;
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -112,7 +112,7 @@ export const adminPaymentService = {
     const token = localStorage.getItem('flexistaff_token');
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const url = `${API_BASE_URL}/admin/payments/export-csv${params.toString() ? `?${params.toString()}` : ''}`;
+    const url = `${getApiBaseUrl()}/admin/payments/export-csv${params.toString() ? `?${params.toString()}` : ''}`;
     const res = await fetch(url, { headers });
     if (!res.ok) throw new Error('Failed to download CSV');
     const blob = await res.blob();

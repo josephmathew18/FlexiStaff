@@ -1,14 +1,13 @@
 // FlexiStaff API Client Service
 // Handles REST communications between FlexiStaff-Frontend and FlexiStaff-Backend (Spring Boot REST API)
 import feedbackApi from './feedbackApi';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/api/v1' : 'http://localhost:8080/api/v1');
+import { getApiBaseUrl } from './apiConfig';
 
 /**
  * Standard fetch helper with JWT token insertion and error handling
  */
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getApiBaseUrl()}${endpoint}`;
 
   const headers = {
     'Content-Type': 'application/json',

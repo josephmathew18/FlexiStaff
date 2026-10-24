@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin) // For H2 console
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/", "/index.html", "/assets/**", "/*.svg", "/*.ico", "/*.png", "/*.jpg", "/*.jpeg", "/*.js", "/*.css",
                                 "/api/status", "/login", "/register", "/apply", "/dashboard", "/dashboard/**", "/admin", "/admin/**",
